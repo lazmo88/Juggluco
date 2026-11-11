@@ -678,7 +678,9 @@ if(!isWearable) {
     final boolean lockNow=lockFirstLandscape &&
             config.orientation==Configuration.ORIENTATION_LANDSCAPE;
     final boolean nearlySquare=largeScreen && !isElongated;
-    final boolean currentAsLandscape=nearlySquare;
+    /* Phones too: draw the ordinary graph (time across, glucose up) into the
+     * current window instead of turning a landscape graph sideways. */
+    final boolean currentAsLandscape=nearlySquare||!largeScreen;
 
     setGraphOrientationModes(lockNow,currentAsLandscape);
 
