@@ -385,8 +385,10 @@ static private void showNow(MainActivity act) {
         });
 
     // Display
-    /* Upstream keeps the phone graph in landscape unless this option (and
-     * Android auto-rotate) is on; it used to be reachable only via Settings. */
+    /* Phones now always follow Android's orientation (MainActivity), so the
+     * option only matters on tablets and foldables. */
+    if(act.getResources().getConfiguration().smallestScreenWidthDp<600)
+        view.findViewById(R.id.jm_autorotate).setVisibility(View.GONE);
     toggle(view,R.id.jm_autorotate,Natives.getRotate(),(b,isChecked) -> {
         Natives.setRotate(isChecked);
         act.applyScreenOrientation(act.getResources().getConfiguration());

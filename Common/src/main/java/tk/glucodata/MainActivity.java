@@ -698,7 +698,14 @@ if(!isWearable) {
     else {
         canRotate=Build.VERSION.SDK_INT < 36||!largeScreen;
         if(!largeScreen) {
-            wanted=getMenuLandscapeOrientation(config);
+            /*
+             * Phones follow Android: portrait when held upright or when
+             * rotation is locked, landscape when turned with auto-rotate on.
+             * Upstream forced landscape here unless Juggluco's own
+             * Auto-rotate option was also on, so a new install always
+             * opened sideways.
+             */
+            wanted=ActivityInfo.SCREEN_ORIENTATION_FULL_USER;
             }
         else if(android16LargeScreen) {
             /* Normally covered by lockFirstLandscape above. */
