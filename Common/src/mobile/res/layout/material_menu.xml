@@ -251,6 +251,11 @@
                 android:paddingEnd="12dp">
 
                 <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/jm_autorotate"
+                    style="@style/Juggluco.M3.Switch"
+                    android:text="@string/autorotate" />
+
+                <com.google.android.material.materialswitch.MaterialSwitch
                     android:id="@+id/jm_darkmode"
                     style="@style/Juggluco.M3.Switch"
                     android:text="@string/darkmode" />

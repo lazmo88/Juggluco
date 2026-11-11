@@ -57,8 +57,9 @@
         <item name="android:textAlignment">viewStart</item>
         <item name="android:maxLines">2</item>
         <item name="android:ellipsize">end</item>
-        <item name="android:insetTop">2dp</item>
-        <item name="android:insetBottom">2dp</item>
+        <!-- 4dp insets + 4dp side margins give the same 8dp gutter both ways. -->
+        <item name="android:insetTop">4dp</item>
+        <item name="android:insetBottom">4dp</item>
         <item name="iconPadding">12dp</item>
         <item name="iconSize">24dp</item>
         <item name="shapeAppearance">?attr/shapeAppearanceCornerLarge</item>
