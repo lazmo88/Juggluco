@@ -680,6 +680,8 @@ implementation "androidx.appcompat:appcompat:1.6.1"
 //    implementation "com.google.android.gms:play-services-base:18.8.0"
  implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.10.2'
   mobileImplementation 'androidx.health.connect:connect-client:1.1.0-rc03'
+  // Material 3 menu sheet and graph menu button (Menus.java). 1.12.0 keeps appcompat at 1.6.1.
+  mobileImplementation 'com.google.android.material:material:1.12.0'
 //  mobileImplementation files('/n/ojka/Downloads/ciq-companion-app-sdk-2.0.3.aar');
   mobileImplementation 'com.garmin.connectiq:ciq-companion-app-sdk:2.4.0@aar'
 

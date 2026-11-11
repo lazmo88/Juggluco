@@ -1,0 +1,323 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Material 3 replacement for the landscape-only menus.xml grid. -->
+<androidx.core.widget.NestedScrollView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:clipToPadding="false">
+
+    <LinearLayout
+        android:id="@+id/jm_root"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingBottom="24dp">
+
+        <com.google.android.material.bottomsheet.BottomSheetDragHandleView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+
+        <!-- Time navigation -->
+        <TextView
+            style="@style/Juggluco.M3.SectionHeader"
+            android:paddingTop="0dp"
+            android:text="@string/jm_section_time" />
+
+        <com.google.android.material.card.MaterialCardView
+            style="?attr/materialCardViewFilledStyle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="4dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layoutDirection="ltr"
+                    android:orientation="horizontal">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/jm_weekback"
+                        style="@style/Juggluco.M3.TimeButton"
+                        android:text="@string/week_back"
+                        app:icon="@drawable/ic_jm_keyboard_double_arrow_left" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/jm_dayback"
+                        style="@style/Juggluco.M3.TimeButton"
+                        android:text="@string/day_back"
+                        app:icon="@drawable/ic_jm_chevron_left" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/jm_now"
+                        style="@style/Juggluco.M3.TimeButton"
+                        android:text="@string/now"
+                        app:icon="@drawable/ic_jm_schedule" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/jm_daylater"
+                        style="@style/Juggluco.M3.TimeButton"
+                        android:text="@string/day_later"
+                        app:icon="@drawable/ic_jm_chevron_right" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/jm_weeklater"
+                        style="@style/Juggluco.M3.TimeButton"
+                        android:text="@string/week_later"
+                        app:icon="@drawable/ic_jm_keyboard_double_arrow_right" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:paddingBottom="4dp">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/jm_date"
+                        style="@style/Juggluco.M3.Tile"
+                        android:text="@string/date"
+                        app:icon="@drawable/ic_jm_calendar_month" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/jm_search"
+                        style="@style/Juggluco.M3.Tile"
+                        android:text="@string/search"
+                        app:icon="@drawable/ic_jm_search" />
+                </LinearLayout>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Sensors and devices -->
+        <TextView
+            style="@style/Juggluco.M3.SectionHeader"
+            android:text="@string/jm_section_devices" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/jm_sensor"
+                style="@style/Juggluco.M3.Tile"
+                android:text="@string/sensor"
+                app:icon="@drawable/ic_jm_sensors" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/jm_watch"
+                style="@style/Juggluco.M3.Tile"
+                android:text="@string/watches"
+                app:icon="@drawable/ic_jm_watch" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/jm_mirror"
+                style="@style/Juggluco.M3.Tile"
+                android:text="@string/mirror"
+                app:icon="@drawable/ic_jm_sync_alt" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/jm_photo"
+                style="@style/Juggluco.M3.Tile"
+                android:text="@string/photo"
+                app:icon="@drawable/ic_jm_photo_camera" />
+        </LinearLayout>
+
+        <!-- Data -->
+        <TextView
+            style="@style/Juggluco.M3.SectionHeader"
+            android:text="@string/jm_section_data" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/jm_newamount"
+                style="@style/Juggluco.M3.Tile"
+                android:text="@string/new_amount"
+                app:icon="@drawable/ic_jm_add_circle" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/jm_list"
+                style="@style/Juggluco.M3.Tile"
+                android:text="@string/list"
+                app:icon="@drawable/ic_jm_list" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/jm_statistics"
+                style="@style/Juggluco.M3.Tile"
+                android:text="@string/statistics"
+                app:icon="@drawable/ic_jm_bar_chart" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/jm_export"
+                style="@style/Juggluco.M3.Tile"
+                android:text="@string/export"
+                app:icon="@drawable/ic_jm_ios_share" />
+        </LinearLayout>
+
+        <!-- Graph layers -->
+        <TextView
+            style="@style/Juggluco.M3.SectionHeader"
+            android:text="@string/jm_section_graph" />
+
+        <com.google.android.material.card.MaterialCardView
+            style="?attr/materialCardViewOutlinedStyle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp">
+
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/jm_stream"
+                    style="@style/Juggluco.M3.Switch"
+                    android:text="@string/streamname" />
+
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/jm_history"
+                    style="@style/Juggluco.M3.Switch"
+                    android:text="@string/historyname" />
+
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/jm_scans"
+                    style="@style/Juggluco.M3.Switch"
+                    android:text="@string/scansname" />
+
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/jm_amounts"
+                    style="@style/Juggluco.M3.Switch"
+                    android:text="@string/amountsname" />
+
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/jm_meals"
+                    style="@style/Juggluco.M3.Switch"
+                    android:text="@string/mealsname" />
+
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/jm_calibratedstream"
+                    style="@style/Juggluco.M3.Switch" />
+
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/jm_calibratedhistory"
+                    style="@style/Juggluco.M3.Switch" />
+
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/jm_calibratedscans"
+                    style="@style/Juggluco.M3.Switch" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Display -->
+        <TextView
+            style="@style/Juggluco.M3.SectionHeader"
+            android:text="@string/jm_section_display" />
+
+        <com.google.android.material.card.MaterialCardView
+            style="?attr/materialCardViewOutlinedStyle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp">
+
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/jm_darkmode"
+                    style="@style/Juggluco.M3.Switch"
+                    android:text="@string/darkmode" />
+
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/jm_glucosefloat"
+                    style="@style/Juggluco.M3.Switch"
+                    android:text="@string/floatglucose" />
+
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/jm_systemui"
+                    style="@style/Juggluco.M3.Switch"
+                    android:text="@string/system_ui" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- App -->
+        <TextView
+            style="@style/Juggluco.M3.SectionHeader"
+            android:text="@string/jm_section_app" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/jm_settings"
+                style="@style/Juggluco.M3.Tile"
+                android:text="@string/settings"
+                app:icon="@drawable/ic_jm_settings" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/jm_talk"
+                style="@style/Juggluco.M3.Tile"
+                android:text="@string/talk"
+                app:icon="@drawable/ic_jm_record_voice_over" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/jm_chatgpt"
+                style="@style/Juggluco.M3.Tile"
+                android:text="@string/jgchat_chatgpt"
+                app:icon="@drawable/ic_jm_chat" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/jm_about"
+                style="@style/Juggluco.M3.Tile"
+                android:text="@string/aboutname"
+                app:icon="@drawable/ic_jm_info" />
+        </LinearLayout>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/jm_close"
+            style="@style/Widget.Material3.Button.OutlinedButton.Icon"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:layout_marginTop="12dp"
+            android:layout_marginEnd="4dp"
+            android:minHeight="56dp"
+            android:text="@string/closename"
+            app:icon="@drawable/ic_jm_power_settings_new" />
+    </LinearLayout>
+</androidx.core.widget.NestedScrollView>

@@ -19,28 +19,29 @@
 /*      Sun Oct 08 20:48:20 CEST 2023                                                */
 
 
-
-
-
 package tk.glucodata;
 
-import android.view.LayoutInflater;
+import android.content.Context;
 import android.content.res.Configuration;
-import android.os.Build;
-
-import androidx.core.graphics.Insets;
-import androidx.core.view.WindowInsetsCompat;
-import androidx.core.view.ViewCompat;
-
-import static androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener;
+import android.view.Gravity;
+import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
-import android.widget.Button;
-import android.widget.CheckBox;
+import android.widget.CompoundButton;
+import android.widget.FrameLayout;
 
+import androidx.appcompat.view.ContextThemeWrapper;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 
-import static android.view.ViewGroup.LayoutParams.MATCH_PARENT;
+import com.google.android.material.bottomsheet.BottomSheetBehavior;
+import com.google.android.material.bottomsheet.BottomSheetDialog;
+import com.google.android.material.color.DynamicColors;
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
+
+import static android.view.ViewGroup.LayoutParams.WRAP_CONTENT;
 import static tk.glucodata.Applic.isWearable;
 import static tk.glucodata.Log.doLog;
 import static tk.glucodata.MainActivity.REQUEST_BARCODE;
@@ -49,518 +50,375 @@ import static tk.glucodata.Natives.getshowscans;
 import static tk.glucodata.Natives.getsystemui;
 import static tk.glucodata.Natives.setsystemui;
 import static tk.glucodata.NumberView.smallScreen;
-import static tk.glucodata.settings.Settings.removeContentView;
 
 import tk.glucodata.settings.Settings;
 
+/*
+ * Phone menu.
+ *
+ * Upstream shows a 7x7 grid of plain buttons and rotates the whole activity
+ * to landscape while it is open.  On tall phones that grid is hard to read and
+ * the forced rotation makes it hard to find anything.  This version shows a
+ * Material 3 bottom sheet in the current orientation, grouped by task, and
+ * adds a visible menu button on top of the graph so the menu can be found
+ * without knowing which part of the graph to tap.
+ *
+ * Behaviour kept for the rest of the app:
+ *  - Menus.on stays true while the menu, or a screen opened from it, is in
+ *    use.  Screens that call "if(Menus.on) Menus.show(act)" on Back therefore
+ *    return to the menu.
+ *  - Closing the sheet (swipe down, Back, tap outside) sets Menus.on=false.
+ *  - Actions that only change the graph close the menu and show the graph.
+ */
 public class Menus {
 static public boolean on=false;
-static private boolean waitingForLandscape=false;
-static private View currentView=null;
-static private MainActivity owner=null;
-static private View waitingDecor=null;
-static private ViewTreeObserver.OnPreDrawListener waitingPreDraw=null;
-static private int stableWidth=-1,stableHeight=-1,stableRotation=-1;
-static private int stableLeft=-1,stableTop=-1,stableRight=-1,stableBottom=-1;
-static private int stableFrames=0;
 static private final String LOG_ID="Menus";
 
-private static void resetStableWindow() {
-    stableWidth=stableHeight=stableRotation=-1;
-    stableLeft=stableTop=stableRight=stableBottom=-1;
-    stableFrames=0;
-    }
-
-private static void cancelWindowWait() {
-    if(waitingDecor!=null && waitingPreDraw!=null) {
-        ViewTreeObserver obs=waitingDecor.getViewTreeObserver();
-        if(obs.isAlive())
-            obs.removeOnPreDrawListener(waitingPreDraw);
-        }
-    waitingDecor=null;
-    waitingPreDraw=null;
-    resetStableWindow();
-    }
+static private BottomSheetDialog sheet=null;
+/* Set while the sheet is closed in order to open another screen; the menu is
+ * then still logically "on" so Back from that screen returns here. */
+static private boolean leavingForScreen=false;
+static private FloatingActionButton launcher=null;
+static private ViewGroup launcherContent=null;
+static private ViewTreeObserver.OnGlobalLayoutListener launcherListener=null;
 
 static void newTask() {
-    cancelWindowWait();
+    dismissSheet();
+    removeLauncher();
     on=false;
-    waitingForLandscape=false;
-    currentView=null;
-    owner=null;
-    }
-
-private static boolean stableMenuWindow(MainActivity act,View decor) {
-    if(owner!=act || !on || act.isHandlingConfigurationChange()) {
-        resetStableWindow();
-        return false;
-        }
-    Configuration config=act.getResources().getConfiguration();
-    int width=decor.getWidth();
-    int height=decor.getHeight();
-    final boolean requireLandscape=act.canForceMenuLandscape(config);
-    if(width<=0 || height<=0 ||
-       (requireLandscape &&
-        (config.orientation!=Configuration.ORIENTATION_LANDSCAPE || width<=height))) {
-        resetStableWindow();
-        return false;
-        }
-
-    WindowInsetsCompat wi=ViewCompat.getRootWindowInsets(decor);
-    if(wi==null) {
-        resetStableWindow();
-        return false;
-        }
-    Insets bars=wi.getInsets(WindowInsetsCompat.Type.systemBars());
-    int rotation=act.getWindowManager().getDefaultDisplay().getRotation();
-
-    if(width==stableWidth && height==stableHeight && rotation==stableRotation &&
-       bars.left==stableLeft && bars.top==stableTop &&
-       bars.right==stableRight && bars.bottom==stableBottom) {
-        ++stableFrames;
-        }
-    else {
-        stableWidth=width;
-        stableHeight=height;
-        stableRotation=rotation;
-        stableLeft=bars.left;
-        stableTop=bars.top;
-        stableRight=bars.right;
-        stableBottom=bars.bottom;
-        stableFrames=1;
-        }
-    return stableFrames>=2;
-    }
-
-private static void waitForLandscapeWindow(MainActivity act) {
-    waitingForLandscape=true;
-    View decor=act.getWindow().getDecorView();
-    if(waitingDecor==decor && waitingPreDraw!=null)
-        return;
-
-    cancelWindowWait();
-    waitingDecor=decor;
-    waitingPreDraw=new ViewTreeObserver.OnPreDrawListener() {
-        @Override public boolean onPreDraw() {
-            if(owner!=act || !on || currentView!=null && currentView.isAttachedToWindow()) {
-                cancelWindowWait();
-                return true;
-                }
-            Configuration config=act.getResources().getConfiguration();
-            if(act.canForceMenuLandscape(config) &&
-               config.orientation!=Configuration.ORIENTATION_LANDSCAPE)
-                act.setMenuForcesLandscape(true);
-
-            if(stableMenuWindow(act,decor)) {
-                /* Remove the observer before adding the overlay.  Two equal
-                 * pre-draws prove that the real window geometry and insets
-                 * have reached a stable landscape state. */
-                ViewTreeObserver obs=decor.getViewTreeObserver();
-                if(obs.isAlive())
-                    obs.removeOnPreDrawListener(this);
-                waitingDecor=null;
-                waitingPreDraw=null;
-                waitingForLandscape=false;
-                decor.post(() -> {
-                    if(owner==act && on && !act.isHandlingConfigurationChange() &&
-                       (currentView==null || !currentView.isAttachedToWindow()))
-                        showNow(act);
-                    });
-                }
-            else if(stableFrames>0) {
-                /* A static screen is not guaranteed to get another frame.
-                 * Explicitly schedule the second pre-draw needed by the
-                 * stability test.  If geometry changes on that frame,
-                 * stableLandscapeWindow() resets the candidate and another
-                 * verification frame is scheduled. */
-                decor.postOnAnimation(decor::invalidate);
-                }
-            return true;
-            }
-        };
-    decor.getViewTreeObserver().addOnPreDrawListener(waitingPreDraw);
-    ViewCompat.requestApplyInsets(decor);
-    decor.invalidate();
     }
 
 static void configurationChanged(MainActivity act, Configuration config) {
-    /* Menus.on also remains true while a child screen is on top. Only a menu
-     * explicitly waiting for its own reconstruction may take orientation
-     * ownership here. */
-    if(isWearable || owner!=act || !on || !waitingForLandscape)
+    /* The sheet follows the current orientation; nothing to force. */
+    }
+
+static private Context themed(MainActivity act) {
+    final int theme=getInvertColors()?R.style.Juggluco_M3_Dark:R.style.Juggluco_M3_Light;
+    Context ctx=new ContextThemeWrapper(act,theme);
+    return DynamicColors.wrapContextIfAvailable(ctx);
+    }
+
+static private void dismissSheet() {
+    final BottomSheetDialog s=sheet;
+    sheet=null;
+    if(s!=null) {
+        try {
+            if(s.isShowing())
+                s.dismiss();
+            }
+        catch(Throwable th) {
+            Log.stack(LOG_ID,"dismissSheet",th);
+            }
+        }
+    }
+
+/*
+ * Menu button on top of the graph.  Called by MainActivity after the graph
+ * has been set as content view.  Hidden while another screen is shown on top
+ * of the graph.
+ */
+static public void attachLauncher(MainActivity act) {
+    if(isWearable)
         return;
-    if(act.canForceMenuLandscape(config) &&
-       config.orientation!=Configuration.ORIENTATION_LANDSCAPE)
-        act.setMenuForcesLandscape(true);
-    waitForLandscapeWindow(act);
+    removeLauncher();
+    final ViewGroup content=act.findViewById(android.R.id.content);
+    if(content==null)
+        return;
+    final Context ctx=themed(act);
+    final FloatingActionButton fab=new FloatingActionButton(ctx);
+    fab.setImageResource(R.drawable.ic_jm_menu);
+    fab.setSize(FloatingActionButton.SIZE_NORMAL);
+    fab.setContentDescription(act.getString(R.string.jm_open_menu));
+    if(android.os.Build.VERSION.SDK_INT>=26)
+        fab.setTooltipText(act.getString(R.string.jm_menu));
+    fab.setOnClickListener(v -> show(act));
+    final float density=act.getResources().getDisplayMetrics().density;
+    final int margin=(int)(16*density);
+    final FrameLayout.LayoutParams params=new FrameLayout.LayoutParams(WRAP_CONTENT,WRAP_CONTENT,Gravity.BOTTOM|Gravity.END);
+    params.setMargins(margin,margin,margin,margin);
+    ViewCompat.setOnApplyWindowInsetsListener(fab,(v,windowInsets) -> {
+        Insets bars=windowInsets.getInsets(WindowInsetsCompat.Type.systemBars()|WindowInsetsCompat.Type.displayCutout());
+        ViewGroup.MarginLayoutParams lp=(ViewGroup.MarginLayoutParams)v.getLayoutParams();
+        lp.leftMargin=margin+bars.left;
+        lp.rightMargin=margin+bars.right;
+        lp.bottomMargin=margin+bars.bottom;
+        v.setLayoutParams(lp);
+        return windowInsets;
+        });
+    act.addContentView(fab,params);
+    launcher=fab;
+    launcherContent=content;
+    /* Global layout also fires when an existing child changes visibility,
+     * which a hierarchy listener would miss. */
+    launcherListener=() -> updateLauncher(content);
+    content.getViewTreeObserver().addOnGlobalLayoutListener(launcherListener);
+    updateLauncher(content);
+    ViewCompat.requestApplyInsets(fab);
+    }
+
+static private void removeLauncher() {
+    final FloatingActionButton fab=launcher;
+    final ViewGroup content=launcherContent;
+    final ViewTreeObserver.OnGlobalLayoutListener listener=launcherListener;
+    launcher=null;
+    launcherContent=null;
+    launcherListener=null;
+    if(content!=null&&listener!=null) {
+        ViewTreeObserver obs=content.getViewTreeObserver();
+        if(obs.isAlive())
+            obs.removeOnGlobalLayoutListener(listener);
+        }
+    if(fab!=null)
+        Settings.removeContentView(fab);
+    }
+
+/* The button is only useful on the bare graph: hide it when another screen
+ * has been added on top (Settings, sensor status, number entry, ...). */
+static private void updateLauncher(ViewGroup content) {
+    final FloatingActionButton fab=launcher;
+    if(fab==null)
+        return;
+    boolean overlay=false;
+    final int nr=content.getChildCount();
+    for(int i=0;i<nr;i++) {
+        View child=content.getChildAt(i);
+        if(child==fab||child instanceof GlucoseCurve)
+            continue;
+        if(child.getVisibility()==View.VISIBLE) {
+            overlay=true;
+            break;
+            }
+        }
+    if(overlay) {
+        if(fab.getVisibility()==View.VISIBLE)
+            fab.hide();
+        }
+    else {
+        if(fab.getVisibility()!=View.VISIBLE)
+            fab.show();
+        if(content.getChildAt(nr-1)!=fab)
+            fab.bringToFront();
+        }
     }
 
 static public void show(MainActivity act) {
     on=true;
-
-    if(owner!=act) {
-        cancelWindowWait();
-        owner=act;
-        currentView=null;
-        }
-
-    if(!isWearable) {
-        act.setMenuForcesLandscape(true);
-        if(currentView!=null && currentView.isAttachedToWindow()) {
-            waitingForLandscape=false;
-            return;
-            }
-        waitForLandscapeWindow(act);
+    if(isWearable||act.isFinishing())
         return;
-        }
+    if(sheet!=null&&sheet.isShowing())
+        return;
     showNow(act);
     }
 
-static private void showNow(MainActivity act) {
-    waitingForLandscape=false;
-    resetStableWindow();
-    LayoutInflater flater= LayoutInflater.from(act);
-    View view = flater.inflate(R.layout.menus, null, false);
-    currentView=view;
-      view.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
- //       view.setTextDirection(View.TEXT_DIRECTION_LTR);
-
-
-	view.setAccessibilityDelegate(Layout.accessDeli);
-        view.setBackgroundColor( Applic.backgroundcolor);
-
-    if(!isWearable) {
-        /* MainActivity enables edge-to-edge only on Android 11/API 30+.
-         * On older Android versions the decor/content area already excludes
-         * visible status/navigation bars. Padding with systemBars() there
-         * would therefore count the navigation bar a second time. */
-        if(Build.VERSION.SDK_INT >= 30) {
-            setOnApplyWindowInsetsListener(view,(v,windowInsets) -> {
-                Insets bars=windowInsets.getInsets(WindowInsetsCompat.Type.systemBars());
-                v.setPadding(bars.left,bars.top*3/4,bars.right,bars.bottom);
-                return windowInsets;
-                });
-            }
-        view.addOnAttachStateChangeListener(new View.OnAttachStateChangeListener() {
-            @Override
-            public void onViewAttachedToWindow(View v) { }
-
-            @Override
-            public void onViewDetachedFromWindow(View v) {
-                if(currentView==v)
-                    currentView=null;
-
-                /* Ignore callbacks belonging to an Activity that has already
-                 * been replaced by another MainActivity instance. */
-                if(owner!=act)
-                    return;
-
-                /*
-                 * removeconfig() deliberately removes overlays. That is not
-                 * the same as leaving Menus: keep ownership and rebuild after
-                 * the new geometry has settled.
-                 */
-                if(act.isHandlingConfigurationChange()) {
-                    if(on)
-                        waitingForLandscape=true;
-                    return;
-                    }
-
-                /*
-                 * Ordinary detach means either Menus was closed or a child
-                 * screen was opened. The child screen should follow the normal
-                 * orientation policy until Menus.show() is called on return.
-                 */
-                act.setMenuForcesLandscape(false);
-                }
-            });
-        }
-      act.themeLightBars();
-	act.setonback(() -> {
-        if(owner!=act) {
-            removeContentView(view);
-            return;
-            }
-        if(act.isHandlingConfigurationChange()) {
-            /*
-             * doonback() is also used by removeconfig().  Preserve the fact
-             * that Menus is logically open and recreate it after geometry has
-             * settled instead of treating this as a real Back press.
-             */
-            waitingForLandscape=true;
-            removeContentView(view);
-            return;
-            }
-   		act.lightBars(!getInvertColors( ));
-			   {if(doLog) {Log.i(LOG_ID,"onback");};};
-			   on=false;
-            waitingForLandscape=false;
-            cancelWindowWait();
-			removeContentView(view);
-				act.requestRender();
-			});
-
-    var menusviewview=view.findViewById(R.id.menusview);menusviewview.setOnClickListener(v ->{}); 
-        CheckBox systemuiview=view.findViewById(R.id.systemui);
-	systemuiview.setOnCheckedChangeListener( (buttonView,  isChecked)-> {
-				setsystemui(isChecked);
-			    	act.selectionSystemUI(); 
-				});
-	systemuiview.setChecked(getsystemui( ));
-        var menusview=view.findViewById(R.id.menus);menusview.setOnClickListener(v ->{
-				act.poponback();
-			   on=false;
-               waitingForLandscape=false;
-               cancelWindowWait();
-
-   		act.lightBars(!getInvertColors( ));
-			removeContentView(view);
-				act.requestRender();
-		}); 
-        var watchview=view.findViewById(R.id.watch);watchview.setOnClickListener(v ->{
-
-				if(!isWearable) {
-   		   act.lightBars(!getInvertColors( ));
-					removeContentView(view);
-					tk.glucodata.Watch.show(act);
-					}
-
-	}); 
-        var sensorview=view.findViewById(R.id.sensor);sensorview.setOnClickListener(v ->{
-
-   		   act.lightBars(!getInvertColors( ));
-				removeContentView(view);
-			       bluediag.start(act);
-		}); 
-        var settingsview=view.findViewById(R.id.settings);settingsview.setOnClickListener(v ->{
-					removeContentView(view);
-					Settings.set(act);
-	}); 
-        Button aboutview=view.findViewById(R.id.about);
-        if(tk.glucodata.BuildConfig.SiBionics==1) {
-         aboutview.setText(R.string.photo);
-        aboutview.setOnClickListener(v ->
-              PhotoScan.scan(act,REQUEST_BARCODE));
-            }
-        else  {
-           aboutview.setOnClickListener(v ->{
-                       var c=Applic.app.curve;
-                       if(c!=null)
-                        c.doabout(act);
-                  }); 
-                 }
-        var closeview=view.findViewById(R.id.close);closeview.setOnClickListener(v ->{
-		act.moveTaskToBack(true);
-	}); 
-        var exportview=view.findViewById(R.id.export);exportview.setOnClickListener(v ->{
-		var c=Applic.app.curve;
-		  if(c!=null) {
-			  {if(doLog) {Log.i(LOG_ID,"EXPORT");};};
-   		   act.lightBars(!getInvertColors( ));
-		     removeContentView(view);
-		     c.dialogs.showexport(act,c.getWidth(),c.getHeight(),null); 
-		     }
-
-	}); 
-        var mirrorview=view.findViewById(R.id.mirror);mirrorview.setOnClickListener(v ->{
-		     removeContentView(view);
-			(new Backup()).mkbackupview(act);
-
-	}); 
-        var newamountview=view.findViewById(R.id.newamount);newamountview.setOnClickListener(v ->{
-					if(Natives.staticnum()) {
-        					help.help(R.string.staticnum,act);
-						}
-					else {
-						var c=Applic.app.curve;
-						if (c != null) {
-   		         act.lightBars(!getInvertColors( ));
-							removeContentView(view);
-							c.numberview.addnumberview(act);
-							if (!smallScreen)
-								c.showkeyboard(act);
-						}
-					}
-
-	}); 
-        var listview=view.findViewById(R.id.list);listview.setOnClickListener(v -> {
-				var c = Applic.app.curve;
-				if (c != null) {
-   		         act.lightBars(!getInvertColors( ));
-					removeContentView(view);
-					Natives.makenumbers();
-					act.requestRender();
-					c.getnumcontrol(act);
-				}
-			}
-						);
-        var statisticsview=view.findViewById(R.id.statistics);statisticsview.setOnClickListener(v ->{
-
-			if(Natives.makepercentages()) {
-   		         act.lightBars(!getInvertColors( ));
-				removeContentView(view);
-				act.requestRender();
-				Stats.mkstats(act);
-				}
-
-		}
-
-			);
-        var talkview=view.findViewById(R.id.talk);talkview.setOnClickListener(v ->{
-		removeContentView(view);
-		tk.glucodata.Talker.config(act);}); 
-        CheckBox glucosefloatview=view.findViewById(R.id.glucosefloat);glucosefloatview.setOnCheckedChangeListener( (buttonView,  isChecked)->{
-		Floating.setfloatglucose(act,isChecked);
-	}); 
-	glucosefloatview.setChecked(Natives.getfloatglucose());
-
-        var chatgptview=view.findViewById(R.id.chatgpt);
-        chatgptview.setOnClickListener(v ->{
-            removeContentView(view);
-            JugglucoChat.show(act);
-
-	        }); 
-
-        CheckBox scansview=view.findViewById(R.id.scans);scansview.setOnCheckedChangeListener( (buttonView,  isChecked)->{
-		Natives.setshowscans(isChecked);
-				act.requestRender();
-		}); 
- 	scansview.setChecked(getshowscans()) ;
-
-    CheckBox streamview=view.findViewById(R.id.stream);streamview.setOnCheckedChangeListener( (buttonView,  isChecked)->{
-		Natives.setshowstream(isChecked);
-				act.requestRender();
-		}); 
-	streamview.setChecked(Natives.getshowstream() );
-
-    CheckBox calibratedscansview=view.findViewById(R.id.calibratedscans);calibratedscansview.setOnCheckedChangeListener( (buttonView,  isChecked)->{
-		Natives.setshowcalibratedscans(isChecked);
-				act.requestRender();
-		}); 
-	calibratedscansview.setChecked(Natives.getshowcalibratedscans() );
-
-
-    CheckBox calibratedstreamview=view.findViewById(R.id.calibratedstream);calibratedstreamview.setOnCheckedChangeListener( (buttonView,  isChecked)->{
-		Natives.setshowcalibratedstream(isChecked);
-				act.requestRender();
-		}); 
-	calibratedstreamview.setChecked(Natives.getshowcalibratedstream() );
-
-     CheckBox calibratedhistoryview=view.findViewById(R.id.calibratedhistory);
-     calibratedhistoryview.setOnCheckedChangeListener( (buttonView,  isChecked)->{
-             Natives.setshowcalibratedhistories(isChecked); 
-			act.requestRender();
-	        }); 
-	calibratedhistoryview.setChecked(Natives.getshowcalibratedhistories()) ;
-
-     CheckBox historyview=view.findViewById(R.id.history);
-     historyview.setOnCheckedChangeListener( (buttonView,  isChecked)->{
-		 Natives.setshowhistories(isChecked); 
-				act.requestRender();
-	}); 
-	historyview.setChecked(Natives.getshowhistories()) ;
-
-        CheckBox amountsview=view.findViewById(R.id.amounts);amountsview.setOnCheckedChangeListener( (buttonView,  isChecked)->{
-	 Natives.setshownumbers(isChecked); 
-				act.requestRender();
-
-	}); 
-	amountsview.setChecked(Natives. getshownumbers()) ;
-
-
-        CheckBox mealsview=view.findViewById(R.id.meals);mealsview.setOnCheckedChangeListener( (buttonView,  isChecked)->{
-		Natives.setshowmeals(isChecked);
-				act.requestRender();
-		}); 
- 	mealsview.setChecked(Natives.getshowmeals()) ;
-
-
-
-        CheckBox darkmodeview=view.findViewById(R.id.darkmode);darkmodeview.setOnCheckedChangeListener( (buttonView,  isChecked)->{
-
-	Natives.setInvertColors(isChecked);
-	});
-	darkmodeview.setChecked( getInvertColors());
-        var nowview=view.findViewById(R.id.now);nowview.setOnClickListener(v ->{
-
-               act.lightBars(!getInvertColors( ));
-		removeContentView(view);
-	Natives.settonow();
-				act.requestRender();
-
-	});
-        var searchview=view.findViewById(R.id.search);searchview.setOnClickListener(v ->{
-		  var c=Applic.app.curve;
-		  if(c!=null) {
-               act.lightBars(!getInvertColors( ));
-			removeContentView(view);
-			c.startsearch();
-			}
-		}); 
-
-        var dateview=view.findViewById(R.id.date);dateview.setOnClickListener(v ->{
-		  var c=Applic.app.curve;
-		  if(c!=null) {
-               act.lightBars(!getInvertColors( ));
-			removeContentView(view);
-			  c.startdatepick(Natives.getstarttime());
-			  }
-		
-		}); 
-        var daybackview=view.findViewById(R.id.dayback);daybackview.setOnClickListener(v ->{
-               act.lightBars(!getInvertColors( ));
-			removeContentView(view);
-		Natives.prevday(1);
-				act.requestRender();
-		}); 
-        var daylaterview=view.findViewById(R.id.daylater);daylaterview.setOnClickListener(v ->{
-               act.lightBars(!getInvertColors( ));
-			removeContentView(view);
-		Natives.nextday(1);
-				act.requestRender();
-		}); 
-        var weekbackview=view.findViewById(R.id.weekback);weekbackview.setOnClickListener(v ->{
-
-               act.lightBars(!getInvertColors( ));
-			removeContentView(view);
-		Natives.prevday(7);
-				act.requestRender();
-	}); 
-        var weeklaterview=view.findViewById(R.id.weeklater);weeklaterview.setOnClickListener(v ->{
-
-               act.lightBars(!getInvertColors( ));
-			removeContentView(view);
-		Natives.nextday(7);
-				act.requestRender();
-		}); 
-   
-	  // view.setPadding(0,MainActivity.systembarTop,0,0);
-    if(!isWearable) {
-        if(Build.VERSION.SDK_INT >= 30) {
-            /* Edge-to-edge: the overlay occupies the whole window, so keep
-             * its controls out of the system bars explicitly. */
-            WindowInsetsCompat wi=ViewCompat.getRootWindowInsets(act.getWindow().getDecorView());
-            if(wi!=null) {
-                Insets bars=wi.getInsets(WindowInsetsCompat.Type.systemBars());
-                view.setPadding(bars.left,bars.top*3/4,bars.right,bars.bottom);
-                }
-            }
-        else {
-            /* Pre edge-to-edge: Android has already inset the content view. */
-            view.setPadding(0,0,0,0);
-            }
-        }
-    else
-        view.setPadding(MainActivity.systembarLeft,MainActivity.systembarTop*3/4,MainActivity.systembarRight,MainActivity.systembarBottom);
-
-	act.addMyContentView(view, new ViewGroup.LayoutParams(MATCH_PARENT, MATCH_PARENT));
-    if(!isWearable)
-        view.requestApplyInsets();
-
+/* Leave the menu for another screen opened by run.  Menus.on stays true. */
+static private void toScreen(Runnable run) {
+    leavingForScreen=true;
+    dismissSheet();
+    leavingForScreen=false;
+    run.run();
     }
 
+/* Leave the menu and show the graph. */
+static private void toGraph(MainActivity act,Runnable run) {
+    on=false;
+    dismissSheet();
+    act.lightBars(!getInvertColors());
+    run.run();
+    act.requestRender();
+    }
 
+static private void click(View root,int id,View.OnClickListener listener) {
+    View v=root.findViewById(id);
+    if(v!=null)
+        v.setOnClickListener(listener);
+    }
+
+static private void toggle(View root,int id,boolean checked,CompoundButton.OnCheckedChangeListener listener) {
+    CompoundButton b=root.findViewById(id);
+    if(b==null)
+        return;
+    b.setChecked(checked);
+    b.setOnCheckedChangeListener(listener);
+    }
+
+static private void showNow(MainActivity act) {
+    final Context ctx=themed(act);
+    final BottomSheetDialog dialog=new BottomSheetDialog(ctx);
+    final View view=LayoutInflater.from(ctx).inflate(R.layout.material_menu,null,false);
+    dialog.setContentView(view);
+    sheet=dialog;
+
+    final BottomSheetBehavior<?> behavior=dialog.getBehavior();
+    behavior.setSkipCollapsed(true);
+    behavior.setState(BottomSheetBehavior.STATE_EXPANDED);
+
+    dialog.setOnDismissListener(d -> {
+        if(sheet==dialog)
+            sheet=null;
+        if(!leavingForScreen) {
+            {if(doLog) {Log.i(LOG_ID,"menu closed");};};
+            on=false;
+            act.lightBars(!getInvertColors());
+            act.requestRender();
+            }
+        });
+
+    // Time navigation
+    click(view,R.id.jm_now,v -> toGraph(act,Natives::settonow));
+    click(view,R.id.jm_dayback,v -> toGraph(act,() -> Natives.prevday(1)));
+    click(view,R.id.jm_daylater,v -> toGraph(act,() -> Natives.nextday(1)));
+    click(view,R.id.jm_weekback,v -> toGraph(act,() -> Natives.prevday(7)));
+    click(view,R.id.jm_weeklater,v -> toGraph(act,() -> Natives.nextday(7)));
+    click(view,R.id.jm_date,v -> {
+        var c=Applic.app.curve;
+        if(c!=null)
+            toGraph(act,() -> c.startdatepick(Natives.getstarttime()));
+        });
+    click(view,R.id.jm_search,v -> {
+        var c=Applic.app.curve;
+        if(c!=null)
+            toGraph(act,c::startsearch);
+        });
+
+    // Sensors and devices
+    click(view,R.id.jm_sensor,v -> toScreen(() -> {
+        act.lightBars(!getInvertColors());
+        bluediag.start(act);
+        }));
+    click(view,R.id.jm_watch,v -> toScreen(() -> {
+        act.lightBars(!getInvertColors());
+        tk.glucodata.Watch.show(act);
+        }));
+    click(view,R.id.jm_mirror,v -> toScreen(() -> (new Backup()).mkbackupview(act)));
+    View photo=view.findViewById(R.id.jm_photo);
+    if(tk.glucodata.BuildConfig.SiBionics==1)
+        photo.setOnClickListener(v -> toScreen(() -> PhotoScan.scan(act,REQUEST_BARCODE)));
+    else
+        photo.setVisibility(View.INVISIBLE);
+
+    // Data
+    click(view,R.id.jm_newamount,v -> {
+        if(Natives.staticnum()) {
+            help.help(R.string.staticnum,act);
+            return;
+            }
+        var c=Applic.app.curve;
+        if(c!=null) {
+            toScreen(() -> {
+                act.lightBars(!getInvertColors());
+                c.numberview.addnumberview(act);
+                if(!smallScreen)
+                    c.showkeyboard(act);
+                });
+            }
+        });
+    click(view,R.id.jm_list,v -> {
+        var c=Applic.app.curve;
+        if(c!=null) {
+            toScreen(() -> {
+                act.lightBars(!getInvertColors());
+                Natives.makenumbers();
+                act.requestRender();
+                c.getnumcontrol(act);
+                });
+            }
+        });
+    click(view,R.id.jm_statistics,v -> {
+        if(Natives.makepercentages()) {
+            toScreen(() -> {
+                act.lightBars(!getInvertColors());
+                act.requestRender();
+                Stats.mkstats(act);
+                });
+            }
+        });
+    click(view,R.id.jm_export,v -> {
+        var c=Applic.app.curve;
+        if(c!=null) {
+            {if(doLog) {Log.i(LOG_ID,"EXPORT");};};
+            toScreen(() -> {
+                act.lightBars(!getInvertColors());
+                c.dialogs.showexport(act,c.getWidth(),c.getHeight(),null);
+                });
+            }
+        });
+
+    // Graph layers: change immediately, the graph redraws behind the sheet.
+    toggle(view,R.id.jm_stream,Natives.getshowstream(),(b,isChecked) -> {
+        Natives.setshowstream(isChecked);
+        act.requestRender();
+        });
+    toggle(view,R.id.jm_history,Natives.getshowhistories(),(b,isChecked) -> {
+        Natives.setshowhistories(isChecked);
+        act.requestRender();
+        });
+    toggle(view,R.id.jm_scans,getshowscans(),(b,isChecked) -> {
+        Natives.setshowscans(isChecked);
+        act.requestRender();
+        });
+    toggle(view,R.id.jm_amounts,Natives.getshownumbers(),(b,isChecked) -> {
+        Natives.setshownumbers(isChecked);
+        act.requestRender();
+        });
+    toggle(view,R.id.jm_meals,Natives.getshowmeals(),(b,isChecked) -> {
+        Natives.setshowmeals(isChecked);
+        act.requestRender();
+        });
+    final String calibrated=act.getString(R.string.calibrated);
+    CompoundButton calstream=view.findViewById(R.id.jm_calibratedstream);
+    calstream.setText(act.getString(R.string.jm_calibrated_item,act.getString(R.string.streamname),calibrated));
+    toggle(view,R.id.jm_calibratedstream,Natives.getshowcalibratedstream(),(b,isChecked) -> {
+        Natives.setshowcalibratedstream(isChecked);
+        act.requestRender();
+        });
+    CompoundButton calhistory=view.findViewById(R.id.jm_calibratedhistory);
+    calhistory.setText(act.getString(R.string.jm_calibrated_item,act.getString(R.string.historyname),calibrated));
+    toggle(view,R.id.jm_calibratedhistory,Natives.getshowcalibratedhistories(),(b,isChecked) -> {
+        Natives.setshowcalibratedhistories(isChecked);
+        act.requestRender();
+        });
+    CompoundButton calscans=view.findViewById(R.id.jm_calibratedscans);
+    calscans.setText(act.getString(R.string.jm_calibrated_item,act.getString(R.string.scansname),calibrated));
+    toggle(view,R.id.jm_calibratedscans,Natives.getshowcalibratedscans(),(b,isChecked) -> {
+        Natives.setshowcalibratedscans(isChecked);
+        act.requestRender();
+        });
+
+    // Display
+    toggle(view,R.id.jm_darkmode,getInvertColors(),(b,isChecked) -> {
+        Natives.setInvertColors(isChecked);
+        act.requestRender();
+        /* Rebuild the sheet and the menu button in the new colours. */
+        view.post(() -> {
+            if(launcher!=null)
+                attachLauncher(act);
+            leavingForScreen=true;
+            dismissSheet();
+            leavingForScreen=false;
+            show(act);
+            });
+        });
+    toggle(view,R.id.jm_glucosefloat,Natives.getfloatglucose(),(b,isChecked) -> Floating.setfloatglucose(act,isChecked));
+    toggle(view,R.id.jm_systemui,getsystemui(),(b,isChecked) -> {
+        setsystemui(isChecked);
+        act.selectionSystemUI();
+        });
+
+    // App
+    click(view,R.id.jm_settings,v -> toScreen(() -> Settings.set(act)));
+    click(view,R.id.jm_talk,v -> toScreen(() -> tk.glucodata.Talker.config(act)));
+    click(view,R.id.jm_chatgpt,v -> toScreen(() -> JugglucoChat.show(act)));
+    click(view,R.id.jm_about,v -> {
+        if(Applic.app.curve!=null)
+            toScreen(() -> GlucoseCurve.doabout(act));
+        });
+    click(view,R.id.jm_close,v -> {
+        on=false;
+        dismissSheet();
+        act.moveTaskToBack(true);
+        });
+
+    view.setAccessibilityDelegate(Layout.accessDeli);
+    dialog.show();
+    }
 };
-
-
-

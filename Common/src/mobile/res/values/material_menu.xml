@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Material 3 navigation sheet for the phone build.
+
+    The themes below are only used through a ContextThemeWrapper for the menu
+    sheet and the menu button on top of the graph.  The rest of the app keeps
+    AppTheme.*, so existing screens are not restyled by this change.
+-->
+<resources>
+
+    <style name="Juggluco.M3.Light" parent="Theme.Material3.Light.NoActionBar">
+        <item name="bottomSheetDialogTheme">@style/Juggluco.M3.BottomSheetDialog.Light</item>
+    </style>
+
+    <style name="Juggluco.M3.Dark" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="bottomSheetDialogTheme">@style/Juggluco.M3.BottomSheetDialog.Dark</item>
+    </style>
+
+    <style name="Juggluco.M3.BottomSheetDialog.Light" parent="ThemeOverlay.Material3.BottomSheetDialog">
+        <item name="bottomSheetStyle">@style/Juggluco.M3.BottomSheet</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="enableEdgeToEdge">true</item>
+    </style>
+
+    <style name="Juggluco.M3.BottomSheetDialog.Dark" parent="ThemeOverlay.Material3.BottomSheetDialog">
+        <item name="bottomSheetStyle">@style/Juggluco.M3.BottomSheet</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="enableEdgeToEdge">true</item>
+    </style>
+
+    <style name="Juggluco.M3.BottomSheet" parent="Widget.Material3.BottomSheet.Modal">
+        <item name="behavior_skipCollapsed">false</item>
+        <item name="behavior_fitToContents">true</item>
+    </style>
+
+    <!-- Section headers: "Devices", "Data", ... -->
+    <style name="Juggluco.M3.SectionHeader" parent="">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:paddingTop">20dp</item>
+        <item name="android:paddingBottom">8dp</item>
+        <item name="android:paddingStart">4dp</item>
+        <item name="android:textAppearance">?attr/textAppearanceTitleSmall</item>
+        <item name="android:textColor">?attr/colorPrimary</item>
+        <item name="android:accessibilityHeading">true</item>
+    </style>
+
+    <!-- Tiles: tonal buttons with icon and label, two per row. -->
+    <style name="Juggluco.M3.Tile" parent="Widget.Material3.Button.TonalButton.Icon">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:minHeight">64dp</item>
+        <item name="android:layout_marginStart">4dp</item>
+        <item name="android:layout_marginEnd">4dp</item>
+        <item name="android:gravity">start|center_vertical</item>
+        <item name="android:textAlignment">viewStart</item>
+        <item name="android:maxLines">2</item>
+        <item name="android:ellipsize">end</item>
+        <item name="android:insetTop">2dp</item>
+        <item name="android:insetBottom">2dp</item>
+        <item name="iconPadding">12dp</item>
+        <item name="iconSize">24dp</item>
+        <item name="shapeAppearance">?attr/shapeAppearanceCornerLarge</item>
+    </style>
+
+    <!-- Time navigation: icon above a short label. -->
+    <style name="Juggluco.M3.TimeButton" parent="Widget.Material3.Button.TextButton.Icon">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:minHeight">64dp</item>
+        <item name="android:paddingStart">2dp</item>
+        <item name="android:paddingEnd">2dp</item>
+        <item name="android:maxLines">2</item>
+        <item name="android:textSize">12sp</item>
+        <item name="iconGravity">top</item>
+        <item name="iconPadding">2dp</item>
+        <item name="iconSize">24dp</item>
+    </style>
+
+    <style name="Juggluco.M3.Switch" parent="Widget.Material3.CompoundButton.MaterialSwitch">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:minHeight">56dp</item>
+        <item name="android:paddingStart">4dp</item>
+        <item name="android:textAppearance">?attr/textAppearanceBodyLarge</item>
+    </style>
+
+    <string name="jm_menu">Menu</string>
+    <string name="jm_open_menu">Open menu</string>
+    <string name="jm_section_time">Go to</string>
+    <string name="jm_section_devices">Sensors and devices</string>
+    <string name="jm_section_data">Data</string>
+    <string name="jm_section_graph">Show on graph</string>
+    <string name="jm_section_display">Display</string>
+    <string name="jm_section_app">App</string>
+    <string name="jm_calibrated_item">%1$s (%2$s)</string>
+</resources>

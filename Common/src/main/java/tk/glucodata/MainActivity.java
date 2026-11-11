@@ -298,6 +298,8 @@ private void startdisplay() {
       lightBars(!getInvertColors( ));
       }
     setContentView(curve);
+    if(!isWearable)
+        Menus.attachLauncher(this);
 
 if(!isWearable) {
     applyScreenOrientation(getResources().getConfiguration());
