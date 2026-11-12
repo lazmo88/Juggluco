@@ -326,6 +326,7 @@ static final int offset=isWearable?2:0;
 
    }
 static void show(MainActivity act, long sensorptr,View parent) {
+    if(PhoneUi.show("calibratelist",act,sensorptr)) return;
      if(parent!=null) parent.setVisibility(GONE);
       act.themeLightBars();
       RecyclerView recycle = new RecyclerView(act);

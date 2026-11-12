@@ -324,6 +324,7 @@ void    setadapter(Activity act,    final ArrayList<SuperGattCallback> gatts) {
 }
 
 static void nosensors(MainActivity act) {
+    if(PhoneUi.show("bluediag",act)) return;
     BluetoothManager mBluetoothManager = (BluetoothManager) act.getSystemService(Context.BLUETOOTH_SERVICE);
     BluetoothAdapter mBluetoothAdapter=null;
     if(mBluetoothManager  != null) {
@@ -1022,6 +1023,7 @@ private void show(MainActivity act,View view) {
 
   }
 static void start(MainActivity act) {
+       if(PhoneUi.show("bluediag",act)) return;
        boolean use=Natives.getusebluetooth();
        ArrayList<SuperGattCallback> gatts=SensorBluetooth.mygatts();
        if(isNull(gatts) || gatts.isEmpty()) {

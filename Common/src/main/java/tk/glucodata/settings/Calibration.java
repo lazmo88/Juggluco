@@ -37,6 +37,7 @@ public class Calibration  {
 
 
 static public void show(MainActivity act,View parent) {
+    if(tk.glucodata.PhoneUi.show("settings.calibration",act)) return;
     if(parent!=null)  {
 //           parent.setVisibility(GONE);
            EnableControls(parent,false);

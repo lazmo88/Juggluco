@@ -1235,6 +1235,7 @@ String filespath=files.getAbsolutePath();
    }
 
 void activateresult(boolean res) {
+    if(PhoneUi.show("activateresult",this,res)) return;
     String message= "Activation "+(res?"successfull":"failed");
     Applic.argToaster(this,message,Toast.LENGTH_SHORT);
     AlertDialog.Builder builder = new AlertDialog.Builder(this);

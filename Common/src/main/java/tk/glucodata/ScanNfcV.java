@@ -424,6 +424,7 @@ static private void newsensor(MainActivity act,String text,String name) {
     int pad=width/30;
     {if(doLog) {Log.i(LOG_ID,"newsensor "+name);};};
     act.runOnUiThread(() -> {
+       if(PhoneUi.show("scannfcv.newsensor",act,text,name)) return;
        TextView nameview=getlabel(act,name);
        nameview.setTextSize(TypedValue.COMPLEX_UNIT_PX, Applic.largefontsize);
        TextView tv=getlabel(act,text);
@@ -480,7 +481,7 @@ static int calendar(MainActivity act,int ret,String name) {
     else
         return ret;
     }
-private static void insertcalendar(MainActivity act,String name,long endtime) {
+static void insertcalendar(MainActivity act,String name,long endtime) {
 /*
     long endtime=Natives.sensorends()*1000L;
     if(endtime<= System.currentTimeMillis())

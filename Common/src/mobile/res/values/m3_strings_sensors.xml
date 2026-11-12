@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Material 3 sensor area pages (phone).  English only; upstream strings in
+     src/main/res/values/strings.xml are reused where they exist. -->
+<resources>
+    <!-- Sections -->
+    <string name="jm_sensors_section_sensors">Sensors</string>
+    <string name="jm_sensors_section_bluetooth">Bluetooth</string>
+    <string name="jm_sensors_section_info">Sensor information</string>
+    <string name="jm_sensors_section_connection">Connection</string>
+    <string name="jm_sensors_section_settings">Settings</string>
+    <string name="jm_sensors_section_actions">Actions</string>
+    <string name="jm_sensors_section_status">Status</string>
+    <string name="jm_sensors_section_about">About</string>
+    <string name="jm_sensors_section_calibrate">Calibrate</string>
+    <string name="jm_sensors_section_calibrations">Calibrations</string>
+    <string name="jm_sensors_section_blood">Blood glucose</string>
+    <string name="jm_sensors_section_labels">Labels</string>
+    <string name="jm_sensors_section_meters">Meters</string>
+    <string name="jm_sensors_section_found">Found devices</string>
+    <string name="jm_sensors_section_insulin">Insulin</string>
+
+    <!-- Sensors list -->
+    <string name="jm_sensors_none">No sensors</string>
+    <string name="jm_sensors_none_body">Start a sensor by scanning it with NFC, or with Menu → Photo for sensors with a data matrix.</string>
+    <string name="jm_sensors_no_connection">Not connected via Bluetooth on this phone</string>
+    <string name="jm_sensors_bluetooth_off">Bluetooth is off in Juggluco</string>
+    <string name="jm_sensors_last_value">Last glucose value %1$s</string>
+    <string name="jm_sensors_no_value_yet">No glucose value received yet</string>
+    <string name="jm_sensors_use_bluetooth_summary">Connect to sensors via Bluetooth on this phone</string>
+    <string name="jm_sensors_priority_summary">More effort to contact the sensor. May use more battery.</string>
+    <string name="jm_sensors_autoconnect">Let Android connect</string>
+    <string name="jm_sensors_autoconnect_summary">Slower. Only try this for connection problems.</string>
+    <string name="jm_sensors_streamhistory_summary">Also receive Libre 2 history values via Bluetooth</string>
+    <string name="jm_sensors_permission">Permission needed</string>
+    <string name="jm_sensors_permission_summary">Juggluco may not search for Bluetooth devices. Tap to allow.</string>
+    <string name="jm_sensors_battery">Battery optimisation</string>
+    <string name="jm_sensors_battery_free">Not optimised: Juggluco can keep running</string>
+    <string name="jm_sensors_battery_restricted">Optimised: Android may stop Juggluco</string>
+    <string name="jm_sensors_battery_hint">Tap to open Android\'s setting. Choose All apps, Juggluco, Don\'t optimise.</string>
+
+    <!-- One sensor -->
+    <string name="jm_sensors_since">Connecting since</string>
+    <string name="jm_sensors_address_unknown">Device address not known yet</string>
+    <string name="jm_sensors_rssi">Signal strength (RSSI) %1$d</string>
+    <string name="jm_sensors_us_sensor">US, CA, AU or KR sensor</string>
+    <string name="jm_sensors_not_yet">Not yet</string>
+    <string name="jm_sensors_hide_summary">Hide this sensor\'s curve in the graph</string>
+    <string name="jm_sensors_warmup">Warm-up</string>
+    <string name="jm_sensors_minutes">%1$d min</string>
+    <string name="jm_sensors_warmup_summary">Data during the warm-up period is ignored everywhere, also afterwards.</string>
+    <string name="jm_sensors_alarmclock">Use alarm clock</string>
+    <string name="jm_sensors_alarmclock_summary">Wake the device on time to reconnect (Dexcom G7, ONE+)</string>
+    <string name="jm_sensors_use_summary">Use this ended sensor again without scanning</string>
+    <string name="jm_sensors_forget_summary">Forget the device address and search for the sensor again</string>
+    <string name="jm_sensors_searching">Searching…</string>
+    <string name="jm_sensors_reset_summary">Reset a Sibionics 2 sensor</string>
+    <string name="jm_sensors_reset_done">The sensor will be reset</string>
+    <string name="jm_sensors_unpair_summary">Release the sensor so another phone or watch can connect</string>
+    <string name="jm_sensors_clear_summary">Remove all data from the sensor</string>
+    <string name="jm_sensors_finish_summary">Stop connecting to this sensor</string>
+
+    <!-- Calibration -->
+    <string name="jm_sensors_cal_active_summary">Use calibrated values for alarms, watches, broadcasts and the web server</string>
+    <string name="jm_sensors_cal_slope_summary">Not only add or subtract a value, also change the slope</string>
+    <string name="jm_sensors_cal_past_summary">Apply the last calibration to all values of the sensor</string>
+    <string name="jm_sensors_cal_all_summary">Where no calibrated value exists, show the uncalibrated one</string>
+    <string name="jm_sensors_cal_blood_summary">Amounts with this label are used as blood glucose measurements.</string>
+    <string name="jm_sensors_no_calibrations">No calibrations</string>
+    <string name="jm_sensors_no_calibrations_body">Calibrations appear here after blood glucose measurements were entered.</string>
+
+    <!-- LibreView / Nightscout amounts -->
+    <string name="jm_sensors_numbers_title">Amounts to send</string>
+    <string name="jm_sensors_kind_unset">Not set</string>
+    <string name="jm_sensors_kind_factor">%1$s × %2$s</string>
+
+    <!-- Glucose meters -->
+    <string name="jm_sensors_no_meters">No glucose meters</string>
+    <string name="jm_sensors_no_meters_body">Use Find devices to add a Bluetooth glucose meter.</string>
+    <string name="jm_sensors_searching_body">Glucose meters in pairing mode will appear here.</string>
+    <string name="jm_sensors_aidex_summary">Search for AiDEX X sensors instead of meters</string>
+    <string name="jm_sensors_date">Date</string>
+    <string name="jm_sensors_time">Time</string>
+    <string name="jm_sensors_dont_use">Don\'t use</string>
+    <string name="jm_sensors_meter_not_used">Glucose meter will not be used</string>
+
+    <!-- Sensor start -->
+    <string name="jm_sensors_activated">Sensor activated</string>
+    <string name="jm_sensors_activated_body">Activation successful.</string>
+    <string name="jm_sensors_activation_failed">Activation failed</string>
+    <string name="jm_sensors_activation_failed_body">The sensor could not be activated. Try scanning it again.</string>
+    <string name="jm_sensors_si_type">Which Sibionics sensor?</string>
+    <string name="jm_sensors_pen_title">Insulin pen</string>
+    <string name="jm_sensors_gs3_title">Sibionics account ID</string>
+    <string name="jm_sensors_gs3_id">Account ID</string>
+    <string name="jm_sensors_gs3_current">Current ID</string>
+    <string name="jm_sensors_gs3_none">Not set</string>
+    <string name="jm_sensors_gs3_enter">Enter ID manually</string>
+    <string name="jm_sensors_leave">Leave</string>
+</resources>

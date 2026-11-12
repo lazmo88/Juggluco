@@ -101,82 +101,58 @@ longserialnumber
 /*
 Sibionics2:
 */
+/* Sibionics 2: ask to scan the transmitter data matrix (MaterialAlertDialog).
+ * OK: store "reset" and start the scanner; Cancel/Back: finish the sensor. */
 private static void asktransmitter(MainActivity act,String name,long sensorptr) {
-    var title=getlabel(act,R.string.scantranstitle);
-    var message=getlabel(act, R.string.scantransmessage);
-    var cancel=getbutton(act,R.string.cancel);
-    var ok=getbutton(act,R.string.ok);
-    var reset=getcheckbox(act,R.string.resetname, true);
-
-    cancel.setOnClickListener(v-> {
-        MainActivity.doonback();
+    var themed=tk.glucodata.m3.M3Page.themed(act);
+    var box=SensorUi.dialogBox(themed);
+    SensorUi.dialogText(themed,box,act.getString(R.string.scantransmessage));
+    var reset=SensorUi.dialogSwitch(themed,box,act.getString(R.string.resetname),true);
+    final boolean[] ok={false};
+    var dialog=tk.glucodata.m3.M3Page.dialog(act)
+        .setTitle(R.string.scantranstitle)
+        .setIcon(R.drawable.ic_jm_qr_code_scanner)
+        .setView(box)
+        .setNegativeButton(R.string.cancel,null)
+        .setPositiveButton(R.string.ok,(d,w) -> {
+            ok[0]=true;
+            Natives.setSensorptrResetSibionics2(sensorptr,reset.isChecked());
+            scanner(act,REQUEST_BARCODE_SIB2,sensorptr);
+            })
+        .create();
+    dialog.setCanceledOnTouchOutside(false);
+    dialog.setOnDismissListener(d -> {
+        if(!ok[0]) {
+            Natives.finishfromSensorptr(sensorptr);
+            SensorBluetooth.sensorEnded(name);
+            }
         });
-    var layout=new Layout(act,(l,w,h)->{
-         return new int[] {w,h};
-           },new View[]{title},new View[]{message},new View[]{cancel,reset,ok});
-    ok.setOnClickListener(v-> {
-        MainActivity.poponback();
-        removeContentView(layout);
-        Natives.setSensorptrResetSibionics2(sensorptr,reset.isChecked());
-        scanner(act,REQUEST_BARCODE_SIB2,sensorptr);
-        });   
-   MainActivity.setonback(() -> {
-      removeContentView(layout);
-      Natives.finishfromSensorptr(sensorptr);
-      SensorBluetooth.sensorEnded(name);
-      });
-    layout.setBackgroundResource(R.drawable.dialogbackground);
-   final int rand=(int)tk.glucodata.GlucoseCurve.metrics.density*10;
-   final int siderand=(int)tk.glucodata.GlucoseCurve.metrics.density*20;
-   layout.setPadding(siderand,rand,siderand,rand);
-    var  params =    new FrameLayout.LayoutParams( WRAP_CONTENT, WRAP_CONTENT, Gravity.CENTER_HORIZONTAL| Gravity.CENTER);
-
-   act.addMyContentView(layout, params);
+    dialog.show();
     }
 
-
+/* Which Sibionics sensor (MaterialAlertDialog with single choice).  As
+ * before, OK and Back both apply the choice. */
 private static void selectType(String name,long sensorptr,MainActivity act) {
     int subtype=Natives.getSensorptrSiSubtype(sensorptr);
-
-    var group=new RadioGroup(act);
-    int id=0;
-    group.addView(getradiobuttonId(act,R.string.eusibionics,id++));
-    group.addView(getradiobuttonId(act,R.string.hematonix,id++));
-    group.addView(getradiobuttonId(act,R.string.chsibionics,id++));
-    group.addView(getradiobuttonId(act,R.string.sibionics2,id++));
-    group.check(subtype);
-   var ok=getbutton(act, R.string.ok);
-    int height = GlucoseCurve.getheight();
-    int width = GlucoseCurve.getwidth();
-   final int rand=(int)tk.glucodata.GlucoseCurve.metrics.density*15;
-   group.setPadding(rand,rand,(int)tk.glucodata.GlucoseCurve.metrics.density*25,(int)tk.glucodata.GlucoseCurve.metrics.density*20);
-   var layout=new Layout(act,(l,w,h)->{
-//         l.setX((width-w)*.5f);
- //        l.setY((height-h)*.3f);
-         return new int[] {w,h};
-           },new View[]{group},new View[]{ok});
-   layout.setBackgroundColor(Applic.backgroundcolor);
-   layout.setPadding(0,0,0,rand);
-   MainActivity.setonback(() -> {
-      removeContentView(layout);
-      int type=group.getCheckedRadioButtonId();
-      Log.i(LOG_ID,"getCheckedRadioButtonId()="+type);
-      if(type>=0) {
-          Natives.setSensorptrSiSubtype(sensorptr,type);
-          if(type==3) {
+    CharSequence[] items={act.getString(R.string.eusibionics),act.getString(R.string.hematonix),act.getString(R.string.chsibionics),act.getString(R.string.sibionics2)};
+    final int[] type={subtype};
+    var dialog=tk.glucodata.m3.M3Page.dialog(act)
+        .setTitle(R.string.jm_sensors_si_type)
+        .setSingleChoiceItems(items,subtype,(d,which) -> type[0]=which)
+        .setPositiveButton(R.string.ok,null)
+        .create();
+    dialog.setCanceledOnTouchOutside(false);
+    dialog.setOnDismissListener(d -> {
+        Log.i(LOG_ID,"selected type="+type[0]);
+        if(type[0]>=0) {
+            Natives.setSensorptrSiSubtype(sensorptr,type[0]);
+            if(type[0]==3)
                 asktransmitter(act,name,sensorptr);
+            else
+                deviceAdded(act);
             }
-        else
-              deviceAdded(act);
-            }
-
-      });
-   ok.setOnClickListener(v-> {
-        MainActivity.doonback();
         });
-
-    var  params =    new FrameLayout.LayoutParams( WRAP_CONTENT, WRAP_CONTENT, Gravity.CENTER_HORIZONTAL| Gravity.CENTER);
-    act.addMyContentView(layout, params);
+    dialog.show();
     }
 static void deviceAdded(MainActivity act) {
      Log.i(LOG_ID,"deviceAdded");
