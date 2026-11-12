@@ -200,38 +200,6 @@ class Dashboard private constructor(private val act: MainActivity) {
         }
     }
 
-    init {
-        root.isClickable = true // keep touches away from the graph underneath
-        root.setBackgroundColor(cSurface)
-        root.addView(content)
-        content.findViewById<FrameLayout>(R.id.dash_tir_bar).addView(tirBar)
-        val scroll = content
-        val density = ctx.resources.displayMetrics.density
-        ViewCompat.setOnApplyWindowInsetsListener(scroll) { v, insets ->
-            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
-            v.setPadding(bars.left, bars.top, bars.right, bars.bottom)
-            insets
-        }
-        val group: MaterialButtonToggleGroup = content.findViewById(R.id.dash_hours)
-        group.check(buttonFor(hours))
-        group.addOnButtonCheckedListener { _, id, checked ->
-            if (!checked) return@addOnButtonCheckedListener
-            val h = when (id) {
-                R.id.dash_h3 -> 3
-                R.id.dash_h12 -> 12
-                R.id.dash_h24 -> 24
-                else -> 6
-            }
-            if (h != hours) {
-                hours = h
-                prefs.edit().putInt(PREF_HOURS, h).apply()
-                refresh(true)
-            }
-        }
-        content.findViewById<View>(R.id.dash_fullgraph).setOnClickListener { showFullGraph(act) }
-        setupChart()
-        vTirLabel.minHeight = (20 * density).toInt()
-    }
 
     private fun color(attr: Int, fallback: Int) = MaterialColors.getColor(ctx, attr, fallback)
 
@@ -828,6 +796,40 @@ class Dashboard private constructor(private val act: MainActivity) {
             }
             canvas.restore()
         }
+    }
+
+    // Last, so every property above is initialised before setupChart() uses it.
+    init {
+        root.isClickable = true // keep touches away from the graph underneath
+        root.setBackgroundColor(cSurface)
+        root.addView(content)
+        content.findViewById<FrameLayout>(R.id.dash_tir_bar).addView(tirBar)
+        val scroll = content
+        val density = ctx.resources.displayMetrics.density
+        ViewCompat.setOnApplyWindowInsetsListener(scroll) { v, insets ->
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
+            v.setPadding(bars.left, bars.top, bars.right, bars.bottom)
+            insets
+        }
+        val group: MaterialButtonToggleGroup = content.findViewById(R.id.dash_hours)
+        group.check(buttonFor(hours))
+        group.addOnButtonCheckedListener { _, id, checked ->
+            if (!checked) return@addOnButtonCheckedListener
+            val h = when (id) {
+                R.id.dash_h3 -> 3
+                R.id.dash_h12 -> 12
+                R.id.dash_h24 -> 24
+                else -> 6
+            }
+            if (h != hours) {
+                hours = h
+                prefs.edit().putInt(PREF_HOURS, h).apply()
+                refresh(true)
+            }
+        }
+        content.findViewById<View>(R.id.dash_fullgraph).setOnClickListener { showFullGraph(act) }
+        setupChart()
+        vTirLabel.minHeight = (20 * density).toInt()
     }
 
     companion object {
