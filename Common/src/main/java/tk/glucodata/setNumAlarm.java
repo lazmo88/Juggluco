@@ -93,6 +93,8 @@ public static boolean issaved;
 };*/
 @SuppressLint("ClickableViewAccessibility")
 public void mkviews(MainActivity act, View set) {
+if(PhoneUi.show("reminders",act))
+    return;
 issaved=false;
 {if(doLog) {Log.i(LOG_ID,"mkviews");};};
 set.setVisibility(GONE);

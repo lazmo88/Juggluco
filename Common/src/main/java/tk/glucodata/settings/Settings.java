@@ -682,6 +682,8 @@ static private void changeProfile(MainActivity act,int wasindex, ProfileSchedule
          }
     }
 static public void scheduleProfiles(MainActivity act,View parview) {
+    if(tk.glucodata.PhoneUi.show("settings.scheduleprofiles",act))
+        return;
     if(!isWearable)
         EnableControls(parview,false);
     if(doLog) {Log.i(LOG_ID,"scheduleProfiles");};
@@ -758,6 +760,8 @@ static public void setProfile(MainActivity act,int profile) {
            }
        }
 static void alarmsettings(MainActivity context,View parview) {
+    if(tk.glucodata.PhoneUi.show("settings.alarms",context))
+        return;
     parview.setVisibility(GONE);
     TextView alarmlow,alarmhigh;
     View[] lowalarm= mkalarm(context,context.getString(R.string.lowglucosealarm),Natives.hasalarmlow(),Natives.alarmlow(),0);

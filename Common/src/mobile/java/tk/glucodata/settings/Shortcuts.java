@@ -21,269 +21,129 @@
 
 package tk.glucodata.settings;
 
-import android.app.Activity;
-import android.content.Context;
 import android.text.InputType;
-import android.text.method.DigitsKeyListener;
+import android.widget.LinearLayout;
 
-import android.view.Gravity;
-import android.view.View;
-import android.view.ViewGroup;
-import android.view.inputmethod.EditorInfo;
-import android.widget.Button;
-import android.widget.EditText;
-import android.widget.FrameLayout;
-import android.widget.ScrollView;
-import android.widget.TextView;
-import android.widget.Toast;
+import com.google.android.material.textfield.TextInputEditText;
 
 import java.util.ArrayList;
 
 import tk.glucodata.Applic;
-import tk.glucodata.Layout;
 import tk.glucodata.Log;
 import tk.glucodata.MainActivity;
 import tk.glucodata.Natives;
 import tk.glucodata.R;
+import tk.glucodata.m3.M3Page;
 
-import static android.view.View.GONE;
-import static android.view.View.INVISIBLE;
-import static android.view.View.VISIBLE;
-import static android.view.ViewGroup.LayoutParams.MATCH_PARENT;
-import static android.view.ViewGroup.LayoutParams.WRAP_CONTENT;
-import static tk.glucodata.Applic.isWearable;
 import static tk.glucodata.Log.doLog;
-import static tk.glucodata.MainActivity.getscreenwidth;
-import static tk.glucodata.help.hidekeyboard;
-import static tk.glucodata.settings.Settings.editoptions;
-import static tk.glucodata.settings.Settings.removeContentView;
-import static tk.glucodata.util.getbutton;
-import static tk.glucodata.util.getlabel;
 
+/*
+ * Shortcuts for the Garmin watch app (Kerfstok) as Material 3 pages: a list
+ * of name/value items, tap to edit, New to add.  As before, nothing is
+ * stored until Save on the list; Back discards (after asking, if something
+ * was changed).
+ */
 public class Shortcuts {
-public void hideSystemUI(Context cont) {}
-
-Layout shortlistview=null;
-Layout shortlist=null;
-
-ArrayList<ArrayList<Object>> shortcuts;
-ArrayList<Object> current=null;
-
-/*
-String chars2str(ArrayList<Byte> chars) {
-  StringBuilder sb = new StringBuilder();
-        for (byte ch: chars) {
-            sb.append(ch);
-        }
-    return sb.toString();
-    }
-*/ 
-/*
-String chars2str(ArrayList<Byte> chars) {
-    final int len= chars.size();
-    byte[] byt=new byte[len];
-    for(int i=0;i<len;i++)
-        byt[i]=chars.get(i);
-    return     new String(byt, StandardCharsets.UTF_8);
-    }
-    */
-void addrow(Context act,int index) {
-        ArrayList<Object>  el=shortcuts.get(index); 
-         Button lab=getbutton(act,(String)el.get(0));
-        lab.setTransformationMethod(null);
-               lab.setOnClickListener(v->{
-            current=el;
-            mkshort((MainActivity)v.getContext());
-            setvalues((String)el.get(0),(String)el.get(1));
-            delete.setVisibility(VISIBLE);
-        });
-
-        lab.setMinEms(10);
-        String values =  (String)el.get(1);
-        TextView value=getlabel(act,values);
-        value.setMinEms(4);
-        shortlist.addrow(false,new View[]{lab,value});
-        }
 private static final String LOG_ID="Shortcuts";
-void mkshortlist(Context act) {
 
-    shortcuts= Natives.getShortcuts();
-     int len=shortcuts.size();
-     {if(doLog) {Log.i(LOG_ID,"mkshortlist "+len);};};
-     shortlist= new Layout(act,(l, w, h)->{ return new int[] {w,h}; }, len);
-     for(int i=0;i<len;i++) {
-         addrow(act,i);
-         }
+private ArrayList<ArrayList<Object>> shortcuts;
+private boolean changed=false;
+private M3Page page;
+private LinearLayout sec;
+
+public void mkshortlistview(MainActivity act) {
+    shortcuts=Natives.getShortcuts();
+    if(shortcuts==null)
+        shortcuts=new ArrayList<>();
+    if(doLog) {Log.i(LOG_ID,"mkshortlistview "+shortcuts.size());};
+    page=M3Page.open(act,R.string.shutcuts);
+    page.help(R.string.shortcuthelp);
+    sec=page.section((CharSequence)null);
+    fill();
+    page.closeCheck(() -> {
+        if(!changed)
+            return true;
+        M3Page.dialog(act).setTitle(R.string.jm_alerts_discard)
+            .setNegativeButton(android.R.string.cancel,null)
+            .setPositiveButton(R.string.jm_alerts_discard_yes,(d,w) -> page.dismiss())
+            .show();
+        return false;
+        });
+    page.bottomBar(
+        page.button(M3Page.Style.TONAL,act.getString(R.string.newname),R.drawable.ic_jm_add,() -> edit(act,null)),
+        page.button(M3Page.Style.FILLED,act.getString(R.string.save),0,() -> saveall(act)));
     }
-void saveall(View v) {
-    MainActivity main=(MainActivity) v.getContext();
-     if(shortedit!=null)  {
-        final int nr= shortcuts.size();
+
+private void fill() {
+    sec.removeAllViews();
+    if(shortcuts.isEmpty()) {
+        page.empty(sec,R.drawable.ic_jm_bolt,page.act.getString(R.string.jm_alerts_shortcuts_empty),page.act.getString(R.string.jm_alerts_shortcuts_empty_body));
+        return;
+        }
+    for(ArrayList<Object> el:shortcuts)
+        page.link(sec,R.drawable.ic_jm_bolt,(String)el.get(0),(String)el.get(1),() -> edit(page.act,el));
+    }
+
+/* The old saveall(). */
+private void saveall(MainActivity act) {
+    if(changed) {
+        final int nr=shortcuts.size();
         for(int i=0;i<nr;i++) {
             ArrayList<Object> el=shortcuts.get(i);
             int ret;
             if((ret=Natives.setShortcut(i,(String)el.get(0),(String)el.get(1)))!=-1) {
                 if(ret==-5)
-                    Applic.argToaster(v.getContext(), "index "+i+" too large", Toast.LENGTH_SHORT);
+                    page.toast(act.getString(R.string.jm_alerts_index_too_large));
                 else
-                    Applic.argToaster(v.getContext(), (String)el.get(ret)+" too long", Toast.LENGTH_SHORT);
+                    page.toast(act.getString(R.string.jm_alerts_too_long,(String)el.get(ret)));
                 return;
                 }
             }
         Natives.setnrshortcuts(nr);
-        if(!isWearable) {
-            ((Applic)(((Activity)v.getContext()).getApplication())).numdata.sendshortcuts(shortcuts);
-            }
-         Applic.wakemirrors();
-         removeContentView(shortedit);
-         }
-     removeContentView(shortlistview);
-    main.poponback();
+        Applic app=(Applic)act.getApplication();
+        if(app.numdata!=null)
+            app.numdata.sendshortcuts(shortcuts);
+        Applic.wakemirrors();
+        }
+    page.dismiss();
     }
-public void mkshortlistview(MainActivity act) {
-    if(shortlistview==null) {
-        Button add=new Button(act),ok=new Button(act);
-        add.setText(R.string.newname);
-               add.setOnClickListener(v->{
-            current=null;
-            mkshort(act);
-            setvalues("","");
-            delete.setVisibility(INVISIBLE);
-            });
-        ok.setText(R.string.save);
-               ok.setOnClickListener(this::saveall);
-        Button cancel=getbutton(act,R.string.cancel);
-               cancel.setOnClickListener(v->{
-                act.doonback();
-            });
-        Button help=getbutton(act,R.string.helpname);
-        help.setOnClickListener(v->{tk.glucodata.help.help(R.string.shortcuthelp,act); });
-        ScrollView scroll=new ScrollView(act);
-        scroll.setSmoothScrollingEnabled(false);
-        scroll.setVerticalScrollBarEnabled(Applic.scrollbar);
-        scroll.setHorizontalScrollBarEnabled(Applic.horiScrollbar);
-        
-        scroll.setLayoutParams(new ViewGroup.LayoutParams(   ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT));
-        mkshortlist(act);
-        shortlist.systembarPadding((left,top,right,bottom)->new int[]{0,top*3/4,0,0});
-        scroll.addView(shortlist); 
-        Layout butview= new Layout(act,false,new View[]{add},new View[]{help},new View[]{cancel},new View[]{ok}).portraitLayout()  ;
-         butview.setLayoutParams(new ViewGroup.LayoutParams(   ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT)); 
 
-        butview.systembarPadding((left,top,right,bottom)->new int[]{0,top*3/4,0,0});
-        shortlistview= new Layout(act,false,(a,w,h)->{
-             hideSystemUI(act);
-            return new int[] {w,h}; },new View[]{scroll,butview}).portraitLayout(new View[]{scroll},new View[]{add,help,cancel,ok});
-        shortlistview.systembarPadding((left,top,right,bottom)->new int[]{left,0,right,bottom});
-        shortlistview.setBackgroundColor(tk.glucodata.Applic.backgroundcolor);
-        act.addMyContentView(shortlistview, new ViewGroup.LayoutParams(MATCH_PARENT, MATCH_PARENT));
+/* The old mkshort(): current==null is a new shortcut. */
+private void edit(MainActivity act,ArrayList<Object> current) {
+    final M3Page sub=M3Page.open(act,current==null?R.string.jm_alerts_new_shortcut:R.string.shortcut);
+    sub.help(R.string.shortcuthelp);
+    LinearLayout box=sub.section((CharSequence)null);
+    final TextInputEditText labedit=sub.field(box,act.getString(R.string.jm_alerts_name),current==null?"":(String)current.get(0),
+        InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD,null,null);
+    /* Values can be numbers or operators with numbers (e.g. *0.5). */
+    final TextInputEditText valedit=sub.field(box,act.getString(R.string.value),current==null?"":(String)current.get(1),InputType.TYPE_CLASS_PHONE,null,null);
+    if(current!=null) {
+        sub.bottomBar(sub.button(M3Page.Style.TEXT,act.getString(R.string.delete),R.drawable.ic_jm_delete,() -> {
+            int index=shortcuts.indexOf(current);
+            if(index>=0) {
+                shortcuts.remove(index);
+                changed=true;
+                fill();
+                }
+            sub.dismiss();
+            }));
         }
-    else {
-            shortlistview.setVisibility(VISIBLE);
-        }
-    Runnable closerun=() -> {
-        shortlistview.setVisibility(GONE);
-        if(shortedit!=null)
-            removeContentView(shortedit);
-        removeContentView(shortlistview);
-                act.lightBars(!Natives.getInvertColors());
-        };
-    act.setonback(closerun);
-    }
-ViewGroup shortedit=null;
-EditText labedit=null, valedit=null;
-void deleteshort(View v) {
-    int index=shortcuts.indexOf(current);
-    if(index>=0) {
-        shortcuts.remove(index);
-        shortlist.delrow(index);
-        }
-     endshortedit() ;
-     ((MainActivity)v.getContext()).poponback();
-    }
-void endshortedit() {
-    shortedit.setVisibility(GONE);
-    hidekeyboard((MainActivity)shortedit.getContext()); //USE
-    }
-void saveshort(View v) {
-    String label=labedit.getText().toString();
-    String values=valedit.getText().toString();
-    if(current==null) {
-        ArrayList<Object> el=new ArrayList<>();
-        el.add(label);
-        el.add(values);
-        shortcuts.add(el);
-        addrow(v.getContext(),shortcuts.size()-1);
-        current=el;
-        }
-    else {
-        int index=shortcuts.indexOf(current);
-        if(index>=0) {
+    sub.bottomBar(sub.button(M3Page.Style.FILLED,act.getString(R.string.ok),0,() -> {
+        String label=M3Page.text(labedit);
+        String values=M3Page.text(valedit);
+        if(current==null) {
+            ArrayList<Object> el=new ArrayList<>();
+            el.add(label);
+            el.add(values);
+            shortcuts.add(el);
+            }
+        else {
             current.set(0,label);
             current.set(1,values);
-            View[] views=shortlist.getrow(index);
-            ((TextView)views[0]).setText(label);
-            ((TextView)views[1]).setText(values);
             }
-        }
-    
-     endshortedit() ;
-     ((MainActivity)v.getContext()).poponback();
+        changed=true;
+        fill();
+        sub.dismiss();
+        }));
     }
-void setvalues(String name,String value) {
-    labedit.setText(name);
-    valedit.setText(value);
-    }
-Button delete=null;
-void mkshort(MainActivity act) {
-if(shortedit==null) {
-    TextView label=getlabel(act,R.string.shortcut);
-    labedit=new EditText(act);
-    labedit.setInputType(InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD);
-
-    labedit.setImeOptions( EditorInfo.IME_FLAG_NO_EXTRACT_UI| EditorInfo.IME_FLAG_NO_FULLSCREEN| EditorInfo.IME_ACTION_DONE);
-    labedit.setMinEms(7);
-    TextView value=getlabel(act,R.string.value);
-    valedit=new EditText(act);
-    valedit.setMinEms(3);
-    valedit.setInputType(InputType.TYPE_CLASS_NUMBER |InputType.TYPE_NUMBER_FLAG_DECIMAL);//| InputType.IME_FLAG_NO_FULLSCREEN);
-
-        valedit.setImeOptions(editoptions);
-//    valedit.setKeyListener(DigitsKeyListener.getInstance("^*/+-().0123456789"));
-//    valedit.setImeOptions( EditorInfo.IME_FLAG_NO_EXTRACT_UI| EditorInfo.IME_FLAG_NO_FULLSCREEN| EditorInfo.IME_ACTION_DONE);
-    Button save=getbutton(act,R.string.ok);
-    save.setOnClickListener(this::saveshort);
-    delete=getbutton(act,R.string.delete);
-    delete.setOnClickListener(this::deleteshort);
-    Button cancel=getbutton(act,R.string.cancel);
-    cancel.setOnClickListener(v->{ 
-            act.doonback();
-             }); 
-    shortedit=new Layout(act, false,(l, w, h) -> {
-            hideSystemUI(act);
-                        /*
-            var width= getscreenwidth(act);
-            if(width>w)
-                l.setX(( width- w)* 0.7f);
-                         l.setY(MainActivity.systembarTop);
-*/
-            return new int[] {w,h};
-                }, new View[] {label,labedit},new View[] {value,valedit},new View[] {delete,cancel,save});
-//    shortedit.setBackgroundColor(tk.glucodata.Applic.backgroundcolor);
-
-          shortedit.setBackgroundResource(R.drawable.dialogbackground);
-       int pad=(int)(tk.glucodata.GlucoseCurve.metrics.density*5.0);
-       shortedit.setPadding(pad,0,pad,0);
-
-    //var  params =    new FrameLayout.LayoutParams( WRAP_CONTENT, WRAP_CONTENT, Gravity.CENTER|Gravity.CENTER_HORIZONTAL);
-        var params= new FrameLayout.LayoutParams( WRAP_CONTENT, WRAP_CONTENT, Gravity.TOP| Gravity.CENTER_HORIZONTAL);
-        params.topMargin=MainActivity.systembarTop;
-//        params.leftMargin=MainActivity.systembarLeft;
-    act.addMyContentView(shortedit, params);
-    }
-    else {
-        shortedit.setVisibility(VISIBLE);
-    }
-   act.setonback(() -> endshortedit() );
-   }
-   }
+}

@@ -18,7 +18,10 @@
 
 package tk.glucodata.m3;
 
+import tk.glucodata.MainActivity;
 import tk.glucodata.PhoneUi;
+import tk.glucodata.R;
+import tk.glucodata.RingTones;
 
 /* Alarms, reminders, speech, notifications, floating glucose, shortcuts, profiles. */
 final class AlertScreens {
@@ -26,5 +29,22 @@ private AlertScreens() {}
 
 static void register() {
     PhoneUi.register("talker",(act,args) -> tk.glucodata.TalkerPage.show(act));
+    /* Settings.alarmsettings(): alarms, with advanced alarms as a sub page. */
+    PhoneUi.register("settings.alarms",(act,args) -> tk.glucodata.settings.AlarmsPage.show(act));
+    /* Settings.scheduleProfiles(): from Alarms and Speech. */
+    PhoneUi.register("settings.scheduleprofiles",(act,args) -> tk.glucodata.settings.ProfileSchedulesPage.show(act));
+    /* RingTones.mkviews(): args = the RingTones, its label (null: reminders). */
+    PhoneUi.register("ringtones",(act,args) -> tk.glucodata.RingTonePage.show(act,(RingTones)args[0],(String)args[1]));
+    /* setNumAlarm.mkviews(): reminders. */
+    PhoneUi.register("reminders",(act,args) -> tk.glucodata.RemindersPage.show(act));
+    /* Floating.shoulduseadb(): no overlay permission screen on this phone. */
+    PhoneUi.register("floating.overlaypermission",AlertScreens::overlayPermission);
+    /* FloatingConfig and Shortcuts are phone-only classes and open their
+     * Material 3 pages directly. */
+    }
+
+private static void overlayPermission(MainActivity act,Object[] args) {
+    M3Page.message(act,act.getString(R.string.overlaypermission),
+        act.getString(R.string.jm_alerts_needs_permission)+"\n\n"+act.getString(R.string.overlaypermissionmessage));
     }
 }

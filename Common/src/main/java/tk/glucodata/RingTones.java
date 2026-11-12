@@ -127,6 +127,8 @@ static private void subEnableControls(View view,boolean enable){
 	}
 }
  public void mkviews(MainActivity context,String label,View parview) {
+		if(PhoneUi.show("ringtones",context,this,label))
+			return;
  		if(parview!=null) {
 //			parview.setVisibility(GONE);
 			EnableControls(parview,false);

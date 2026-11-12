@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Strings of the Material 3 alerts screens: alarms, alarm sounds, profiles
+     and schedules, reminders, floating glucose, shortcuts.  English only;
+     translated upstream strings (R.string.*) are used where they exist. -->
+<resources>
+    <!-- Alarms -->
+    <string name="jm_alerts_section_glucose">Glucose alarms</string>
+    <string name="jm_alerts_section_other">Other alerts</string>
+    <string name="jm_alerts_section_output">Sound output</string>
+    <string name="jm_alerts_below">Alarm below</string>
+    <string name="jm_alerts_above">Alarm above</string>
+    <string name="jm_alerts_soon_below">Predicted below</string>
+    <string name="jm_alerts_soon_above">Predicted above</string>
+    <string name="jm_alerts_section_predicted">Predicted alarms</string>
+    <string name="jm_alerts_section_very">Second level alarms</string>
+    <string name="jm_alerts_advanced_summary">Very low, very high and predicted alarms</string>
+    <string name="jm_alerts_value_summary">Notify when a new glucose value arrives</string>
+    <string name="jm_alerts_output_summary">Which volume and Do Not Disturb rules alarms follow</string>
+    <string name="jm_alerts_active_profile">Active profile</string>
+    <string name="jm_alerts_no_schedules">No schedules</string>
+    <plurals name="jm_alerts_schedules_count">
+        <item quantity="one">%d schedule</item>
+        <item quantity="other">%d schedules</item>
+    </plurals>
+    <string name="jm_alerts_off">Off</string>
+
+    <!-- Alarm sound (RingTones) -->
+    <string name="jm_alerts_sound_title">Sound and vibration</string>
+    <string name="jm_alerts_use_default">Use default sound</string>
+    <string name="jm_alerts_disturb_summary">Turn off Do Not Disturb to play the alarm</string>
+    <string name="jm_alerts_section_timing">Timing</string>
+    <string name="jm_alerts_duration">Play for</string>
+    <string name="jm_alerts_snooze">Repeat after</string>
+    <string name="jm_alerts_snooze_summary">If the condition continues, the alarm goes off again after this many minutes</string>
+    <string name="jm_alerts_no_sound">No sound</string>
+    <string name="jm_alerts_vibrate_short">vibrate</string>
+    <string name="jm_alerts_flash_short">flash</string>
+    <string name="jm_alerts_reminder_sound">Reminder sound</string>
+
+    <!-- Profile schedules -->
+    <string name="jm_alerts_schedule">Schedule</string>
+    <string name="jm_alerts_new_schedule">New schedule</string>
+    <string name="jm_alerts_switch_at">Switch at</string>
+    <string name="jm_alerts_switch_to">Switch to profile</string>
+    <string name="jm_alerts_schedules_empty">Switch profiles automatically at set times of day</string>
+    <string name="jm_alerts_every_day">Every day at %s</string>
+    <string name="jm_alerts_too_many_schedules">Too many schedules (maximum 10)</string>
+    <string name="jm_alerts_delete_schedule">Delete schedule?</string>
+    <string name="jm_alerts_time">Time</string>
+
+    <!-- Reminders -->
+    <string name="jm_alerts_reminder">Reminder</string>
+    <string name="jm_alerts_new_reminder">New reminder</string>
+    <string name="jm_alerts_reminders_empty">Get reminded when an amount was not entered in time</string>
+    <string name="jm_alerts_no_reminders">No reminders</string>
+    <string name="jm_alerts_label">Label</string>
+    <string name="jm_alerts_amount">At least</string>
+    <string name="jm_alerts_section_window">Time window</string>
+    <string name="jm_alerts_end">End (remind at)</string>
+    <string name="jm_alerts_window_note">At the end time you get a reminder if this amount was not entered under this label since the start time.</string>
+    <string name="jm_alerts_times_differ">Start and end must differ</string>
+    <string name="jm_alerts_choose_label">Choose a label</string>
+    <string name="jm_alerts_no_labels">Add amount labels first (Settings, Labels)</string>
+
+    <!-- Floating glucose -->
+    <string name="jm_alerts_show_floating">Show floating glucose</string>
+    <string name="jm_alerts_show_floating_summary">On top of other apps</string>
+    <string name="jm_alerts_float_above">Also over Juggluco</string>
+    <string name="jm_alerts_float_above_summary">Keep showing it while Juggluco is open</string>
+    <string name="jm_alerts_float_time_summary">Show the time of the value</string>
+    <string name="jm_alerts_float_touch_summary">Drag to move, tap to open Juggluco</string>
+    <string name="jm_alerts_section_look">Appearance</string>
+    <string name="jm_alerts_section_colour">Colour</string>
+    <string name="jm_alerts_colour_of">Edit colour of</string>
+    <string name="jm_alerts_transparent_summary">No background behind the value</string>
+    <string name="jm_alerts_colour_hint">Drag in the square and the hue bar</string>
+    <string name="jm_alerts_needs_permission">Juggluco needs permission to draw over other apps:</string>
+
+    <!-- Shortcuts -->
+    <string name="jm_alerts_shortcuts_empty">No shortcuts</string>
+    <string name="jm_alerts_shortcuts_empty_body">Quick values for the number screen of the Garmin watch app, e.g. 4 or *0.5</string>
+    <string name="jm_alerts_new_shortcut">New shortcut</string>
+    <string name="jm_alerts_name">Name</string>
+    <string name="jm_alerts_too_long">%s is too long</string>
+    <string name="jm_alerts_index_too_large">Too many shortcuts</string>
+    <string name="jm_alerts_delete_shortcut">Delete shortcut?</string>
+    <string name="jm_alerts_discard">Discard changes?</string>
+    <string name="jm_alerts_discard_yes">Discard</string>
+</resources>

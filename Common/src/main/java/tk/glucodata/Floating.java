@@ -172,6 +172,8 @@ public static void rewritefloating(MainActivity context) {
     }
 */
  static void shoulduseadb(MainActivity context) {
+        if(PhoneUi.show("floating.overlaypermission",context))
+            return;
        var ok=getbutton(context,R.string.ok);
         String titlestr=context.getString(R.string.overlaypermission);
         var    title=getlabel(context,titlestr);
