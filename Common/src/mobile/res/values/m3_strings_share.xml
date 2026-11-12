@@ -155,4 +155,5 @@
     <string name="jm_share_garmin_alarms_title">Watch alarms</string>
     <string name="jm_share_garmin_threshold">Alarm at</string>
     <string name="jm_share_garmin_loss_after">Alarm after</string>
+    <string name="jm_share_lib_title">Libre library</string>
 </resources>

@@ -29,6 +29,7 @@ static void register() {
     PhoneUi.register("mirror",(act,args) -> tk.glucodata.MirrorPage.show(act,(tk.glucodata.Backup)args[0],(Boolean)args[1]));
     PhoneUi.register("mirrorhost",(act,args) -> tk.glucodata.MirrorHostPage.show(act,(tk.glucodata.Backup)args[0],(Integer)args[1]));
     PhoneUi.register("turnserver",(act,args) -> tk.glucodata.MirrorPage.turnServer(act));
+    PhoneUi.register("openfile",(act,args) -> tk.glucodata.OpenfilePage.show(act,args[0],(Boolean)args[1]));
     PhoneUi.register("nightpost",(act,args) -> tk.glucodata.UploaderPage.show(act));
     }
 }
