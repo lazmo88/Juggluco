@@ -99,6 +99,16 @@
             <intent-filter>
                 <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
             </intent-filter>
+            <!-- "Return to Juggluco" link on the ChatGPT sign-in result page
+                 (intent://signed-in#Intent;scheme=juggluco-chat;package=...).
+                 It only brings the app to the front; the sign-in itself is
+                 completed by the loopback listener in native code. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="juggluco-chat" android:host="signed-in" />
+            </intent-filter>
 
         </activity>
 <activity

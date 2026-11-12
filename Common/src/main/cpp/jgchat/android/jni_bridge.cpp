@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "jgchat/ui_messages.hpp"
+#include "jgchat/auth.hpp"
 #include "jgchat/client.hpp"
 #include "jgchat/storage.hpp"
 #include "jgchat/diagnostics.hpp"
@@ -10,6 +11,7 @@
 #include "juggluco_extra.hpp"
 #include "juggluco_system.hpp"
 #include <jni.h>
+#include <algorithm>
 #include <memory>
 #include <limits>
 #include <mutex>
@@ -19,7 +21,7 @@
 namespace {
 using namespace jgchat;
 struct State {
-    std::mutex dispatch, mutex;
+    std::mutex dispatch, mutex, account_mutex;
     std::atomic_bool cancel{false};
     std::thread worker;
     std::unique_ptr<Storage> storage;
@@ -29,7 +31,8 @@ struct State {
     std::string directory, account_id;
     bool busy = false, logged_in = false;
     UiMessage status = UiCode::sign_in_to_ask_a_question, error, completed_status;
-    std::string login_url, user_code;
+    std::string login_url, user_code, login_kind, account_email, account_plan;
+    bool callback_received = false;
     Json models = Json::array(), messages = Json::array();
     Json activity = Json::array();
     Json pending_browser = nullptr;
@@ -151,6 +154,9 @@ void make_client(const Tokens& tokens) {
         }, workspace.get(), jgchatdata::glucose_display_preferences);
     state.workspace = std::move(workspace);
     state.account_id = tokens.account_id;
+    const auto info = account_info(tokens);
+    std::lock_guard lock(state.account_mutex);
+    state.account_email = info.email; state.account_plan = info.plan;
 }
 void require_idle() {
     std::lock_guard lock(state.mutex);
@@ -169,6 +175,27 @@ void load_models() {
     state.status = state.models.empty() ? UiCode::no_models_returned_reload_models : UiCode::ready;
     state.completed_status = state.status;
 }
+// Shared by device-code and browser sign-in: tokens are stored exactly the same way.
+void finish_login(const Tokens& tokens) {
+    // A successful exchange may race Cancel. Persist its credentials before
+    // finishing, just as we must persist a successfully rotated refresh token.
+    diagnostic("login saving credentials");
+    state.storage->write("tokens.json", tokens_to_json(tokens));
+    diagnostic("login credentials saved");
+    make_client(tokens);
+    {
+        std::lock_guard lock(state.mutex);
+        state.logged_in = true; state.messages = Json::array(); state.models = Json::array();
+        state.login_url.clear(); state.user_code.clear(); state.status = UiCode::signed_in;
+        state.completed_status = state.status;
+    }
+    diagnostic("login resetting saved conversation");
+    state.storage->write("conversation.json", {{"account_id", state.account_id},
+        {"history", Json::array()}, {"messages", Json::array()}, {"workspace",state.workspace->snapshot()}});
+    state.workspace->commit(); // Remove bodies left by the previous account.
+    if (state.cancel) return;
+    load_models();
+}
 template<class F> void start(const char* name, F operation, std::string question = {}) {
     // JNI starts/resets are serialized separately from the short snapshot lock.
     // This lets the UI cancel and poll without waiting on TLS or device login.
@@ -184,6 +211,7 @@ template<class F> void start(const char* name, F operation, std::string question
         state.status = UiCode::connecting;
         state.activity = Json::array(); state.elapsed_ms = 0;
         state.pending_browser = nullptr;
+        state.login_kind.clear(); state.callback_received = false;
         state.started = std::chrono::steady_clock::now();
     }
     try {
@@ -226,7 +254,8 @@ Json work_snapshot() {
         std::chrono::steady_clock::now() - state.started).count() : state.elapsed_ms;
     return {{"busy", state.busy}, {"operation_id", state.operation_id}, {"operation", state.operation},
         {"pending_question", state.pending_question}, {"elapsed_ms", elapsed},
-        {"status", ui_json(state.status)}, {"error", ui_json(state.error)}, {"logged_in", state.logged_in}};
+        {"status", ui_json(state.status)}, {"error", ui_json(state.error)}, {"logged_in", state.logged_in},
+        {"login_kind", state.login_kind}, {"callback_received", state.callback_received}};
 }
 }
 
@@ -283,29 +312,43 @@ extern "C" JNIEXPORT jobject JNICALL Java_tk_glucodata_JugglucoChat_nativeStartL
         diagnostic("login device code received; waiting for authorization");
         {
             std::lock_guard lock(state.mutex);
+            state.login_kind = "device";
             state.login_url = code.verification_url; state.user_code = code.user_code;
             state.status = UiCode::open_the_sign_in_page_and_enter_the_code;
         }
-        const auto tokens = complete_device_login(http, code, state.cancel);
-        // A successful exchange may race Cancel. Persist its credentials before
-        // finishing, just as we must persist a successfully rotated refresh token.
-        diagnostic("login saving credentials");
-        state.storage->write("tokens.json", tokens_to_json(tokens));
-        diagnostic("login credentials saved");
-        make_client(tokens);
-        {
-            std::lock_guard lock(state.mutex);
-            state.logged_in = true; state.messages = Json::array(); state.models = Json::array();
-            state.login_url.clear(); state.user_code.clear(); state.status = UiCode::signed_in;
-            state.completed_status = state.status;
-        }
-        diagnostic("login resetting saved conversation");
-        state.storage->write("conversation.json", {{"account_id", state.account_id},
-            {"history", Json::array()}, {"messages", Json::array()}, {"workspace",state.workspace->snapshot()}});
-        state.workspace->commit(); // Remove bodies left by the previous account.
-        if (state.cancel) return;
-        load_models();
+        finish_login(complete_device_login(http, code, state.cancel));
     }); });
+}
+// Browser sign-in (authorization code + PKCE, loopback callback on
+// 127.0.0.1:1455/1457). Java opens login_url once and may bring the app back
+// to the front after callback_received. Tokens never reach Java.
+extern "C" JNIEXPORT jobject JNICALL Java_tk_glucodata_JugglucoChat_nativeStartBrowserLoginMessages(JNIEnv* env, jclass, jstring package) {
+    return result(env, [&] {
+        auto name = from_java(env, package);
+        if (name.empty() || name.size() > 200 || !std::all_of(name.begin(), name.end(), [](unsigned char c) {
+                return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '.' || c == '_'; }))
+            throw jgchat::UiError(jgchat::UiCode::invalid_chat_state_or_server_response);
+        // Chrome opens intent: links from a user tap; package= keeps the
+        // link from opening another Juggluco build.
+        std::string back = "intent://signed-in#Intent;scheme=juggluco-chat;package=" + name + ";end";
+        start("browser_login", [back = std::move(back)] {
+            auto login = start_browser_login();
+            {
+                std::lock_guard lock(state.mutex);
+                state.login_kind = "browser";
+                state.login_url = login->authorize_url; state.user_code.clear();
+                state.status = UiCode::waiting_for_browser_sign_in;
+            }
+            auto tokens = complete_browser_login(native_https(), *login, back, state.cancel, [] {
+                std::lock_guard lock(state.mutex);
+                state.callback_received = true;
+                state.login_url.clear();
+                state.status = UiCode::completing_sign_in;
+            });
+            login.reset();
+            finish_login(tokens);
+        });
+    });
 }
 extern "C" JNIEXPORT jobject JNICALL Java_tk_glucodata_JugglucoChat_nativeLoadModelsMessages(JNIEnv* env, jclass) {
     return result(env, [] { start("load_models", [] { require_signed_in(); load_models(); }); });
@@ -426,6 +469,10 @@ extern "C" JNIEXPORT jobject JNICALL Java_tk_glucodata_JugglucoChat_nativeLogout
         try { state.storage->remove("tokens.json"); } catch (...) { token_cleanup_failed = true; }
         state.client.reset(); state.account_id.clear();
         {
+            std::lock_guard account(state.account_mutex);
+            state.account_email.clear(); state.account_plan.clear();
+        }
+        {
             std::lock_guard lock(state.mutex);
             state.logged_in = false; state.messages = Json::array(); state.models = Json::array(); state.activity = Json::array();
             state.pending_browser = nullptr;
@@ -455,6 +502,10 @@ extern "C" JNIEXPORT jstring JNICALL Java_tk_glucodata_JugglucoChat_nativePollMe
         for (auto& message : display_messages) if (message.contains("plots") && message["plots"].is_array())
             for (auto& plot : message["plots"]) if (plot.is_object()) plot.erase("svg");
         auto snapshot = work_snapshot();
+        {
+            std::lock_guard account(state.account_mutex);
+            snapshot.update({{"account_email", state.account_email}, {"account_plan", state.account_plan}});
+        }
         snapshot.update({{"login_url", state.login_url}, {"user_code", state.user_code},
             {"models", state.models}, {"messages", std::move(display_messages)}, {"activity", state.activity}});
         return to_java(env, snapshot.dump());

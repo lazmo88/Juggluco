@@ -25,6 +25,9 @@
 #include "http.hpp"
 #include <nlohmann/json.hpp>
 #include <cstdint>
+#include <functional>
+#include <memory>
+#include <string_view>
 
 namespace jgchat {
 using Json = nlohmann::json;
@@ -39,6 +42,40 @@ struct DeviceCode {
 };
 DeviceCode request_device_code(const HttpClient&, const std::atomic_bool&);
 Tokens complete_device_login(const HttpClient&, const DeviceCode&, const std::atomic_bool&);
+
+// Browser sign-in: authorization code + PKCE with a single-use loopback
+// callback listener, as in Codex CLI's `codex login` (login/src/server.rs).
+// The verifier and state never leave native memory; only the authorize URL
+// (which carries the S256 challenge and state, as any OAuth URL does) is
+// handed to the browser.
+struct BrowserLogin {
+    BrowserLogin() = default;
+    BrowserLogin(const BrowserLogin&) = delete;
+    BrowserLogin& operator=(const BrowserLogin&) = delete;
+    ~BrowserLogin();
+    void close_listener() noexcept;
+    std::string authorize_url;
+    // Secrets: never log, display or hand to Java.
+    std::string redirect_uri, state, code_verifier;
+    int listener = -1;
+    unsigned short port = 0;
+    std::chrono::steady_clock::time_point deadline;
+};
+// Binds 127.0.0.1:1455, or the registered fallback 127.0.0.1:1457 when 1455 is
+// taken. Throws UiCode::sign_in_port_busy when neither port is free.
+std::unique_ptr<BrowserLogin> start_browser_login(std::chrono::seconds timeout = std::chrono::minutes(10));
+// Waits for one GET /auth/callback with the expected state (other requests
+// are answered and ignored), closes the listener, exchanges the code with the
+// same redirect_uri and answers the browser with a short result page that
+// links back to `return_link`. `on_callback` runs once a valid callback arrives.
+Tokens complete_browser_login(const HttpClient&, BrowserLogin&, std::string_view return_link,
+    const std::atomic_bool& cancel, const std::function<void()>& on_callback);
+
+// Display-only account details from the ID token claims. Never throws.
+struct AccountInfo { std::string email, plan; };
+AccountInfo account_info(const Tokens&) noexcept;
+// Exposed for tests.
+std::string pkce_challenge(std::string_view verifier);
 Tokens refresh_tokens(const HttpClient&, const Tokens&, const std::atomic_bool&);
 Json tokens_to_json(const Tokens&);
 Tokens tokens_from_json(const Json&);
