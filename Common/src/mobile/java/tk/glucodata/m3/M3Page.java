@@ -735,6 +735,8 @@ public Slider slider(LinearLayout parent,CharSequence label,float from,float to,
         v=from+Math.round((v-from)/step)*step;
     slider.setValue(v);
     slider.setLabelFormatter(format::text);
+    slider.setTickVisible(false); // M3: no stop dots for fine continuous values
+    slider.setTrackInactiveTintList(ColorStateList.valueOf(color(com.google.android.material.R.attr.colorOutlineVariant)));
     slider.setContentDescription(label);
     shown.setText(format.text(v));
     slider.addOnChangeListener((s,val,fromUser) -> {
@@ -797,6 +799,8 @@ public ViewGroup buttons(LinearLayout parent,MaterialButton... buttons) {
 /* Sticky bar under the list, for Save/Cancel style actions. */
 public LinearLayout bottomBar(MaterialButton... buttons) {
     if(bottomBar==null) {
+        com.google.android.material.divider.MaterialDivider divider=new com.google.android.material.divider.MaterialDivider(ctx);
+        ((LinearLayout)root).addView(divider,new LinearLayout.LayoutParams(MATCH_PARENT,WRAP_CONTENT));
         bottomBar=new LinearLayout(ctx);
         bottomBar.setGravity(Gravity.END|Gravity.CENTER_VERTICAL);
         bottomBar.setBackgroundColor(color(com.google.android.material.R.attr.colorSurfaceContainer));

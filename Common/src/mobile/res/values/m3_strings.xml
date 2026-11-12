@@ -12,6 +12,8 @@
     <string name="jm_talk_section_what">What to say</string>
     <string name="jm_talk_section_voice">Voice</string>
     <string name="jm_talk_section_profile">Profile</string>
+    <string name="jm_talk_default_voice">System default</string>
+    <string name="jm_talk_no_voices">No voices installed for this language</string>
     <string name="jm_talk_media">Use media volume</string>
     <string name="jm_talk_media_summary">Speak through the media stream instead of notifications</string>
 </resources>

@@ -71,10 +71,13 @@ public static void show(MainActivity act) {
 
     /* What to say */
     LinearLayout what=page.section(R.string.jm_talk_section_what);
+    final TextInputEditText[] sepField={null};
     MaterialSwitch active=page.toggle(what,R.drawable.ic_jm_volume_up,act.getString(R.string.speakglucose),null,
-        () -> SuperGattCallback.dotalk,on -> {});
+        () -> SuperGattCallback.dotalk,on -> { if(sepField[0]!=null) sepField[0].setEnabled(on); });
     TextInputEditText separation=page.field(what,act.getString(R.string.secondsbetween),String.valueOf(Talker.cursep/1000L),M3Page.INTEGER,
-        act.getString(R.string.jm_unit_seconds),null);
+        null,null);
+    sepField[0]=separation;
+    separation.setEnabled(active.isChecked());
     MaterialSwitch touch=page.toggle(what,R.drawable.ic_jm_touch_app,act.getString(R.string.talk_touch),null,Natives::gettouchtalk,on -> {});
     MaterialSwitch messages=page.toggle(what,R.drawable.ic_jm_chat,act.getString(R.string.speakmessages),null,Natives::speakmessages,on -> {});
     MaterialSwitch alarms=page.toggle(what,R.drawable.ic_jm_alarm,act.getString(R.string.speakalarms),null,Natives::speakalarms,on -> {});
@@ -92,6 +95,8 @@ public static void show(MainActivity act) {
         voiceMenu[0].setSimpleItems(names.toArray(new String[0]));
         if(voicePos[0]>=0&&voicePos[0]<names.size())
             M3Page.select(voiceMenu[0],names.get(voicePos[0]));
+        else
+            M3Page.select(voiceMenu[0],act.getString(names.isEmpty()?R.string.jm_talk_no_voices:R.string.jm_talk_default_voice));
         };
     if(android.os.Build.VERSION.SDK_INT>=21) {
         voiceMenu[0]=page.choice(voice,act.getString(R.string.talker),new ArrayList<String>(),-1,i -> voicePos[0]=i);
