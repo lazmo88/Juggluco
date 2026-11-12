@@ -507,6 +507,8 @@ public static native int getLibreVersion(long dataptr);
 public static native void USenabledStreaming(byte[] sensorident,byte[] jauth,byte[] address);
 public static native void closedynlib( );
 public static native strGlucose lastglucose();
+/* Phone dashboard: {unix seconds, mg/dL*10} pairs for the last seconds; history=true uses history values. */
+public static native int[] dashboardValues(int seconds,boolean history);
 
 public static native long lastglucosetime( );
 public static native byte[] bytesettings();

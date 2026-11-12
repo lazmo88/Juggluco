@@ -1030,3 +1030,53 @@ extern "C" JNIEXPORT jboolean  JNICALL   fromjava(getfixatey)(JNIEnv *env, jclas
 extern "C" JNIEXPORT jboolean  JNICALL   fromjava(getfixatex)(JNIEnv *env, jclass cl) {
     return settings->data()->fixatex;
     }
+
+/*
+ * Glucose values for the phone dashboard (Dashboard.kt): the last `seconds`
+ * of sensor data as pairs {unix time in seconds, mg/dL*10}, using the same
+ * per-sensor ranges and calibration as the statistics. history=false gives
+ * the stream (minute) values, history=true the 5/15-minute history values.
+ * Overlapping sensors are not merged here: the caller sorts by time.
+ */
+#include <cmath>
+#include <vector>
+#include "GlucoseDataType.hpp"
+#include "getsensorranges.hpp"
+template <typename DT>
+static std::vector<jint> dashboardvalues(uint32_t start,uint32_t endt,bool calibrated) {
+    std::vector<GlucoseDataType<DT>> ranges;
+    getsensorranges<DT>(start,endt,calibrated,false,&ranges);
+    std::vector<jint> out;
+    for(auto [firstin,lastin,idDistance,cal,cali]:ranges) {
+        int previd=-1;
+        for(auto it=firstin;it!=lastin;++it) {
+            if(!it->valid()||it->getid()==previd)
+                continue;
+            previd=it->getid();
+            const uint32_t tim=it->gettime();
+            if(tim<start||tim>endt)
+                continue;
+            double value;
+            if(!cal||std::isnan(value=cali.forwardvalue(tim,it->getmgdL())))
+                value=it->getmgdL();
+            if(value<=0.0)
+                continue;
+            out.push_back((jint)tim);
+            out.push_back((jint)std::lround(value*10.0));
+            }
+        }
+    return out;
+    }
+
+extern "C" JNIEXPORT jintArray JNICALL fromjava(dashboardValues)(JNIEnv *env,jclass cl,jint seconds,jboolean history) {
+    if(!sensors||seconds<=0)
+        return nullptr;
+    const uint32_t endt=time(nullptr)+60;
+    const uint32_t start=endt-(uint32_t)seconds-60;
+    const bool calibrated=settings->data()->DoCalibrate;
+    const std::vector<jint> values=history?dashboardvalues<HistoryIterator>(start,endt,calibrated):dashboardvalues<const ScanData*>(start,endt,calibrated);
+    jintArray uit=env->NewIntArray(values.size());
+    if(uit&&!values.empty())
+        env->SetIntArrayRegion(uit,0,values.size(),values.data());
+    return uit;
+    }

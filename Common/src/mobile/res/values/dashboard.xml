@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="dash_h3">3 h</string>
+    <string name="dash_h6">6 h</string>
+    <string name="dash_h12">12 h</string>
+    <string name="dash_h24">24 h</string>
+    <string name="dash_full_graph">Full graph</string>
+    <string name="dash_no_reading">No reading yet</string>
+    <string name="dash_no_reading_detail">Connect a sensor from Menu → Sensors.</string>
+    <string name="dash_no_data_chart">No glucose values in this period.</string>
+
+    <string name="dash_status_in_target">In target</string>
+    <string name="dash_status_above">Above target</string>
+    <string name="dash_status_below">Below target</string>
+    <string name="dash_status_very_low">Very low</string>
+    <string name="dash_status_stale">No recent reading</string>
+
+    <string name="dash_trend_up_fast">Rising quickly</string>
+    <string name="dash_trend_up">Rising</string>
+    <string name="dash_trend_up_slow">Rising slowly</string>
+    <string name="dash_trend_flat">Steady</string>
+    <string name="dash_trend_down_slow">Falling slowly</string>
+    <string name="dash_trend_down">Falling</string>
+    <string name="dash_trend_down_fast">Falling quickly</string>
+    <string name="dash_trend_unknown">Trend not available</string>
+    <!-- %1$s rate, %2$s unit -->
+    <string name="dash_rate">%1$s %2$s/min</string>
+
+    <string name="dash_just_now">just now</string>
+    <plurals name="dash_minutes_ago">
+        <item quantity="one">%d minute ago</item>
+        <item quantity="other">%d minutes ago</item>
+    </plurals>
+    <plurals name="dash_hours_ago">
+        <item quantity="one">%d hour ago</item>
+        <item quantity="other">%d hours ago</item>
+    </plurals>
+
+    <!-- %1$s low, %2$s high, %3$s unit -->
+    <string name="dash_chart_caption">Shaded band: your target %1$s–%2$s %3$s. Touch the line to read a value.</string>
+
+    <plurals name="dash_summary_days">
+        <item quantity="one">Last %d day</item>
+        <item quantity="other">Last %d days</item>
+    </plurals>
+    <plurals name="dash_summary_hours">
+        <item quantity="one">Last %d hour</item>
+        <item quantity="other">Last %d hours</item>
+    </plurals>
+    <!-- %1$s low, %2$s high, %3$s unit -->
+    <string name="dash_tir_label">time in range %1$s–%2$s %3$s</string>
+    <string name="dash_band_very_high">Very high</string>
+    <string name="dash_band_high">High</string>
+    <string name="dash_band_in_range">In range</string>
+    <string name="dash_band_low">Low</string>
+    <string name="dash_band_very_low">Very low</string>
+    <string name="dash_metric_average">Average</string>
+    <string name="dash_metric_gmi">GMI</string>
+    <string name="dash_metric_cv">Variability (CV)</string>
+    <!-- %1$s low, %2$s high, %3$s unit, %4$d percent in target, %5$d percent sensor data -->
+    <string name="dash_summary_note">In your target %1$s–%2$s %3$s: %4$d%%. Sensor data for %5$d%% of the time. Ranges for the bar follow the international consensus (70–180 mg/dL). GMI estimates HbA1c from average glucose; it is not a lab result.</string>
+    <string name="dash_summary_empty">Not enough data yet for a summary.</string>
+</resources>

@@ -78,6 +78,8 @@ static private BottomSheetDialog sheet=null;
 /* Set while the sheet is closed in order to open another screen; the menu is
  * then still logically "on" so Back from that screen returns here. */
 static private boolean leavingForScreen=false;
+/* A screen opened from the menu is showing: the phone dashboard stays out of the way. */
+static boolean inScreen=false;
 static private FloatingActionButton launcher=null;
 static private ViewGroup launcherContent=null;
 static private ViewTreeObserver.OnGlobalLayoutListener launcherListener=null;
@@ -92,7 +94,7 @@ static void configurationChanged(MainActivity act, Configuration config) {
     /* The sheet follows the current orientation; nothing to force. */
     }
 
-static private Context themed(MainActivity act) {
+static Context themed(MainActivity act) {
     final int theme=getInvertColors()?R.style.Juggluco_M3_Dark:R.style.Juggluco_M3_Light;
     Context ctx=new ContextThemeWrapper(act,theme);
     return DynamicColors.wrapContextIfAvailable(ctx);
@@ -124,6 +126,7 @@ static public void attachLauncher(MainActivity act) {
     final ViewGroup content=act.findViewById(android.R.id.content);
     if(content==null)
         return;
+    Dashboard.attach(act);
     final Context ctx=themed(act);
     final FloatingActionButton fab=new FloatingActionButton(ctx);
     fab.setImageResource(R.drawable.ic_jm_menu);
@@ -182,12 +185,18 @@ static private void updateLauncher(ViewGroup content) {
     final int nr=content.getChildCount();
     for(int i=0;i<nr;i++) {
         View child=content.getChildAt(i);
-        if(child==fab||child instanceof GlucoseCurve)
+        if(child==fab||child instanceof GlucoseCurve||Dashboard.isDashboard(child))
             continue;
         if(child.getVisibility()==View.VISIBLE) {
             overlay=true;
             break;
             }
+        }
+    if(!overlay&&inScreen&&sheet==null) {
+        /* The screen opened from the menu was closed without going back
+         * through the menu. */
+        inScreen=false;
+        Dashboard.update();
         }
     if(overlay) {
         if(fab.getVisibility()==View.VISIBLE)
@@ -215,15 +224,19 @@ static private void toScreen(Runnable run) {
     leavingForScreen=true;
     dismissSheet();
     leavingForScreen=false;
+    inScreen=true;
     run.run();
+    Dashboard.update();
     }
 
 /* Leave the menu and show the graph. */
 static private void toGraph(MainActivity act,Runnable run) {
     on=false;
+    inScreen=false;
     dismissSheet();
     act.lightBars(!getInvertColors());
     run.run();
+    Dashboard.showFullGraph(act);
     act.requestRender();
     }
 
@@ -258,6 +271,8 @@ static private void showNow(MainActivity act) {
         if(!leavingForScreen) {
             {if(doLog) {Log.i(LOG_ID,"menu closed");};};
             on=false;
+            inScreen=false;
+            Dashboard.update();
             act.lightBars(!getInvertColors());
             act.requestRender();
             }
