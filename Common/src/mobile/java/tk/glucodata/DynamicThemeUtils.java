@@ -23,6 +23,7 @@
 package tk.glucodata;
 
 import androidx.core.content.ContextCompat;
+import androidx.core.graphics.ColorUtils;
 import android.app.Activity;
 import android.content.Context;
 import android.content.res.ColorStateList;
@@ -64,21 +65,87 @@ private static final String LOG_ID="DynamicThemeUtils";
         }
         return defaultColor;
     }
-    public static InsetDrawable createDynamicButton(Context ctx, int radiusDp, boolean isOval) {
-        String pkg = ctx.getPackageName();
-        
-        int bgId = ctx.getResources().getIdentifier("colorButtonBackground", "attr", pkg);
-        int disabledBgId = ctx.getResources().getIdentifier("colorButtonDisabledBackground", "attr", pkg);
-        int highId = ctx.getResources().getIdentifier("colorControlHighlight", "attr", pkg);
+    /* Smallest corner radius of the themed buttons: Material 3 buttons are
+     * rounded, so small radii (some themes, or a random radius chosen when
+     * dark mode became a profile setting) no longer give square buttons. */
+    public static final int MINRADIUS_DP=16;
 
-        int nativeBtnColor = resolveAttributeColor(ctx, android.R.attr.colorButtonNormal, Color.LTGRAY);
-        
-        int cBg = resolveAttributeColor(ctx, bgId, nativeBtnColor);
-        int cDisabledBg = resolveAttributeColor(ctx, disabledBgId, Color.GRAY);
-        int cHigh = resolveAttributeColor(ctx, highId, 0x33FFFFFF);
+    private static int attrColor(Context ctx,String name,int defaultColor) {
+        int id=ctx.getResources().getIdentifier(name,"attr",ctx.getPackageName());
+        return resolveAttributeColor(ctx,id,defaultColor);
+        }
+
+    private static boolean isLight(Context ctx) {
+        TypedValue value=new TypedValue();
+        return ctx.getTheme().resolveAttribute(R.attr.isAppLightTheme,value,true)&&value.data!=0;
+        }
+
+    private static int opaque(int color) {
+        return color|0xFF000000;
+        }
+
+    private static int windowColor(Context ctx,boolean light) {
+        return opaque(resolveAttributeColor(ctx,android.R.attr.windowBackground,light?Color.WHITE:Color.BLACK));
+        }
+
+    private static int textColor(Context ctx,boolean light) {
+        return opaque(resolveAttributeColor(ctx,android.R.attr.textColorPrimary,light?Color.BLACK:Color.WHITE));
+        }
+
+    /* Material 3 tonal button container: the theme's button colour mixed into
+     * the window background, so every theme keeps its own hue. */
+    public static int tonalContainer(Context ctx) {
+        final boolean light=isLight(ctx);
+        final int window=windowColor(ctx,light);
+        final int accent=opaque(attrColor(ctx,"colorButtonBackground",resolveAttributeColor(ctx,android.R.attr.colorButtonNormal,Color.GRAY)));
+        float frac=light?0.24f:0.30f;
+        int container=ColorUtils.blendARGB(window,accent,frac);
+        while(ColorUtils.calculateContrast(container,window)<1.2&&frac<0.6f) {
+            frac+=0.08f;
+            container=ColorUtils.blendARGB(window,accent,frac);
+            }
+        if(ColorUtils.calculateContrast(container,window)<1.2)  // accent too close to the background
+            container=ColorUtils.blendARGB(container,textColor(ctx,light),light?0.08f:0.14f);
+        return opaque(container);
+        }
+
+    /* Label colour on the tonal container: a dark (light mode) or light (dark
+     * mode) tone of the button colour, like Material's on-container colours,
+     * with at least 7:1 contrast where the theme allows it. */
+    public static int tonalText(Context ctx,int container) {
+        final boolean light=isLight(ctx);
+        final int text=textColor(ctx,light);
+        final int accent=opaque(attrColor(ctx,"colorButtonBackground",text));
+        int color=accent;
+        for(float frac=0.4f;ColorUtils.calculateContrast(color,container)<7.0&&frac<=1.0f;frac+=0.1f)
+            color=ColorUtils.blendARGB(accent,text,frac);
+        if(ColorUtils.calculateContrast(color,container)<4.5)
+            color=text;
+        return opaque(color);
+        }
+
+    /* Text colours for themed buttons, enabled and disabled. */
+    public static ColorStateList buttonTextColors(Context ctx) {
+        final boolean light=isLight(ctx);
+        final int enabled=tonalText(ctx,tonalContainer(ctx));
+        final int disabled=attrColor(ctx,"colorDisabledText",ColorUtils.blendARGB(windowColor(ctx,light),textColor(ctx,light),0.38f));
+        return new ColorStateList(
+                new int[][] {
+                        new int[] {-android.R.attr.state_enabled},
+                        new int[] {}
+                },
+                new int[] {disabled, enabled});
+        }
+
+    public static InsetDrawable createDynamicButton(Context ctx, int radiusDp, boolean isOval) {
+        final boolean light=isLight(ctx);
+        int cBg = tonalContainer(ctx);
+        /* Material 3 disabled container: on-surface at 12% */
+        int cDisabledBg = opaque(ColorUtils.blendARGB(windowColor(ctx,light),textColor(ctx,light),0.12f));
+        int cHigh = attrColor(ctx,"colorControlHighlight", 0x33FFFFFF);
 
         float density = ctx.getResources().getDisplayMetrics().density;
-        int radiusPx = (int) (radiusDp * density);
+        int radiusPx = (int) (Math.max(radiusDp,MINRADIUS_DP) * density);
         int shape = isOval ? GradientDrawable.OVAL : GradientDrawable.RECTANGLE;
 
         GradientDrawable normShape = new GradientDrawable();
@@ -175,6 +242,7 @@ private static final String LOG_ID="DynamicThemeUtils";
             int pB = view.getPaddingBottom();
 
             view.setBackground(createDynamicButton(view.getContext(), radius, isOval));
+            ((Button)view).setTextColor(buttonTextColors(view.getContext()));
 
             view.setPadding(pL, pT, pR, pB);
         }
