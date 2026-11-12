@@ -18,7 +18,6 @@
 
 package tk.glucodata.m3;
 
-import android.text.format.DateFormat;
 import android.widget.TimePicker;
 
 import android.content.Context;
@@ -50,7 +49,7 @@ public interface Picked { void set(int minutes); }
 public static void pick(MainActivity act,CharSequence title,int minutes,Picked picked) {
     MaterialAlertDialogBuilder builder=M3Page.dialog(act);
     TimePicker picker=new TimePicker(builder.getContext());
-    picker.setIs24HourView(DateFormat.is24HourFormat(act));
+    picker.setIs24HourView(tk.glucodata.Applic.hour24); // the app's clock setting
     picker.setCurrentHour((minutes/60)%24); // setHour() needs API 23
     picker.setCurrentMinute(minutes%60);
     builder.setTitle(title)
@@ -97,8 +96,11 @@ public static void message(Context base,@Nullable CharSequence title,CharSequenc
     show(b);
     }
 
-/* hh:mm as the old screens showed it. */
+/* Time of day in the app's 12/24 hour setting. */
 public static String format(int minutes) {
-    return String.format(Locale.US,"%02d:%02d",minutes/60,minutes%60);
+    final int h=(minutes/60)%24,m=minutes%60;
+    if(tk.glucodata.Applic.hour24)
+        return String.format(Locale.US,"%02d:%02d",h,m);
+    return String.format(Locale.US,"%d:%02d %s",(h%12==0)?12:h%12,m,h<12?"AM":"PM");
     }
 }

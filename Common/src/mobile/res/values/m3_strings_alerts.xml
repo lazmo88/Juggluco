@@ -22,7 +22,6 @@
         <item quantity="one">%d schedule</item>
         <item quantity="other">%d schedules</item>
     </plurals>
-    <string name="jm_alerts_off">Off</string>
 
     <!-- Alarm sound (RingTones) -->
     <string name="jm_alerts_sound_title">Sound and vibration</string>
@@ -43,10 +42,8 @@
     <string name="jm_alerts_switch_at">Switch at</string>
     <string name="jm_alerts_switch_to">Switch to profile</string>
     <string name="jm_alerts_schedules_empty">Switch profiles automatically at set times of day</string>
-    <string name="jm_alerts_every_day">Every day at %s</string>
     <string name="jm_alerts_too_many_schedules">Too many schedules (maximum 10)</string>
     <string name="jm_alerts_delete_schedule">Delete schedule?</string>
-    <string name="jm_alerts_time">Time</string>
 
     <!-- Reminders -->
     <string name="jm_alerts_reminder">Reminder</string>
@@ -72,9 +69,7 @@
     <string name="jm_alerts_float_touch_summary">Drag to move, tap to open Juggluco</string>
     <string name="jm_alerts_section_look">Appearance</string>
     <string name="jm_alerts_section_colour">Colour</string>
-    <string name="jm_alerts_colour_of">Edit colour of</string>
     <string name="jm_alerts_transparent_summary">No background behind the value</string>
-    <string name="jm_alerts_colour_hint">Drag in the square and the hue bar</string>
     <string name="jm_alerts_needs_permission">Juggluco needs permission to draw over other apps:</string>
 
     <!-- Shortcuts -->
@@ -84,7 +79,6 @@
     <string name="jm_alerts_name">Name</string>
     <string name="jm_alerts_too_long">%s is too long</string>
     <string name="jm_alerts_index_too_large">Too many shortcuts</string>
-    <string name="jm_alerts_delete_shortcut">Delete shortcut?</string>
     <string name="jm_alerts_discard">Discard changes?</string>
     <string name="jm_alerts_discard_yes">Discard</string>
 </resources>

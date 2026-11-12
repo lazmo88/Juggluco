@@ -29,13 +29,12 @@ import static tk.glucodata.MainActivity.screenheight;
 
 import android.graphics.Color;
 import android.view.Gravity;
-import android.view.MotionEvent;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 
-import com.google.android.material.materialswitch.MaterialSwitch;
 
 import java.util.Locale;
 
@@ -64,25 +63,9 @@ static public int    getcolor() {
         return background?Natives.getfloatingbackground( ):Natives.getfloatingforeground( );
         }
 
-/* The colour square and hue bar take the drag themselves, not the page's
- * scroll view. */
-private static final class PickerFrame extends FrameLayout {
-    PickerFrame(android.content.Context ctx) {
-        super(ctx);
-        }
-    @Override
-    public boolean dispatchTouchEvent(MotionEvent ev) {
-        if(ev.getActionMasked()==MotionEvent.ACTION_DOWN&&getParent()!=null)
-            getParent().requestDisallowInterceptTouchEvent(true);
-        return super.dispatchTouchEvent(ev);
-        }
-    }
-
 static public void show(MainActivity act,View parent) {
     show(act);
     }
-
-static private boolean reopening=false;
 
 static public void show(MainActivity act) {
     final M3Page page=M3Page.open(act,R.string.floatglucose);
@@ -91,14 +74,8 @@ static public void show(MainActivity act) {
     if(hidden[0]) {
         Floating.makefloat(); // visible while configuring
         }
-    final Runnable reopen=() -> {
-        reopening=true;
-        page.dismiss();
-        reopening=false;
-        show(act);
-        };
     page.onClose(() -> {
-        if(!reopening&&hidden[0]) {
+        if(hidden[0]) {
             Floating.removeFloating();
             }
         });
@@ -146,43 +123,79 @@ static public void show(MainActivity act) {
         rewritefloating(act);
         });
 
-    /* Colour */
+    /* Colour: a row per colour; the picker opens in a dialog so it never
+     * fights the page's scrolling.  Changes show live on the overlay, Cancel
+     * puts the old colour back. */
     LinearLayout col=page.section(R.string.jm_alerts_section_colour);
-    page.segmented(col,act.getString(R.string.jm_alerts_colour_of),new CharSequence[]{act.getString(R.string.foreground),act.getString(R.string.background)},
-        background?1:0,i -> {
-            final boolean bg=i==1;
-            if(bg!=background) {
-                background=bg;
-                col.post(reopen);
-                }
-            });
-    final int color=Natives.getfloatingbackground();
-    final boolean transp=Color.alpha(color)!=0xFF;
-    if(background) {
-        page.toggle(col,R.drawable.ic_jm_opacity,act.getString(R.string.transparent),act.getString(R.string.jm_alerts_transparent_summary),() -> transp,on -> {
-            Floating.setbackgroundalpha(on?0:0xff);
-            Floating.invalidatefloat();
-            col.post(reopen);
-            });
+    final ViewGroup[] rows={null,null};
+    rows[0]=page.item(col,R.drawable.ic_jm_format_color_text,act.getString(R.string.foreground),hex(Natives.getfloatingforeground()),() -> pickColour(page,false,rows[0]));
+    final boolean transp=Color.alpha(Natives.getfloatingbackground())!=0xFF;
+    page.toggle(col,R.drawable.ic_jm_opacity,act.getString(R.string.transparent),act.getString(R.string.jm_alerts_transparent_summary),() -> Color.alpha(Natives.getfloatingbackground())!=0xFF,on -> {
+        Floating.setbackgroundalpha(on?0:0xff);
+        Floating.invalidatefloat();
+        RingTonePage.enable(rows[1],!on);
+        });
+    rows[1]=page.item(col,R.drawable.ic_jm_format_color_fill,act.getString(R.string.background),hex(Natives.getfloatingbackground()),() -> pickColour(page,true,rows[1]));
+    RingTonePage.enable(rows[1],!transp);
+    swatch(page,rows[0],Natives.getfloatingforeground());
+    swatch(page,rows[1],Natives.getfloatingbackground());
+    }
+
+static String hex(int c) {
+    return String.format(Locale.US,"#%06X",c&0xFFFFFF);
+    }
+
+/* A round sample of the colour at the end of the row. */
+static void swatch(M3Page page,ViewGroup row,int c) {
+    ViewGroup end=row.findViewById(R.id.jm_row_end);
+    if(end==null)
+        return;
+    View dot=end.findViewWithTag(LOG_ID);
+    if(dot==null) {
+        dot=new View(page.ctx);
+        dot.setTag(LOG_ID);
+        int size=page.dp(24);
+        end.addView(dot,new FrameLayout.LayoutParams(size,size,Gravity.CENTER));
         }
-    if(!(background&&transp)) {
-        AmbilWarnaDialog picker=new AmbilWarnaDialog(page.ctx,getcolor(),c -> {
-            if(doLog) {Log.i(LOG_ID,String.format(usedlocale,"col=%x",c));};
-            setcolor(c);
+    android.graphics.drawable.GradientDrawable g=new android.graphics.drawable.GradientDrawable();
+    g.setShape(android.graphics.drawable.GradientDrawable.OVAL);
+    g.setColor(c|0xFF000000);
+    g.setStroke(page.dp(1),page.color(com.google.android.material.R.attr.colorOutline));
+    dot.setBackground(g);
+    }
+
+static void pickColour(M3Page page,boolean bg,ViewGroup row) {
+    final MainActivity act=page.act;
+    background=bg;
+    final int old=getcolor();
+    AmbilWarnaDialog picker=new AmbilWarnaDialog(page.ctx,old,c -> {
+        if(doLog) {Log.i(LOG_ID,String.format(usedlocale,"col=%x",c));};
+        background=bg;
+        setcolor(c);
+        Floating.invalidatefloat();
+        M3Page.setSummary(row,hex(c));
+        swatch(page,row,c);
+        },v -> {});
+    View view=picker.getview();
+    View noclose=view.findViewById(R.id.closeambi);
+    if(noclose!=null)
+        noclose.setVisibility(View.GONE);
+    View nohelp=view.findViewById(R.id.helpambi);
+    if(nohelp!=null)
+        nohelp.setVisibility(View.GONE);
+    FrameLayout frame=new FrameLayout(page.ctx);
+    frame.addView(view,new FrameLayout.LayoutParams(WRAP_CONTENT,WRAP_CONTENT,Gravity.CENTER_HORIZONTAL));
+    frame.setPadding(0,page.dp(16),0,0);
+    tk.glucodata.m3.TimeDialog.show(M3Page.dialog(act)
+        .setTitle(bg?R.string.background:R.string.foreground)
+        .setView(frame)
+        .setNegativeButton(android.R.string.cancel,(d,w) -> {
+            background=bg;
+            setcolor(old);
             Floating.invalidatefloat();
-            },v -> {});
-        View view=picker.getview();
-        View noclose=view.findViewById(R.id.closeambi);
-        if(noclose!=null)
-            noclose.setVisibility(View.GONE);
-        View nohelp=view.findViewById(R.id.helpambi);
-        if(nohelp!=null)
-            nohelp.setVisibility(View.GONE);
-        PickerFrame frame=new PickerFrame(page.ctx);
-        frame.addView(view,new FrameLayout.LayoutParams(WRAP_CONTENT,WRAP_CONTENT,Gravity.CENTER_HORIZONTAL));
-        frame.setPadding(0,page.dp(8),0,page.dp(8));
-        page.custom(col,frame);
-        page.note(col,act.getString(R.string.jm_alerts_colour_hint));
-        }
+            M3Page.setSummary(row,hex(old));
+            swatch(page,row,old);
+            })
+        .setPositiveButton(android.R.string.ok,null));
     }
 }
