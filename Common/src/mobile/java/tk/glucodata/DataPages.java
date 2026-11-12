@@ -27,6 +27,14 @@ private DataPages() {}
 public static void register() {
     PhoneUi.register("amount",(act,args) -> AmountPage.show(act,(Long)args[0],(Integer)args[1]));
     PhoneUi.register("amountlist",(act,args) -> AmountListPage.show(act));
+    PhoneUi.register("help",(act,args) -> {
+        @SuppressWarnings("unchecked")
+        tk.glucodata.Consumer<android.view.ViewGroup> ok=(tk.glucodata.Consumer<android.view.ViewGroup>)args[1];
+        HelpPage.show(act,(String)args[0],ok);
+        });
+    PhoneUi.register("display",(act,args) -> tk.glucodata.settings.DisplayPage.show(act,(tk.glucodata.settings.Settings)args[0]));
+    PhoneUi.register("theme",(act,args) -> tk.glucodata.settings.ThemePage.show(act));
+    PhoneUi.register("about",(act,args) -> AboutPage.show(act));
     PhoneUi.register("search",(act,args) -> SearchPage.show(act));
     PhoneUi.register("datepick",(act,args) -> {
         final long tim=(Long)args[0];

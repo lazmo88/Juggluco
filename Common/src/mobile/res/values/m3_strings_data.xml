@@ -23,4 +23,24 @@
     <string name="jm_data_earlier">Earlier</string>
     <string name="jm_data_later">Later</string>
     <string name="jm_data_report">Report</string>
+    <string name="jm_data_previous">Previous</string>
+    <string name="jm_data_next">Next</string>
+    <string name="jm_data_copied">Copied</string>
+    <string name="jm_data_copy">Copy version details</string>
+    <string name="jm_data_version">Version</string>
+    <string name="jm_data_architecture">Architecture</string>
+    <string name="jm_data_graph">Graph</string>
+    <string name="jm_data_graphlow">Graph bottom</string>
+    <string name="jm_data_graphhigh">Graph top</string>
+    <string name="jm_data_low">Low</string>
+    <string name="jm_data_high">High</string>
+    <string name="jm_data_thresholdnote">Between 0.0 and 0.8.</string>
+    <string name="jm_data_screen">Screen</string>
+    <string name="jm_data_systemlanguage">System language</string>
+    <string name="jm_data_look">Appearance</string>
+    <string name="jm_data_iobsummary">Insulin on board</string>
+    <string name="jm_data_preview">Preview</string>
+    <string name="jm_data_previewtext">Glucose curve, buttons and dialogs use these colours.</string>
+    <string name="jm_data_apply">Apply</string>
+    <string name="jm_data_themes">Themes</string>
 </resources>
