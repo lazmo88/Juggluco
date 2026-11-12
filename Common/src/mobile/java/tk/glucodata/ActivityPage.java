@@ -31,7 +31,7 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.google.android.material.autocomplete.MaterialAutoCompleteTextView;
+import com.google.android.material.textfield.MaterialAutoCompleteTextView;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
 
@@ -343,7 +343,7 @@ static void details(MainActivity act,int group,Runnable amountsChanged,Runnable 
         page.link(acts,R.drawable.ic_jm_link,act.getString(R.string.activity_link),null,() -> {
             try { chooseAmount(act,group,page); } catch(Exception e) { fail(act,"Choose activity Amount: group="+group,e); }
             });
-    page.item(acts,R.drawable.ic_jm_remove_circle,act.getString(R.string.activity_remove_source),null,() -> {
+    page.item(acts,R.drawable.ic_jm_do_not_disturb_on,act.getString(R.string.activity_remove_source),null,() -> {
         try {
             int[] sids=ActivityNative.sourceIDs(group);
             String[] names=new String[sids.length];

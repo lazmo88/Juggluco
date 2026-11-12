@@ -59,8 +59,8 @@ public final class WebPageUpload {
     private static LinearLayout fileRows=null;
     private static TextView pathView=null;
     private static TextView statusView=null;
-    private static android.widget.Button uploadFilesButton=null;
-    private static Button uploadTreeButton=null;
+    private static com.google.android.material.button.MaterialButton uploadFilesButton=null;
+    private static com.google.android.material.button.MaterialButton uploadTreeButton=null;
     private static Button upButton=null;
 
     private static File rootDirectory=null;

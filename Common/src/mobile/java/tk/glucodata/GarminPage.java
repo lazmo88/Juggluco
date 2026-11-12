@@ -29,7 +29,7 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.google.android.material.autocomplete.MaterialAutoCompleteTextView;
+import com.google.android.material.textfield.MaterialAutoCompleteTextView;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.button.MaterialButtonToggleGroup;
 import com.google.android.material.materialswitch.MaterialSwitch;
@@ -40,6 +40,8 @@ import java.util.List;
 
 import tk.glucodata.m3.M3Page;
 import tk.glucodata.nums.AllData;
+import tk.glucodata.nums.GarminAlarmConfig;
+import tk.glucodata.settings.Shortcuts;
 
 /*
  * Kerfstok (Garmin) status and configuration (GarminStatus) as Material 3

@@ -30,6 +30,8 @@ import java.util.Locale;
 
 import tk.glucodata.m3.M3Page;
 import tk.glucodata.nums.AllData;
+import tk.glucodata.nums.GarminAlarmConfig;
+import tk.glucodata.settings.Shortcuts;
 
 /*
  * Kerfstok watch alarms (GarminAlarms.show/alertSettings) as Material 3
@@ -84,7 +86,7 @@ static void show(MainActivity act,AllData all,long peerId) {
         alertRows[k].setAlpha(on[k]?1f:0.38f);
         }
     LinearLayout st=page.section(R.string.jm_share_lv_sec_status);
-    final TextView status=page.note(st,all.garminAlarmStatus(peerId));
+    final TextView status=page.note(st,act.getString(all.garminAlarmStatus(peerId)));
     GarminAlarms.statusPeer=peerId;
     GarminAlarms.statusView=new WeakReference<>(status);
     page.onClose(() -> {
