@@ -172,6 +172,9 @@ private M3Page(MainActivity act,CharSequence title) {
     scroll=root.findViewById(R.id.jm_settings_scroll);
     list=root.findViewById(R.id.jm_settings_list);
     handleInsets();
+    toolbar.setSubtitleTextAppearance(ctx,com.google.android.material.R.style.TextAppearance_Material3_BodyMedium);
+    toolbar.setSubtitleTextColor(color(com.google.android.material.R.attr.colorOnSurfaceVariant));
+    hideBelow();
     /* Not addMyContentView(): that restyles widgets for the old app themes. */
     act.addContentView(root,new ViewGroup.LayoutParams(MATCH_PARENT,MATCH_PARENT));
     M3Bars.watch(act);
@@ -213,11 +216,33 @@ private void remove() {
     ViewGroup parent=(ViewGroup)root.getParent();
     if(parent!=null)
         parent.removeView(root);
+    for(int i=0;i<hidden.size();i++)
+        hidden.get(i).setImportantForAccessibility(hiddenWas.get(i));
+    hidden.clear();
     for(Runnable r:onClose) {
         try { r.run(); }
         catch(Throwable th) { Log.stack(LOG_ID,"onClose",th); }
         }
     M3Bars.update(act);
+    }
+
+/* Whatever lies under this page (dashboard, graph, other pages) is covered:
+ * hide it from TalkBack (and UI tests) until this page closes. */
+private final ArrayList<View> hidden=new ArrayList<>();
+private final ArrayList<Integer> hiddenWas=new ArrayList<>();
+private void hideBelow() {
+    View content=act.findViewById(android.R.id.content);
+    if(!(content instanceof ViewGroup))
+        return;
+    ViewGroup group=(ViewGroup)content;
+    for(int i=0;i<group.getChildCount();i++) {
+        View v=group.getChildAt(i);
+        if(v.getVisibility()!=View.VISIBLE||v.getImportantForAccessibility()==View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS)
+            continue;
+        hidden.add(v);
+        hiddenWas.add(v.getImportantForAccessibility());
+        v.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
+        }
     }
 
 public boolean isOpen() {
@@ -616,6 +641,7 @@ public TextInputEditText field(LinearLayout parent,CharSequence label,@Nullable 
         layout.setEndIconMode(TextInputLayout.END_ICON_PASSWORD_TOGGLE);
     TextInputEditText edit=new TextInputEditText(layout.getContext());
     edit.setInputType(inputType);
+    edit.setTypeface(android.graphics.Typeface.DEFAULT); // password types switch to monospace
     edit.setSingleLine(true);
     edit.setImeOptions(EditorInfo.IME_ACTION_DONE|EditorInfo.IME_FLAG_NO_EXTRACT_UI);
     if(value!=null)
@@ -823,8 +849,25 @@ public <T extends View> T custom(@Nullable LinearLayout parent,T view) {
 
 /* ---------- dialogs ---------- */
 
+/* MaterialAlertDialog in the M3 theme.  Its button text resolved to #FF00FF
+ * (AppCompat's unresolved-colour fallback) under the old activity theme, so
+ * the buttons get colorPrimary explicitly when shown. */
 public static MaterialAlertDialogBuilder dialog(Context base) {
-    return new MaterialAlertDialogBuilder(themed(base));
+    return new MaterialAlertDialogBuilder(themed(base)) {
+        @NonNull @Override
+        public androidx.appcompat.app.AlertDialog create() {
+            final androidx.appcompat.app.AlertDialog d=super.create();
+            final int primary=color(getContext(),androidx.appcompat.R.attr.colorPrimary);
+            d.setOnShowListener(x -> {
+                for(int which:new int[]{android.content.DialogInterface.BUTTON_POSITIVE,android.content.DialogInterface.BUTTON_NEGATIVE,android.content.DialogInterface.BUTTON_NEUTRAL}) {
+                    android.widget.Button b=d.getButton(which);
+                    if(b!=null)
+                        b.setTextColor(primary);
+                    }
+                });
+            return d;
+            }
+        };
     }
 public static void confirm(Context base,CharSequence title,@Nullable CharSequence message,CharSequence yes,Runnable onYes) {
     MaterialAlertDialogBuilder b=dialog(base).setTitle(title).setPositiveButton(yes,(d,w) -> onYes.run()).setNegativeButton(android.R.string.cancel,null);
