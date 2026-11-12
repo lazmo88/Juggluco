@@ -117,7 +117,7 @@ private static  String getstart(HttpURLConnection con,int max)  throws IOExcepti
 
 final  static String nothing=Applic.getContext().getString(R.string.triednothing).intern();
 final static String success=Applic.getContext().getString(R.string.success).intern();
-static private String uploadstatus=nothing;
+static String uploadstatus=nothing;
 @Keep
 static public boolean deleteUrl(String urlstring,String secret) {
     patch();
@@ -223,7 +223,7 @@ private static String gettoken(long now) {
         }
     }
 
-private static long uploadtime=System.currentTimeMillis();
+static long uploadtime=System.currentTimeMillis();
 @Keep
 static public int upload(String httpurl,byte[] postdata,String secret,boolean put) {
     patch();
@@ -283,6 +283,8 @@ private static    void askclearupload(Context context) {
     }
 
 public static void  config(MainActivity act, View settingsview) {
+    if(PhoneUi.show("nightpost",act))
+        return;
     EnableControls(settingsview,false);
     var urllabel=getlabel(act,"Nightscout URL");
     var url=getedit(act, Natives.getnightuploadurl());

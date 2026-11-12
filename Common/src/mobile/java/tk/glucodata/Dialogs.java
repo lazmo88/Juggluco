@@ -66,8 +66,8 @@ private    final static String LOG_ID="Dialogs";
 private float density;
 private ViewGroup exportscreen=null;
  TextView exportlabel=null;
- private boolean isCalibrated=Natives.getDoCalibrate();
- private boolean activitiesExtended=false;
+ boolean isCalibrated=Natives.getDoCalibrate();
+ boolean activitiesExtended=false;
 Dialogs(float density) {
     this.density=density;
     }
@@ -102,6 +102,11 @@ EditText days;
 
 
 public void showexport(MainActivity activity,int width,int height,View parent) {
+    ExportPage.show(activity,this,parent==null);
+    }
+
+/* Old dialog, no longer used on phones. */
+void showexportOld(MainActivity activity,int width,int height,View parent) {
    if(parent!=null) {
        activity.lightBars(!Natives.getInvertColors());
        parent.setVisibility(GONE);

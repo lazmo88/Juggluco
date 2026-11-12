@@ -25,5 +25,7 @@ final class ShareScreens {
 private ShareScreens() {}
 
 static void register() {
+    PhoneUi.register("settings.exchanges",(act,args) -> tk.glucodata.settings.ExchangePage.show(act));
+    PhoneUi.register("nightpost",(act,args) -> tk.glucodata.UploaderPage.show(act));
     }
 }

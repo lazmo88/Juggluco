@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Material 3 redesign: exchanging data (broadcasts, mirror, web server, cloud services, watches, export). English only. -->
+<resources>
+    <!-- Exchange data hub -->
+    <string name="jm_share_title">Exchange data</string>
+    <string name="jm_share_sec_broadcasts">Broadcasts</string>
+    <string name="jm_share_sec_cloud">Cloud services</string>
+    <string name="jm_share_sec_wearables">Watches &amp; wearables</string>
+    <string name="jm_share_sec_local">Local network</string>
+    <string name="jm_share_sec_files">Files</string>
+    <string name="jm_share_off">Off</string>
+    <string name="jm_share_on">On</string>
+    <string name="jm_share_sending_to">Sending to %1$s</string>
+    <string name="jm_share_broadcast_none">No app on this phone listens to %1$s broadcasts.</string>
+    <string name="jm_share_broadcast_pick">Send %1$s broadcasts to</string>
+    <string name="jm_share_eversense">EverSense broadcast</string>
+    <string name="jm_share_glucodata">Glucodata broadcast</string>
+    <string name="jm_share_watch_summary">Watchdrip, GadgetBridge, Wear OS, Kerfstok</string>
+    <string name="jm_share_health_summary">Write glucose to Health Connect</string>
+    <string name="jm_share_activities_summary">Steps, heart rate and sleep from Health Connect</string>
+    <string name="jm_share_meters_summary">Bluetooth blood glucose meters</string>
+    <string name="jm_share_mirror_summary">Share data with your other devices running Juggluco</string>
+    <string name="jm_share_webserver_summary">xDrip/Nightscout compatible server on this phone</string>
+    <string name="jm_share_uploader_summary">Upload to a Nightscout site</string>
+    <string name="jm_share_clarity_summary">Upload to Dexcom Clarity</string>
+    <string name="jm_share_export_summary">Save glucose, amounts or meals to a file</string>
+    <string name="jm_share_webserver_on">Running on port %1$d</string>
+
+    <!-- Watch integrations -->
+    <string name="jm_share_watch_title">Watches</string>
+    <string name="jm_share_watch_sec_apps">Watch apps</string>
+    <string name="jm_share_watch_sec_notify">Notifications on the watch</string>
+    <string name="jm_share_watch_sec_direct">Direct connections</string>
+    <string name="jm_share_watchdrip_summary">Send glucose to Watchdrip</string>
+    <string name="jm_share_gadget_summary">Send glucose to GadgetBridge</string>
+    <string name="jm_share_notify_summary">Show glucose notifications on a connected watch</string>
+    <string name="jm_share_separate_summary">Separate notification for alarms</string>
+    <string name="jm_share_wearos_summary">Juggluco on a Wear OS watch</string>
+    <string name="jm_share_kerfstok_summary">Garmin watch face Kerfstok</string>
+    <string name="jm_share_test_gadget">Send test value</string>
+
+    <!-- Web server -->
+    <string name="jm_share_web_title">Web server</string>
+    <string name="jm_share_web_sec_server">Server</string>
+    <string name="jm_share_web_sec_access">Access</string>
+    <string name="jm_share_web_sec_https">HTTPS</string>
+    <string name="jm_share_web_sec_data">Data</string>
+    <string name="jm_share_web_secret_label">API secret</string>
+    <string name="jm_share_web_http_port">HTTP port</string>
+    <string name="jm_share_web_ssl_port">SSL port</string>
+    <string name="jm_share_web_interval">Interval</string>
+    <string name="jm_share_web_privkey_summary">Choose the PEM file with the server key</string>
+    <string name="jm_share_web_chain_summary">Choose the PEM file with the certificate chain</string>
+    <string name="jm_share_web_pages_summary">Your own files served by the web server</string>
+    <string name="jm_share_web_error">Last error</string>
+    <string name="jm_share_web_address">Local address: http://127.0.0.1:%1$d</string>
+    <string name="jm_share_seconds">s</string>
+    <string name="jm_share_discard">Discard changes?</string>
+    <string name="jm_share_discard_yes">Discard</string>
+    <string name="jm_share_invalid_number">Enter a whole number</string>
+
+    <!-- Amount labels -->
+    <string name="jm_share_labels_title">Amounts to send</string>
+    <string name="jm_share_labels_sec">Amount labels</string>
+    <string name="jm_share_labels_empty">No amount labels</string>
+    <string name="jm_share_kind_unset">Not set</string>
+    <string name="jm_share_kind_food">%1$s ×%2$s</string>
+    <string name="jm_share_weight">Multiply by</string>
+
+    <!-- Nightscout uploader -->
+    <string name="jm_share_ns_title">Nightscout uploader</string>
+    <string name="jm_share_ns_sec_site">Site</string>
+    <string name="jm_share_ns_sec_status">Status</string>
+    <string name="jm_share_ns_url">Nightscout URL</string>
+    <string name="jm_share_ns_v3">Use API v3 (test)</string>
+    <string name="jm_share_ns_url_bad">Enter the address of your Nightscout site</string>
+    <string name="jm_share_ns_send_summary">Upload new data now</string>
+    <string name="jm_share_ns_resend_summary">Upload all data again</string>
+
+    <!-- LibreView -->
+    <string name="jm_share_lv_title">LibreView</string>
+    <string name="jm_share_lv_sec_account">Account</string>
+    <string name="jm_share_lv_sec_upload">Upload</string>
+    <string name="jm_share_lv_sec_status">Status</string>
+    <string name="jm_share_lv_sec_advanced">Advanced</string>
+    <string name="jm_share_lv_russia">Russian server (RU)</string>
+    <string name="jm_share_lv_accountid">Account ID</string>
+    <string name="jm_share_lv_receiverid">Receiver ID</string>
+    <string name="jm_share_lv_newlibre">New Libre app</string>
+    <string name="jm_share_lv_resend_summary">Choose from when to send data again</string>
+    <string name="jm_share_lv_date">Date</string>
+    <string name="jm_share_lv_time">Time</string>
+    <string name="jm_share_lv_send_summary">Only after saving with LibreView on</string>
+    <string name="jm_share_lv_accountid_title">LibreView account ID</string>
+    <string name="jm_share_lv_accountid_manual_summary">Enter the account ID yourself</string>
+
+    <!-- Export -->
+    <string name="jm_share_export_title">Export</string>
+    <string name="jm_share_export_sec_range">Range</string>
+    <string name="jm_share_export_sec_glucose">Glucose</string>
+    <string name="jm_share_export_sec_other">Other data</string>
+    <string name="jm_share_export_sec_result">Result</string>
+    <string name="jm_share_export_days_bad">Enter a number of days</string>
+    <string name="jm_share_export_calibrated_summary">Export calibrated glucose values</string>
+    <string name="jm_share_export_tsv">Tab separated file (.tsv)</string>
+    <string name="jm_share_export_csv">LibreView format (.csv)</string>
+    <string name="jm_share_export_html">Web page (.html)</string>
+    <string name="jm_share_export_waiting">Choose where to save the file</string>
+</resources>

@@ -202,7 +202,7 @@ static JSONObject  readJSONObject(HttpURLConnection urlConnection)  throws IOExc
     return new JSONObject(ant);
    }*/
 
-private static String librestatus=nothing;
+static String librestatus=nothing;
 
 /*
  * Keep retrying failures that can reasonably disappear when connectivity returns,
@@ -856,7 +856,7 @@ private static void getAccountid(MainActivity context,    Predicate<Boolean> get
    Runnable closerun=()-> {
       layout.setVisibility(GONE);
       removeContentView(layout);
-      config(context,  settingsview,sendto, donothing);
+      configOld(context,  settingsview,sendto, donothing);
       };
    save.setOnClickListener(v->  {
       if(manual.isChecked()) {
@@ -900,6 +900,14 @@ private static void getAccountid(MainActivity context,    Predicate<Boolean> get
    }
 //      Natives.askServerforAccountID();
 public static void  config(MainActivity act, View settingsview,CheckDirectionBox sendto,boolean[] donothing) {
+   LibreviewPage.show(act,() -> {
+      if(sendto!=null) sendto.setChecked(getuselibreview());
+      if(donothing!=null) donothing[0]=false;
+      });
+   }
+
+/* Old dialog, no longer used on phones. */
+static void configOld(MainActivity act, View settingsview,CheckDirectionBox sendto,boolean[] donothing) {
    EnableControls(settingsview,false);
    var emaillabel=getlabel(act,R.string.email);
    final var wasemail=getlibreemail();

@@ -58,7 +58,7 @@ import tk.glucodata.settings.LibreNumbers;
 
 public class Nightscout {
 static final private String LOG_ID="Nightscout";
-static private void openfile(Activity act,int requestid) {
+static void openfile(Activity act,int requestid) {
 	try {
 		Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
 		intent.addCategory(Intent.CATEGORY_OPENABLE);
@@ -73,8 +73,13 @@ static private void openfile(Activity act,int requestid) {
 		}
     }
 
-static final private int MAXKEY=80;
+static final int MAXKEY=80;
 public static void show(MainActivity context,View parent) {
+	WebServerPage.show(context);
+	}
+
+/* Old dialog, no longer used on phones. */
+static void showOld(MainActivity context,View parent) {
    	EnableControls(parent,false);
 
 	var save=getbutton(context,R.string.save);
