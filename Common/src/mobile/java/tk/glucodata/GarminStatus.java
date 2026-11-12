@@ -125,7 +125,7 @@ class GarminStatus {
 
 	// AllData's English state values are lookup keys here, not displayed text.
 	// Keep this presentation mapping compatible with the existing transport code.
-	private static String communicationStatus(Context context,String state) {
+	static String communicationStatus(Context context,String state) {
 		int text=R.string.garmin_status_unknown;
 		if(state!=null) switch(state) {
 			case "Kerfstok closed": text=R.string.garmin_status_closed; break;
@@ -145,7 +145,7 @@ class GarminStatus {
 		return context.getString(text);
 	}
 
-	private static String transportResult(Context context,IQMessageStatus status) {
+	static String transportResult(Context context,IQMessageStatus status) {
 		int text;
 		switch(status) {
 			case SUCCESS: text=R.string.success; break;
@@ -161,7 +161,7 @@ class GarminStatus {
 		return context.getString(text);
 	}
 
-	private static String lastError(Context context,String error) {
+	static String lastError(Context context,String error) {
 		if("No Kerfstok START acknowledgement".equals(error)) return context.getString(R.string.garmin_no_start_ack);
 		if("No glucose acknowledgement".equals(error)) return context.getString(R.string.garmin_no_glucose_ack);
 		// Other values are detailed transport diagnostics supplied by AllData.
@@ -286,6 +286,10 @@ class GarminStatus {
 	}
 
 	public GarminStatus(MainActivity context, AllData alldata,View parentlayout) {
+		GarminPage.show(context,alldata);
+	}
+	/* Old screen, no longer used on phones. */
+	GarminStatus(MainActivity context, AllData alldata,View parentlayout,boolean old) {
 
       context.themeLightBars();
    	//	EnableControls(parentlayout,false);

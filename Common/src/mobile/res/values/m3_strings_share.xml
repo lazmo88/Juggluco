@@ -138,4 +138,21 @@
     <string name="jm_share_host_save_failed">Could not save connection</string>
     <string name="jm_share_files_sec">Files</string>
     <string name="jm_share_files_empty_body">Files you upload here are served by the web server under /additions/.</string>
+    <string name="jm_share_act_sec_retrieve">Retrieve from Health Connect</string>
+    <string name="jm_share_act_sec_more">Labels and activities</string>
+    <string name="jm_share_act_labels_summary">Choose which amount label each kind of activity gets</string>
+    <string name="jm_share_act_label">Amount label</string>
+    <string name="jm_share_act_measure">Amount value</string>
+    <string name="jm_share_act_sec_actions">Actions</string>
+    <string name="jm_share_garmin_sec_watch">Watch</string>
+    <string name="jm_share_garmin_sec_connection">Connection</string>
+    <string name="jm_share_garmin_sec_config">Watch app</string>
+    <string name="jm_share_garmin_glucose_summary">Send glucose values to this watch</string>
+    <string name="jm_share_garmin_config_title">Kerfstok watch app</string>
+    <string name="jm_share_garmin_config_summary">App ID, shortcuts, dark mode and watch alarms</string>
+    <string name="jm_share_garmin_store_summary">Open the Garmin Connect IQ store</string>
+    <string name="jm_share_no_browser">No app found to open this link</string>
+    <string name="jm_share_garmin_alarms_title">Watch alarms</string>
+    <string name="jm_share_garmin_threshold">Alarm at</string>
+    <string name="jm_share_garmin_loss_after">Alarm after</string>
 </resources>
