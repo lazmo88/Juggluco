@@ -131,7 +131,16 @@ public static   void basehelp(int res,ContextThemeWrapper act,Consumer<ViewGroup
     basehelp(act.getString(res),act,okproc);
     }
 
-    public static   void  basehelp(String text,ContextThemeWrapper act,Consumer<ViewGroup>  okproc) {
+  /* Activity behind a (wrapped) context, for the phone help page. */
+private static Activity phoneActivity(android.content.Context c) {
+    while(c instanceof android.content.ContextWrapper) {
+        if(c instanceof Activity)
+            return (Activity)c;
+        c=((android.content.ContextWrapper)c).getBaseContext();
+        }
+    return null;
+    }
+  public static   void  basehelp(String text,ContextThemeWrapper act,Consumer<ViewGroup>  okproc) {
           basehelp(text,act,okproc,(v,w,h)-> new int[] {w,h},new ViewGroup.MarginLayoutParams(MATCH_PARENT, MATCH_PARENT)) ;
         }
 
@@ -664,6 +673,10 @@ private static final class HelpSearch {
 
     @SuppressWarnings("deprecation")
   public static   void  basehelp(String text,ContextThemeWrapper act,Consumer<ViewGroup>  okproc,Placer place, ViewGroup.MarginLayoutParams params) {
+    if(!isWearable) { // phone: M3 HelpPage
+        Activity a=phoneActivity(act);
+        if(a instanceof MainActivity&&PhoneUi.show("help",(MainActivity)a,text,okproc!=null?okproc:(Consumer<ViewGroup>)(l -> {}))) return;
+        }
     hidekeyboard((MainActivity) getActivity(act));
     ScrollView       helpscroll=new ScrollView(act);
     TextView helpview=new TextView(act);
@@ -741,6 +754,10 @@ final var helplayout2=helplayout;
 
     @SuppressLint("deprecation")
 public static   void help(String text,ContextThemeWrapper act,Consumer<ViewGroup>  okproc,Placer place, ViewGroup.MarginLayoutParams params) {
+    if(!isWearable) { // phone: M3 HelpPage
+        Activity a=phoneActivity(act);
+        if(a instanceof MainActivity&&PhoneUi.show("help",(MainActivity)a,text,okproc!=null?okproc:(Consumer<ViewGroup>)(l -> {}))) return;
+        }
     if(doLog) {
           var len=text.length();
           if(doLog) {Log.i(LOG_ID,"help "+((len==0?"":text.substring(0,Math.min(20,len)))));};

@@ -1629,6 +1629,7 @@ public void surfaceDestroyed(SurfaceHolder holder) {
     }
 static public void    doabout(MainActivity activity) {
 if(!isWearable) {
+    if(PhoneUi.show("about",activity)) return; // phone: M3 AboutPage
     String about=activity.getString(R.string.about)+"<p>Version Code: "+ BuildConfig.VERSION_CODE+"<br>Version Name: "+ 
         BuildConfig.VERSION_NAME +"<br>"+Natives.getCPUarch()+"<br>Build time: "+ BuildTime.TIME +"</p>";
     

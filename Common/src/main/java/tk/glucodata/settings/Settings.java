@@ -990,7 +990,7 @@ new View[]{isvalue},new View[]{ringisvalue},new View[]{alarmis,alarmtype},new Vi
 final private static String  codestr=String.valueOf(BuildConfig.VERSION_CODE);
 
 
-static private final List<String> supportedlanguages= Arrays.asList("Language","ar","be","de","en","es","fr","hi","it","ja","ko","nl","pl","pt","ru","sv","tr","uk","uz","zh");
+static final List<String> supportedlanguages= Arrays.asList("Language","ar","be","de","en","es","fr","hi","it","ja","ko","nl","pl","pt","ru","sv","tr","uk","uz","zh");
 
 static public Spinner getGenSpin(Activity context) {
     var spin=  new Spinner(context,isWearable?MODE_DIALOG: MODE_DROPDOWN);
@@ -1042,6 +1042,7 @@ static void mkrangelabel(TextView view,int res,float low, float high) {
      view.setText(view.getContext().getString(res)+" "+float2string(low)+"-"+float2string(high));
    }
 static void displaysettings(MainActivity context,Settings settings) {
+    if(tk.glucodata.PhoneUi.show("display",context,settings)) return; // phone: M3 DisplayPage
 
         TextView graphlabel = new TextView(context);
         graphlabel.setText(R.string.graphrange);
@@ -1864,7 +1865,7 @@ public static void   removeContentView(View view) {
     }
 
 //@Override
-private static void setAutoRotateOn(MainActivity act,boolean isChecked) {
+static void setAutoRotateOn(MainActivity act,boolean isChecked) {
      Natives.setRotate(isChecked);
      act.applyScreenOrientation(act.getResources().getConfiguration());
      }
