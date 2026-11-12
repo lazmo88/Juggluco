@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Material 3 meal pages (phone): meal items, ingredients, food database.
+     English only; upstream strings in src/main/res/values/strings.xml are
+     reused where they exist. -->
+<resources>
+    <!-- Meal -->
+    <string name="jm_meal_totalcarb">Total carbohydrate</string>
+    <string name="jm_meal_items">Items</string>
+    <string name="jm_meal_noitems">No items yet</string>
+    <string name="jm_meal_noitems_body">Add the ingredients of this meal and how much of each. The carbohydrate total goes into the amount.</string>
+    <string name="jm_meal_noround">No rounding</string>
+    <string name="jm_meal_round_hint">0 means no rounding</string>
+    <string name="jm_meal_repeat_desc">New amount with a copy of this meal</string>
+    <!-- Item -->
+    <string name="jm_meal_edititem">Edit item</string>
+    <string name="jm_meal_chooseingredient">Choose an ingredient</string>
+    <string name="jm_meal_deleteitem">Remove this item from the meal?</string>
+    <!-- Ingredients -->
+    <string name="jm_meal_ingredients">Ingredients</string>
+    <string name="jm_meal_newingredient">New ingredient</string>
+    <string name="jm_meal_editingredient">Edit ingredient</string>
+    <string name="jm_meal_searchingredients">Search ingredients</string>
+    <string name="jm_meal_noingredients">No ingredients yet</string>
+    <string name="jm_meal_noingredients_body">Define an ingredient with its carbohydrate per unit, or copy one from the food database.</string>
+    <string name="jm_meal_nomatch">No matching ingredients</string>
+    <string name="jm_meal_badpattern">Invalid search pattern</string>
+    <string name="jm_meal_deleteingredient">Delete this ingredient?</string>
+    <!-- Food database -->
+    <string name="jm_meal_fooddatabase">Food database</string>
+    <string name="jm_meal_fooddatabase_summary">Copy name, unit and carbohydrate from a food</string>
+    <string name="jm_meal_searchfoods">Search foods</string>
+    <string name="jm_meal_nofoods">Food database not available</string>
+    <string name="jm_meal_nofoodmatch">No matching foods</string>
+    <string name="jm_meal_nofoodmatch_body">Try another word, then press Search.</string>
+    <string name="jm_meal_nutrients">Nutrients</string>
+</resources>

@@ -16,26 +16,31 @@
 /*      You should have received a copy of the GNU General Public License            */
 /*      along with Juggluco. If not, see <https://www.gnu.org/licenses/>.            */
 /*                                                                                   */
-/*      Fri Jan 27 15:31:05 CET 2023                                                 */
-
 
 package tk.glucodata;
 
 import android.view.View;
 
+import com.google.android.material.button.MaterialButton;
+
 import androidx.recyclerview.widget.RecyclerView;
 
-
+/* One ingredient row of IngredientPage.select: tap chooses it, the trailing
+ * edit button opens the ingredient editor. */
 public class IngredientViewHolder extends RecyclerView.ViewHolder {
-
-    public IngredientViewHolder(View view, Meal.IngredientViewAdapter adapt) {
-       super(view);
-       view.setOnClickListener(v -> {
-           var pos=getAbsoluteAdapterPosition();
-           var res=adapt.results;
-           adapt.ingrindex.cons.accept(res==null?pos:res[pos]);
-           });
-    }
-
+    final MaterialButton edit;
+    IngredientViewHolder(View view,MaterialButton edit,IngredientPage.Adapter adapt) {
+        super(view);
+        this.edit=edit;
+        view.setOnClickListener(v -> {
+            final int pos=getAbsoluteAdapterPosition();
+            if(pos>=0&&pos<adapt.getItemCount())
+                adapt.choose(adapt.index(pos));
+            });
+        edit.setOnClickListener(v -> {
+            final int pos=getAbsoluteAdapterPosition();
+            if(pos>=0&&pos<adapt.getItemCount())
+                adapt.edit(adapt.index(pos));
+            });
+        }
 }
-

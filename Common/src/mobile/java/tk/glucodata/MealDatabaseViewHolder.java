@@ -16,8 +16,6 @@
 /*      You should have received a copy of the GNU General Public License            */
 /*      along with Juggluco. If not, see <https://www.gnu.org/licenses/>.            */
 /*                                                                                   */
-/*      Fri Jan 27 15:32:11 CET 2023                                                 */
-
 
 package tk.glucodata;
 
@@ -25,18 +23,14 @@ import android.view.View;
 
 import androidx.recyclerview.widget.RecyclerView;
 
-import static tk.glucodata.Meal.shownutrients;
-
-
+/* One food row of FoodPage.database: tap shows its nutrients. */
 public class MealDatabaseViewHolder extends RecyclerView.ViewHolder {
-    public MealDatabaseViewHolder(View view,long[] hitptr,TriConsumer<String,Float,String> give) {
-	    super(view);
-	    view.setOnClickListener(v -> {
-	    	int pos=getAbsoluteAdapterPosition();
-	    	int id=hitptr[0]==0L?pos:Natives.getfoodid(hitptr[0],pos);
-		shownutrients((MainActivity)view.getContext(),id,false,give);
-		});
-    }
-
+    MealDatabaseViewHolder(View view,FoodPage.Adapter adapt) {
+        super(view);
+        view.setOnClickListener(v -> {
+            final int pos=getAbsoluteAdapterPosition();
+            if(pos>=0&&pos<adapt.getItemCount())
+                adapt.open(pos);
+            });
+        }
 }
-
