@@ -187,7 +187,7 @@ public class Backup {
    boolean isasender=false;
    boolean[] sendchecked;
 
-      private static final String defaultport= isReleaseID==1?"8795":"9113";
+      static final String defaultport= isReleaseID==1?"8795":"9113";
       private    CheckDirectionBox Amounts =null;
       private CheckDirectionBox Scans =null;
       private CheckDirectionBox Stream =null,receive=null,detect=null,checkhostname;
@@ -877,6 +877,8 @@ new View[]{Portlabel,portedit,checkhostname},new View[]{IPslabel,detect},
       // setICE.accept(false);
       }
    void changehostview(MainActivity act,final int index,String[] names,boolean dodetect,String port,String pass,View parent) {
+      if(PhoneUi.show("mirrorhost",act,this,index))
+         return;
          parent.setVisibility(GONE);
       if(hostview==null)
          makehostview(act);

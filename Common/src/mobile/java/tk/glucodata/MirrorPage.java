@@ -233,13 +233,13 @@ static void autoQR(MainActivity act,Backup backup) {
                 case 3: Backup.dowhenasked(act,false,false,false,() -> backup.makeQR(act,Natives.makeICEReceiver())); break;
                 }
             })
-        .setNeutralButton(R.string.helpname,(d,w) -> help.help(R.string.autoqrhelp,act))
+        .setNeutralButton(R.string.helpname,(d,w) -> help.help(R.string.autoqrmessage,act))
         .setNegativeButton(R.string.cancel,null)
         .show();
     }
 
 /* TurnServer.show as a Save/Cancel page. */
-static void turnServer(MainActivity act) {
+public static void turnServer(MainActivity act) {
     final M3Page page=M3Page.open(act,R.string.turnserver);
     page.help(R.string.turnservers);
     final boolean absent=Natives.TurnServerNR()==0;
