@@ -1,5 +1,6 @@
 /*      This file is part of Juggluco, an Android app to receive and display         */
-/*      glucose values from Freestyle Libre 2 and 3 sensors.                         */
+/*      glucose values from Freestyle Libre 2, Libre 3, Dexcom G7/ONE+ and           */
+/*      Sibionics GS1Sb sensors.                                                     */
 /*                                                                                   */
 /*      Copyright (C) 2021 Jaap Korthals Altes <jaapkorthalsaltes@gmail.com>         */
 /*                                                                                   */
@@ -18,12 +19,14 @@
 
 package tk.glucodata.m3;
 
+import tk.glucodata.DataPages;
 import tk.glucodata.PhoneUi;
 
-/* Entering and viewing data: amounts, meals, labels, lists, statistics, search, help, display, themes. */
+/* Data area: amounts, list, search, date, statistics, help, display. */
 final class DataScreens {
 private DataScreens() {}
 
 static void register() {
+    DataPages.register();
     }
 }

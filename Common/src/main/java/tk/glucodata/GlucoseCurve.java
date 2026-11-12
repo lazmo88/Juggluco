@@ -218,6 +218,17 @@ void setminheight(View[] views,int minheight) {
     }
 //void getnumcontrol(MainActivity activity,int width,int height) {
 void getnumcontrol(MainActivity activity) {
+    if(PhoneUi.has("amountlist")) {
+        /* Phone: M3 list instead of the native-drawn list; leave no native
+         * list state or button column behind. */
+        if(numcontrol!=null)
+            numcontrol.setVisibility(GONE);
+        Natives.endnumlist();
+        requestRender();
+        if(PhoneUi.show("amountlist",activity))
+            return;
+        Natives.makenumbers();
+        }
    {if(doLog) {Log.i(LOG_ID,"getnumcontrol start");};};
 
     if(numcontrol==null) {

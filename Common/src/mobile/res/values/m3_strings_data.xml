@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Data area (rd/data) Material 3 screens. English only. -->
+<resources>
+    <string name="jm_data_editamount">Edit amount</string>
+    <string name="jm_data_fromwatch">From the other device</string>
+    <string name="jm_data_label">Label</string>
+    <string name="jm_data_amount">Amount</string>
+    <string name="jm_data_chooselabel">Choose a label</string>
+    <string name="jm_data_badnumber">Not a number</string>
+    <string name="jm_data_filter">Filter by label</string>
+    <string name="jm_data_gotodate">Go to date</string>
+    <string name="jm_data_noamounts">No amounts yet</string>
+    <string name="jm_data_noamounts_body">Amounts you enter, such as insulin or carbohydrates, are listed here by day.</string>
+    <string name="jm_data_nofilter">No amounts with this label</string>
+    <string name="jm_data_alllabels">All labels</string>
+    <string name="jm_data_deleted">Amount deleted</string>
+</resources>

@@ -223,6 +223,7 @@ void closenumview() {
 Button mealbutton;
 CheckDirectionBox excludebox;
 public void  addnumberview(MainActivity activity, long hitptr) {
+    if(PhoneUi.show("amount",activity,hitptr,-1)) return; // phone: M3 AmountPage
     final boolean oldnum=hitptr!=numio.newhit;
     if(currentnum!=0L&&currentnum!=numio.newhit)  {
             Natives.freehitptr(currentnum);
@@ -687,6 +688,7 @@ private void seedelete() {
         }
     }
 public void addnumberwithmenu(MainActivity context,int mealptr) {
+    if(PhoneUi.show("amount",context,0L,mealptr)) return; // phone: M3 AmountPage
     if(currentnum!=0L)  {
         if(currentnum!=numio.newhit) 
             Natives.freehitptr(currentnum);
@@ -700,6 +702,7 @@ public void addnumberwithmenu(MainActivity context,int mealptr) {
     thedate=0L;
     }
 public View addnumberview(MainActivity context) {
+    if(PhoneUi.show("amount",context,0L,-1)) return null; // phone: M3 AmountPage
     if(currentnum!=0L)  {
         if(currentnum!=numio.newhit) 
             Natives.freehitptr(currentnum);
@@ -1384,6 +1387,7 @@ Layout getkeyboard(Context context,View anchor,int keyboardMode) {
     }
 
 public    void showkeyboard(MainActivity context) {
+    if(PhoneUi.has("amount")) return; // the M3 AmountPage uses the system keyboard
     showkeyboard(context,newnumview,KEYBOARD_NUMBER);
     }
 public    void showkeyboard(MainActivity context,View anchor) {
