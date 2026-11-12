@@ -126,6 +126,11 @@ class Dashboard private constructor(private val act: MainActivity) {
             owner.stop()
             super.onDetachedFromWindow()
         }
+
+        override fun onWindowVisibilityChanged(visibility: Int) {
+            super.onWindowVisibilityChanged(visibility)
+            owner.windowVisible(visibility == View.VISIBLE)
+        }
     }
 
     private class Readings(val time: LongArray, val mgdl: FloatArray) {
@@ -322,6 +327,19 @@ class Dashboard private constructor(private val act: MainActivity) {
             handler.postDelayed(tick, TICK_MS)
         }
         wasActive = active
+    }
+
+    /**
+     * The app left the screen or came back. Coming back reloads at once: the meter may
+     * have sent readings in the meantime.
+     */
+    private fun windowVisible(visible: Boolean) {
+        if (visible) {
+            updateVisibility()
+        } else {
+            wasActive = false
+            handler.removeCallbacks(tick)
+        }
     }
 
     fun stop() {
@@ -990,7 +1008,8 @@ class Dashboard private constructor(private val act: MainActivity) {
                 ys = ArrayList()
             }
             prevT = t
-            val x = if (meter) (t - d.start).toDouble() / d.xUnit else ((t - d.start) / 60.0 * 100).roundToInt() / 100.0
+            // A reading of this very minute (or from a meter whose clock runs ahead) stays on the chart's right edge.
+            val x = if (meter) min(chartMaxX, (t - d.start).toDouble() / d.xUnit) else ((t - d.start) / 60.0 * 100).roundToInt() / 100.0
             val y = toUnit(r.mgdl[i].toDouble())
             dataMin = min(dataMin, y)
             dataMax = max(dataMax, y)
