@@ -229,6 +229,63 @@ static private void toScreen(Runnable run) {
     Dashboard.update();
     }
 
+/* Shortcuts on the phone dashboard: the same screens as from the menu, opened
+ * without the sheet.  Menus.on stays false, so closing the screen returns to
+ * the dashboard (updateLauncher clears inScreen). */
+static private void fromDashboard(MainActivity act,Runnable run) {
+    if(sheet!=null)
+        return;
+    inScreen=true;
+    act.lightBars(!getInvertColors());
+    try {
+        run.run();
+        }
+    catch(Throwable th) {
+        Log.stack(LOG_ID,"fromDashboard",th);
+        inScreen=false;
+        }
+    Dashboard.update();
+    }
+static public void openSensors(MainActivity act) {
+    fromDashboard(act,() -> bluediag.start(act));
+    }
+static public void openAlarms(MainActivity act) {
+    fromDashboard(act,() -> tk.glucodata.settings.AlarmsPage.show(act));
+    }
+static public void openNewAmount(MainActivity act) {
+    if(Natives.staticnum()) {
+        help.help(R.string.staticnum,act);
+        return;
+        }
+    var c=Applic.app.curve;
+    if(c!=null)
+        fromDashboard(act,() -> c.numberview.addnumberview(act));
+    }
+static public void openAmounts(MainActivity act) {
+    var c=Applic.app.curve;
+    if(c!=null)
+        fromDashboard(act,() -> {
+            Natives.makenumbers();
+            act.requestRender();
+            c.getnumcontrol(act);
+            });
+    }
+static public void openMeters(MainActivity act) {
+    fromDashboard(act,() -> {
+        if(!PhoneUi.show("meters",act))
+            bluediag.start(act);
+        });
+    }
+static public void openStatistics(MainActivity act) {
+    if(Natives.makepercentages())
+        fromDashboard(act,() -> {
+            act.requestRender();
+            Stats.mkstats(act);
+            });
+    else
+        tk.glucodata.m3.M3Page.message(act,act.getString(R.string.jm_stats_title),act.getString(R.string.jm_stats_nodata));
+    }
+
 /* Leave the menu and show the graph. */
 static private void toGraph(MainActivity act,Runnable run) {
     on=false;

@@ -183,6 +183,10 @@ class Dashboard private constructor(private val act: MainActivity) {
     private val vArrow: ImageView = content.findViewById(R.id.dash_arrow)
     private val vTrend: TextView = content.findViewById(R.id.dash_trend)
     private val vDetail: TextView = content.findViewById(R.id.dash_detail)
+    private val vEmpty: View = content.findViewById(R.id.dash_empty)
+    private val vValueRow: View = content.findViewById(R.id.dash_value_row)
+    private val vChartFrame: View = content.findViewById(R.id.dash_chart_frame)
+    private val vSummaryCard: View = content.findViewById(R.id.dash_summary_card)
     private val vChart: CartesianChartView = content.findViewById(R.id.dash_chart)
     private val vChartEmpty: TextView = content.findViewById(R.id.dash_chart_empty)
     private val vChartCaption: TextView = content.findViewById(R.id.dash_chart_caption)
@@ -370,15 +374,17 @@ class Dashboard private constructor(private val act: MainActivity) {
         vUnit.text = unitLabel()
         if (d.recent.size == 0 && d.last == null) {
             latestTime = 0
-            vValue.text = "--"
-            vValue.setTextColor(cOutline)
-            vUnit.visibility = View.GONE
+            vEmpty.visibility = View.VISIBLE
+            vValueRow.visibility = View.GONE
             vStatus.visibility = View.GONE
-            vArrow.visibility = View.INVISIBLE
-            vTrend.setText(R.string.dash_no_reading)
-            vDetail.setText(R.string.dash_no_reading_detail)
+            vTrend.visibility = View.GONE
+            vDetail.visibility = View.GONE
             return
         }
+        vEmpty.visibility = View.GONE
+        vValueRow.visibility = View.VISIBLE
+        vTrend.visibility = View.VISIBLE
+        vDetail.visibility = View.VISIBLE
         val lastIndex = d.recent.size - 1
         val time: Long
         val mgdl: Float
@@ -604,6 +610,11 @@ class Dashboard private constructor(private val act: MainActivity) {
         val lowUnit = toUnit(targetLow.toDouble())
         val highUnit = toUnit(targetHigh.toDouble())
         vChartCaption.text = ctx.getString(R.string.dash_chart_caption, fmt(targetLow.toDouble()), fmt(targetHigh.toDouble()), unitLabel())
+        val frameHeight = dp(if (r.size == 0) 150f else 260f)
+        if (vChartFrame.layoutParams.height != frameHeight) {
+            vChartFrame.layoutParams.height = frameHeight
+            vChartFrame.requestLayout()
+        }
         if (r.size == 0) {
             vChart.visibility = View.INVISIBLE
             vChartEmpty.visibility = View.VISIBLE
@@ -679,6 +690,8 @@ class Dashboard private constructor(private val act: MainActivity) {
         val res = ctx.resources
         vTirLegend.removeAllViews()
         vMetrics.removeAllViews()
+        // Nothing to summarise: leave the card out instead of showing an empty box.
+        vSummaryCard.visibility = if (s == null) View.GONE else View.VISIBLE
         if (s == null) {
             vSummaryTitle.text = res.getQuantityString(R.plurals.dash_summary_days, SUMMARY_DAYS, SUMMARY_DAYS)
             vTirValue.text = ""
@@ -845,6 +858,11 @@ class Dashboard private constructor(private val act: MainActivity) {
             }
         }
         content.findViewById<View>(R.id.dash_fullgraph).setOnClickListener { showFullGraph(act) }
+        content.findViewById<View>(R.id.dash_connect).setOnClickListener { Menus.openSensors(act) }
+        content.findViewById<View>(R.id.dash_q_sensors).setOnClickListener { Menus.openSensors(act) }
+        content.findViewById<View>(R.id.dash_q_amount).setOnClickListener { Menus.openNewAmount(act) }
+        content.findViewById<View>(R.id.dash_q_stats).setOnClickListener { Menus.openStatistics(act) }
+        content.findViewById<View>(R.id.dash_q_alarms).setOnClickListener { Menus.openAlarms(act) }
         setupChart()
         vTirLabel.minHeight = (20 * density).toInt()
     }

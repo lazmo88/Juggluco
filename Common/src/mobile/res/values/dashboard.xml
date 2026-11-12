@@ -7,6 +7,12 @@
     <string name="dash_full_graph">Full graph</string>
     <string name="dash_no_reading">No reading yet</string>
     <string name="dash_no_reading_detail">Connect a sensor from Menu → Sensors.</string>
+    <string name="dash_empty_detail">Connect a sensor or a glucose meter to see your values here.</string>
+    <string name="dash_connect_sensor">Connect sensor</string>
+    <string name="dash_q_amount">Add amount</string>
+    <string name="dash_q_sensors">Sensors</string>
+    <string name="dash_q_stats">Statistics</string>
+    <string name="dash_q_alarms">Alarms</string>
     <string name="dash_no_data_chart">No glucose values in this period.</string>
 
     <string name="dash_status_in_target">In target</string>

@@ -48,7 +48,50 @@
                     android:paddingBottom="4dp"
                     android:textAppearance="?attr/textAppearanceLabelLarge" />
 
+                <!-- Shown instead of the value while there is no reading at all -->
                 <LinearLayout
+                    android:id="@+id/dash_empty"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:visibility="gone">
+
+                    <ImageView
+                        android:layout_width="56dp"
+                        android:layout_height="56dp"
+                        android:background="@drawable/dash_icon_circle"
+                        android:importantForAccessibility="no"
+                        android:padding="14dp"
+                        android:src="@drawable/ic_jm_sensors_off"
+                        android:tint="?attr/colorOnSecondaryContainer" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:text="@string/dash_no_reading"
+                        android:textAppearance="?attr/textAppearanceHeadlineSmall"
+                        android:textColor="?attr/colorOnSurface" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="@string/dash_empty_detail"
+                        android:textAppearance="?attr/textAppearanceBodyMedium"
+                        android:textColor="?attr/colorOnSurfaceVariant" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/dash_connect"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:text="@string/dash_connect_sensor"
+                        app:icon="@drawable/ic_jm_sensors" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/dash_value_row"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
@@ -104,12 +147,68 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- Recent chart -->
-        <com.google.android.material.card.MaterialCardView
-            style="?attr/materialCardViewOutlinedStyle"
+        <!-- Quick actions -->
+        <HorizontalScrollView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
+            android:layout_marginStart="-16dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginEnd="-16dp"
+            android:clipToPadding="false"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:scrollbars="none">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/dash_q_amount"
+                    style="@style/Widget.Material3.Button.TonalButton.Icon"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/dash_q_amount"
+                    app:icon="@drawable/ic_jm_add" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/dash_q_sensors"
+                    style="@style/Widget.Material3.Button.TonalButton.Icon"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:text="@string/dash_q_sensors"
+                    app:icon="@drawable/ic_jm_sensors" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/dash_q_stats"
+                    style="@style/Widget.Material3.Button.TonalButton.Icon"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:text="@string/dash_q_stats"
+                    app:icon="@drawable/ic_jm_bar_chart" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/dash_q_alarms"
+                    style="@style/Widget.Material3.Button.TonalButton.Icon"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:text="@string/dash_q_alarms"
+                    app:icon="@drawable/ic_jm_notifications" />
+            </LinearLayout>
+        </HorizontalScrollView>
+
+        <!-- Recent chart -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/dash_chart_card"
+            style="?attr/materialCardViewFilledStyle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            app:cardBackgroundColor="?attr/colorSurfaceContainerLow"
             app:cardCornerRadius="24dp">
 
             <LinearLayout
@@ -178,6 +277,7 @@
                 </com.google.android.material.button.MaterialButtonToggleGroup>
 
                 <FrameLayout
+                    android:id="@+id/dash_chart_frame"
                     android:layout_width="match_parent"
                     android:layout_height="260dp"
                     android:layout_marginTop="8dp">
@@ -196,10 +296,13 @@
                         android:layout_gravity="center"
                         android:padding="24dp"
                         android:gravity="center"
+                        android:drawablePadding="8dp"
                         android:text="@string/dash_no_data_chart"
                         android:textAppearance="?attr/textAppearanceBodyMedium"
                         android:textColor="?attr/colorOnSurfaceVariant"
-                        android:visibility="gone" />
+                        android:visibility="gone"
+                        android:drawableTint="?attr/colorOutline"
+                        android:drawableTop="@drawable/ic_jm_show_chart" />
                 </FrameLayout>
 
                 <TextView
@@ -210,15 +313,27 @@
                     android:layout_marginEnd="16dp"
                     android:textAppearance="?attr/textAppearanceBodySmall"
                     android:textColor="?attr/colorOnSurfaceVariant" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/dash_fullgraph"
+                    style="@style/Widget.Material3.Button.TextButton.Icon"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="end"
+                    android:layout_marginEnd="8dp"
+                    android:text="@string/dash_full_graph"
+                    app:icon="@drawable/ic_jm_show_chart" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
         <!-- 14-day summary -->
         <com.google.android.material.card.MaterialCardView
-            style="?attr/materialCardViewOutlinedStyle"
+            android:id="@+id/dash_summary_card"
+            style="?attr/materialCardViewFilledStyle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
+            app:cardBackgroundColor="?attr/colorSurfaceContainerLow"
             app:cardCornerRadius="24dp">
 
             <LinearLayout
@@ -294,14 +409,5 @@
                     android:textColor="?attr/colorOnSurfaceVariant" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/dash_fullgraph"
-            style="@style/Widget.Material3.Button.TonalButton.Icon"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:text="@string/dash_full_graph"
-            app:icon="@drawable/ic_jm_show_chart" />
     </LinearLayout>
 </androidx.core.widget.NestedScrollView>
