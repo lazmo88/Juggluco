@@ -98,7 +98,7 @@ private static final String LOG_ID="DynamicThemeUtils";
         final boolean light=isLight(ctx);
         final int window=windowColor(ctx,light);
         final int accent=opaque(attrColor(ctx,"colorButtonBackground",resolveAttributeColor(ctx,android.R.attr.colorButtonNormal,Color.GRAY)));
-        float frac=light?0.16f:0.28f;
+        float frac=light?0.24f:0.30f;
         int container=ColorUtils.blendARGB(window,accent,frac);
         while(ColorUtils.calculateContrast(container,window)<1.2&&frac<0.6f) {
             frac+=0.08f;
@@ -109,14 +109,15 @@ private static final String LOG_ID="DynamicThemeUtils";
         return opaque(container);
         }
 
-    /* Label colour on the tonal container: a tone of the button colour with
-     * at least 4.5:1 contrast. */
+    /* Label colour on the tonal container: a dark (light mode) or light (dark
+     * mode) tone of the button colour, like Material's on-container colours,
+     * with at least 7:1 contrast where the theme allows it. */
     public static int tonalText(Context ctx,int container) {
         final boolean light=isLight(ctx);
         final int text=textColor(ctx,light);
         final int accent=opaque(attrColor(ctx,"colorButtonBackground",text));
         int color=accent;
-        for(float frac=0.4f;ColorUtils.calculateContrast(color,container)<4.5&&frac<=1.0f;frac+=0.1f)
+        for(float frac=0.4f;ColorUtils.calculateContrast(color,container)<7.0&&frac<=1.0f;frac+=0.1f)
             color=ColorUtils.blendARGB(accent,text,frac);
         if(ColorUtils.calculateContrast(color,container)<4.5)
             color=text;

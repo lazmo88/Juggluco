@@ -147,16 +147,47 @@ private void refresh() {
     updating=false;
     }
 
+private void applyInsets(int left,int top,int right,int bottom) {
+    View toolbar=root.findViewById(R.id.jm_settings_toolbar);
+    toolbar.setPadding(left,top,right,0);
+    ViewGroup.LayoutParams params=toolbar.getLayoutParams();
+    params.height=top+Math.round(64*act.getResources().getDisplayMetrics().density); // M3 small top app bar
+    toolbar.setLayoutParams(params);
+    root.findViewById(R.id.jm_settings_scroll).setPadding(left,0,right,bottom);
+    }
+
 private void handleInsets() {
-    final View appbar=root.findViewById(R.id.jm_settings_appbar);
-    final View scroll=root.findViewById(R.id.jm_settings_scroll);
+    /* Start with the insets MainActivity already knows, so the first frame
+     * is right; the listener follows rotations and cutouts. */
+    applyInsets(MainActivity.systembarLeft,MainActivity.systembarTop,MainActivity.systembarRight,MainActivity.systembarBottom);
     ViewCompat.setOnApplyWindowInsetsListener(root,(v,windowInsets) -> {
         Insets bars=windowInsets.getInsets(WindowInsetsCompat.Type.systemBars()|WindowInsetsCompat.Type.displayCutout());
-        appbar.setPadding(bars.left,bars.top,bars.right,0);
-        scroll.setPadding(bars.left,0,bars.right,bars.bottom);
-        return WindowInsetsCompat.CONSUMED;
+        applyInsets(bars.left,bars.top,bars.right,bars.bottom);
+        return windowInsets;
         });
-    ViewCompat.requestApplyInsets(root);
+    root.addOnAttachStateChangeListener(new View.OnAttachStateChangeListener() {
+        @Override
+        public void onViewAttachedToWindow(@NonNull View v) {
+            ViewCompat.requestApplyInsets(v);
+            }
+        @Override
+        public void onViewDetachedFromWindow(@NonNull View v) { }
+        });
+
+    /* Material 3 top app bar: surface colour, container colour when the
+     * list is scrolled under it. */
+    final MaterialToolbar toolbar=root.findViewById(R.id.jm_settings_toolbar);
+    final int flat=themeColor(com.google.android.material.R.attr.colorSurface);
+    final int lifted=themeColor(com.google.android.material.R.attr.colorSurfaceContainer);
+    androidx.core.widget.NestedScrollView scroll=root.findViewById(R.id.jm_settings_scroll);
+    scroll.setOnScrollChangeListener((androidx.core.widget.NestedScrollView.OnScrollChangeListener)(sv,x,y,ox,oy) ->
+        toolbar.setBackgroundColor(y>0?lifted:flat));
+    }
+
+private int themeColor(int attr) {
+    TypedValue tv=new TypedValue();
+    ctx.getTheme().resolveAttribute(attr,tv,true);
+    return tv.data;
     }
 
 /* ---------- system bar icons ---------- */
@@ -276,9 +307,7 @@ private ViewGroup link(LinearLayout parent,int icon,CharSequence title,View.OnCl
     ImageView chevron=new ImageView(ctx);
     chevron.setImageResource(R.drawable.ic_jm_chevron_right);
     chevron.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
-    TypedValue tv=new TypedValue();
-    if(ctx.getTheme().resolveAttribute(com.google.android.material.R.attr.colorOnSurfaceVariant,tv,true))
-        chevron.setColorFilter(tv.data);
+    chevron.setColorFilter(themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant));
     if(act.getResources().getConfiguration().getLayoutDirection()==View.LAYOUT_DIRECTION_RTL)
         chevron.setScaleX(-1f);
     ((FrameLayout)row.findViewById(R.id.jm_row_end)).addView(chevron);
