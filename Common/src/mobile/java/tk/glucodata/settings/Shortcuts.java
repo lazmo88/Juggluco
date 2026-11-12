@@ -81,7 +81,19 @@ private void fill() {
         return;
         }
     for(ArrayList<Object> el:shortcuts)
-        page.link(sec,R.drawable.ic_jm_bolt,(String)el.get(0),(String)el.get(1),() -> edit(page.act,el));
+        page.link(sec,R.drawable.ic_jm_bolt,(String)el.get(0),pretty((String)el.get(1)),() -> edit(page.act,el));
+    }
+
+/* Stored values come back as 0.479999989; show 0.48 (display only). */
+static String pretty(String value) {
+    try {
+        if(value!=null&&value.matches("-?\\d+\\.\\d{6,}")) {
+            String s=Float.toString(Float.parseFloat(value));
+            return s.endsWith(".0")?s.substring(0,s.length()-2):s;
+            }
+        }
+    catch(Throwable th) {}
+    return value;
     }
 
 /* The old saveall(). */
