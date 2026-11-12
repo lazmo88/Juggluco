@@ -42,7 +42,7 @@ import static android.view.ViewGroup.LayoutParams.MATCH_PARENT;
 
 public final class Clarity {
     private static final String LOG_ID="Clarity";
-    private static String statusText(MainActivity act,ClarityStatus state) {
+    static String statusText(MainActivity act,ClarityStatus state) {
         String message=state.status;
         var format=new SimpleDateFormat("yyyy-MM-dd HH:mm",Locale.ROOT);
         if(state.lastSuccess>0)
@@ -65,6 +65,11 @@ public final class Clarity {
             Log.e(logId, "at " + frames[i]);
     }
     public static void show(MainActivity act,View parent) {
+        ClarityPage.show(act);
+        }
+
+    /* Old screen, no longer used on phones. */
+    static void showOld(MainActivity act,View parent) {
         final ClarityStatus state;
         try{
             state=Natives.clarityStatus();

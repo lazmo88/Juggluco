@@ -133,7 +133,7 @@ public class Backup {
       label.setText(text);
       return label;
       }
-   static String[] gethostnames() {
+   public static String[] gethostnames() {
         String p2p=null;
         String norm=null;
         String bluepan=null;
@@ -319,7 +319,7 @@ static public String changehostError(MainActivity act,int pos) {
       }
 
 
-boolean makeQR(MainActivity act,int pos) {
+public boolean makeQR(MainActivity act,int pos) {
         if(pos<0) {
                 var mess= changehostError(act,pos);
                  Applic.argToaster(act,mess,Toast.LENGTH_SHORT);
@@ -1026,7 +1026,7 @@ new View[]{Portlabel,portedit,checkhostname},new View[]{IPslabel,detect},
 
       hostindex=index;
       }
-   void changehostview(MainActivity act,int index,View parent) {
+   public void changehostview(MainActivity act,int index,View parent) {
       String[] names=Natives.getbackupIPs(index);
       String port=Natives.getbackuphostport(index);
       String pass= Natives.getbackuppassword(index);
@@ -1129,14 +1129,18 @@ ViewGroup.LayoutParams params;
          closerun.run();
          });
       }
-   void addhostview(MainActivity act,View parent) {
+   public void addhostview(MainActivity act,View parent) {
       changehostview(act,-1,null,false,defaultport,"",parent) ;
       }
 
 
-   HostViewAdapter hostadapt;
+   public HostViewAdapter hostadapt;
 //   Button alarms;
    public  void mkbackupview(MainActivity act) {
+      if(PhoneUi.has("mirror")) {
+         PhoneUi.show("mirror",act,this,Boolean.FALSE);
+         return;
+         }
       act.themeLightBars();
       act.showui=true;
       if(!isWearable&&!Natives.getsystemUI()) {
@@ -1149,6 +1153,8 @@ ViewGroup.LayoutParams params;
    //    Applic.app.getHandler().postDelayed( ()-> realmkbackupview(act),1); //for what was it needed?
       }
    public  void realmkbackupview(MainActivity act,boolean lightback) {
+   if(PhoneUi.show("mirror",act,this,lightback))
+      return;
    configchanged=false;
     // activity=act;
     String[] thishost=gethostnames();
@@ -1346,7 +1352,7 @@ ViewGroup.LayoutParams params;
    }
     public class HostViewAdapter extends RecyclerView.Adapter<HostViewHolder> {
       View pview;
-         HostViewAdapter(View parent) {
+         public HostViewAdapter(View parent) {
          this.pview=parent;
          }
 
@@ -1459,7 +1465,7 @@ private int getMirrorListColor(MainActivity act) {
            }
 
    }
-   boolean configchanged=false;
+   public boolean configchanged=false;
 
 static private String mkreceiveString(Context act,boolean nums, boolean scans, boolean stream) {
         String type=""; 
@@ -1480,7 +1486,7 @@ static private String mkreceiveString(Context act,boolean nums, boolean scans, b
             }
         return type;
        }
-static void dowhenasked(Context act,boolean nums,boolean scans,boolean stream, Runnable save) {
+public static void dowhenasked(Context act,boolean nums,boolean scans,boolean stream, Runnable save) {
         String type=mkreceiveString(act,nums,scans,stream) ; 
         if(!type.isEmpty()) {
                 Confirm.ask(act,act.getString(R.string.datapresent)+type,act.getString(R.string.overwrite),save);

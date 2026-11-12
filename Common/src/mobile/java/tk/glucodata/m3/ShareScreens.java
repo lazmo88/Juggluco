@@ -26,6 +26,8 @@ private ShareScreens() {}
 
 static void register() {
     PhoneUi.register("settings.exchanges",(act,args) -> tk.glucodata.settings.ExchangePage.show(act));
+    PhoneUi.register("mirror",(act,args) -> tk.glucodata.MirrorPage.show(act,(tk.glucodata.Backup)args[0],(Boolean)args[1]));
+    PhoneUi.register("turnserver",(act,args) -> tk.glucodata.MirrorPage.turnServer(act));
     PhoneUi.register("nightpost",(act,args) -> tk.glucodata.UploaderPage.show(act));
     }
 }
