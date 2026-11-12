@@ -75,6 +75,8 @@ import android.widget.ProgressBar;
 import android.widget.PopupWindow;
 import android.widget.Toast;
 import android.widget.Button;
+import android.widget.CompoundButton;
+import android.view.LayoutInflater;
 import android.widget.TextView;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -93,6 +95,8 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.core.widget.NestedScrollView;
+import androidx.appcompat.view.ContextThemeWrapper;
+import com.google.android.material.color.DynamicColors;
 import com.google.android.gms.wearable.Node;
 
 import org.json.JSONArray;
@@ -125,6 +129,7 @@ public final class JugglucoChat {
 
     private static native NativeMessage nativeInitWithFilesMessages(String storageDir, String filesDir);
     private static native NativeMessage nativeStartLoginMessages();
+    private static native NativeMessage nativeStartBrowserLoginMessages(String packageName);
     private static native NativeMessage nativeLoadModelsMessages();
     private static native NativeMessage nativeSendWithOptionsMessages(String question, String model, String reasoningEffort, boolean internet);
     private static native NativeMessage nativeCancelMessages();
@@ -402,6 +407,9 @@ public final class JugglucoChat {
         final Runnable pollTask = this::poll;
         PowerManager.WakeLock wakeLock;
         long observedOperation = -1, completedOperation = -1;
+        // Browser sign-in: open the authorize page once per operation and
+        // bring Juggluco back once the loopback callback has arrived.
+        long openedBrowserOperation = -1, returnedOperation = -1;
         long wearObservedAt;
         boolean busy, initialized, polling, pollAgain, settingsOpen;
         boolean reopenAfterRotation, restoreKeyboard;
@@ -466,6 +474,11 @@ public final class JugglucoChat {
                             selectionStart = selectionEnd = draft.length();
                         }
                     }
+                }
+                if ("browser_login".equals(state.optString("operation", "")) && state.optBoolean("callback_received", false)
+                        && operation != returnedOperation) {
+                    returnedOperation = operation;
+                    if (!full) returnToApp();
                 }
                 ChatWindow chat = current.get();
                 if (full && chat != null && !chat.closed) chat.apply(state);
@@ -577,6 +590,19 @@ public final class JugglucoChat {
             } catch (JSONException | RuntimeException | LinkageError unavailable) {
                 // Optional Android cache only. Never initiate discovery or stop
                 // a question if Google services / this cache are unavailable.
+            }
+        }
+        /** Best effort: Android may refuse a launch from the background. The
+         * callback page also offers a "Return to Juggluco" link. */
+        void returnToApp() {
+            if (hostClass == null) return;
+            try {
+                Intent intent = new Intent(app, hostClass);
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
+                        | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                app.startActivity(intent);
+            } catch (RuntimeException refused) {
+                Log.i("JugglucoChat", "Could not bring Juggluco to the front after sign-in");
             }
         }
         void releaseWake() {
@@ -755,9 +781,9 @@ public final class JugglucoChat {
         final PopupWindow keyboardPopup;
         final LinearLayout chatPanel;
         final LinearLayout progressRow;
-        final Layout settingsLayout;
-        final View[] modelViews, loginViews;
-        final TextView settingsStatus, settingsError;
+        final View settingsLayout;
+        final View modelSection, browserWait, codeGroup, signedInActions;
+        final TextView settingsStatus, settingsError, accountTitle, accountDetail;
         final AppCompatButton settings;
         final AppCompatButton activityButton;
         final AppCompatButton closeButton;
@@ -771,12 +797,16 @@ public final class JugglucoChat {
         final TextView loginLink;
         final AppCompatEditText question;
         final Button signIn;
+        final Button useCode;
+        final Button reopenBrowser;
+        final Button cancelLogin;
+        final Button signInAgain;
         final Button signOut;
         final Button newChat;
         final AppCompatButton send;
         final Button chooseModel;
         final Button chooseReasoning;
-        final CheckDirectionBox internet;
+        final CompoundButton internet;
         final Button savedFiles;
         final Button saveChat;
         final Button shareChat;
@@ -805,6 +835,11 @@ public final class JugglucoChat {
         String serverError = "";
         String loginUrl = "";
         String userCode = "";
+        String loginKind = "";
+        String accountEmail = "";
+        String accountPlan = "";
+        long operationId = -1;
+        boolean callbackReceived;
         String messageSnapshot = "";
         String modelSnapshot = "";
         String selectedModelId;
@@ -902,74 +937,58 @@ public final class JugglucoChat {
                     ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
             root.addView(chatPanel, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
 
-            // Use the Activity context and Juggluco's normal widgets/theme.
-            TextView settingsTitle = util.getlabel(activity, R.string.jgchat_settings);
-            signIn = util.getbutton(activity, R.string.jgchat_sign_in);
-            signOut = util.getbutton(activity, R.string.jgchat_sign_out);
-            newChat = util.getbutton(activity, R.string.jgchat_new_chat);
-            savedFiles = util.getbutton(activity, R.string.jgchat_saved_files);
-            saveChat = util.getbutton(activity, R.string.jgchat_save_chat_a8796cea);
-            shareChat = util.getbutton(activity, R.string.jgchat_share_chat);
-            clearAnalysis = util.getbutton(activity, R.string.jgchat_clear_analysis_memory);
-            TextView modelLabel = util.getlabel(activity, R.string.jgchat_model);
-            chooseModel = util.getbutton(activity, R.string.jgchat_select_a_model);
-            chooseReasoning = util.getbutton(activity, R.string.jgchat_reasoning_server_default);
-            internet = util.getcheckbox(activity, R.string.jgchat_internet_search, prefs.getBoolean("internet_search", true));
-            internet.setOnCheckedChangeListener((button, checked) -> prefs.edit().putBoolean("internet_search", checked).apply());
-            modelViews = new View[]{modelLabel, chooseModel, chooseReasoning, internet};
-            TextView loginCodeLabel = util.getlabel(activity, R.string.jgchat_sign_in_code);
-            code = util.getlabel(activity, "");
-            code.setTextSize(22);
-            code.setTextIsSelectable(true);
-            loginLink = util.getlabel(activity, "");
-            loginLink.setTextIsSelectable(true);
-            loginLink.setMaxLines(2);
-            loginLink.setEllipsize(TextUtils.TruncateAt.END);
-            copyCode = util.getbutton(activity, R.string.jgchat_copy_code);
-            openBrowser = util.getbutton(activity, R.string.jgchat_open_sign_in_page);
-            loginViews = new View[]{loginCodeLabel, code, loginLink, copyCode, openBrowser};
-            stopRequest = util.getbutton(activity, R.string.jgchat_stop_request);
-            Button helpbutton = util.getbutton(activity, R.string.helpname);
-            Button settingsActivity = util.getbutton(activity, R.string.jgchat_activity);
-            Button settingsClose = util.getbutton(activity, R.string.jgchat_close);
-            settingsStatus = util.getlabel(activity, "");
-            settingsStatus.setMaxLines(1);
-            settingsStatus.setEllipsize(TextUtils.TruncateAt.END);
-            settingsError = util.getlabel(activity, "");
-            settingsError.setMaxLines(3);
-            settingsError.setTextIsSelectable(true);
+            // Material 3 account and chat settings page, themed like the
+            // Juggluco menu sheet (Menus.themed): light/dark from Juggluco's
+            // invert-colours setting, dynamic colours where available.
+            Context m3 = DynamicColors.wrapContextIfAvailable(new ContextThemeWrapper(activity,
+                    Natives.getInvertColors() ? R.style.Juggluco_M3_Dark : R.style.Juggluco_M3_Light));
+            View panel = LayoutInflater.from(m3).inflate(R.layout.jgchat_settings, null, false);
+            settingsLayout = panel;
+            accountTitle = panel.findViewById(R.id.jgc_account_title);
+            accountDetail = panel.findViewById(R.id.jgc_account_detail);
+            signIn = panel.findViewById(R.id.jgc_sign_in);
+            useCode = panel.findViewById(R.id.jgc_use_code);
+            browserWait = panel.findViewById(R.id.jgc_browser_wait);
+            reopenBrowser = panel.findViewById(R.id.jgc_reopen_browser);
+            codeGroup = panel.findViewById(R.id.jgc_code_group);
+            code = panel.findViewById(R.id.jgc_code);
+            copyCode = panel.findViewById(R.id.jgc_copy_code);
+            openBrowser = panel.findViewById(R.id.jgc_open_page);
+            loginLink = panel.findViewById(R.id.jgc_login_link);
+            cancelLogin = panel.findViewById(R.id.jgc_cancel_login);
+            signedInActions = panel.findViewById(R.id.jgc_signed_in_actions);
+            signOut = panel.findViewById(R.id.jgc_sign_out);
+            signInAgain = panel.findViewById(R.id.jgc_sign_in_again);
+            settingsStatus = panel.findViewById(R.id.jgc_status);
+            settingsError = panel.findViewById(R.id.jgc_error);
             settingsError.setVisibility(View.GONE);
-
-            settingsLayout = new Layout(activity,
-                    new View[]{settingsTitle, signIn, signOut},
-                    new View[]{modelLabel, chooseModel, chooseReasoning, internet},
-                    new View[]{newChat, savedFiles, saveChat, shareChat},
-                    new View[]{clearAnalysis, stopRequest},
-                    new View[]{loginCodeLabel, code, copyCode, openBrowser},
-                    new View[]{loginLink},
-                    new View[]{settingsStatus, settingsError},
-                    new View[]{helpbutton, settingsActivity, settingsClose}
-            ).portraitLayout(
-                    new View[]{settingsTitle},
-                    new View[]{modelLabel, chooseModel},
-                    new View[]{chooseReasoning},
-                    new View[]{internet},
-                    new View[]{saveChat, shareChat},
-                    new View[]{newChat, savedFiles},
-                    new View[]{clearAnalysis},
-                    new View[]{stopRequest},
-                    new View[]{signIn, signOut},
-                    new View[]{loginCodeLabel, code},
-                    new View[]{copyCode, openBrowser},
-                    new View[]{loginLink},
-                    new View[]{settingsStatus},
-                    new View[]{settingsError},
-                    new View[]{helpbutton, settingsActivity, settingsClose});
-            settingsLayout.setBackgroundColor(Applic.backgroundcolor);
-            settingsLayout.systembarPadding((left, top, right, bottom) -> new int[]{left + dp(8), top, right + dp(8), bottom});
-            helpbutton.setOnClickListener(v -> showHelp());
-            settingsActivity.setOnClickListener(v -> showActivity());
-            settingsClose.setOnClickListener(v -> MainActivity.doonback());
+            modelSection = panel.findViewById(R.id.jgc_model_section);
+            chooseModel = panel.findViewById(R.id.jgc_model);
+            chooseReasoning = panel.findViewById(R.id.jgc_reasoning);
+            internet = panel.findViewById(R.id.jgc_internet);
+            internet.setChecked(prefs.getBoolean("internet_search", true));
+            internet.setOnCheckedChangeListener((button, checked) -> prefs.edit().putBoolean("internet_search", checked).apply());
+            saveChat = panel.findViewById(R.id.jgc_save_chat);
+            shareChat = panel.findViewById(R.id.jgc_share_chat);
+            savedFiles = panel.findViewById(R.id.jgc_saved_files);
+            newChat = panel.findViewById(R.id.jgc_new_chat);
+            clearAnalysis = panel.findViewById(R.id.jgc_clear_analysis);
+            stopRequest = panel.findViewById(R.id.jgc_stop);
+            panel.findViewById(R.id.jgc_help).setOnClickListener(v -> showHelp());
+            panel.findViewById(R.id.jgc_activity).setOnClickListener(v -> showActivity());
+            panel.findViewById(R.id.jgc_close).setOnClickListener(v -> MainActivity.doonback());
+            // Edge to edge: the surface runs under the bars, content is
+            // padded by them (and by the keyboard, for the selectable texts).
+            final View scroll = panel.findViewById(R.id.jgc_scroll);
+            panel.setPadding(MainActivity.systembarLeft, MainActivity.systembarTop, MainActivity.systembarRight, 0);
+            scroll.setPadding(0, 0, 0, MainActivity.systembarBottom);
+            ViewCompat.setOnApplyWindowInsetsListener(panel, (v, insets) -> {
+                Insets bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout());
+                Insets ime = insets.getInsets(WindowInsetsCompat.Type.ime());
+                v.setPadding(bars.left, bars.top, bars.right, 0);
+                scroll.setPadding(0, 0, 0, Math.max(bars.bottom, ime.bottom));
+                return insets;
+            });
 
             status = text(s(R.string.jgchat_opening_chat));
             status.setMaxLines(1);
@@ -1048,11 +1067,15 @@ public final class JugglucoChat {
             activityButton.setOnClickListener(v -> showActivity());
             closeButton.setOnClickListener(v -> dialogClose());
 
-            signIn.setOnClickListener(v -> {
+            signIn.setOnClickListener(v -> startBrowserLogin());
+            signInAgain.setOnClickListener(v -> startBrowserLogin());
+            useCode.setOnClickListener(v -> {
                 hideKeyboard();
                 modelsRequested = false;
                 invoke(JugglucoChat::nativeStartLoginMessages);
             });
+            reopenBrowser.setOnClickListener(v -> openLogin());
+            cancelLogin.setOnClickListener(v -> cancelLogin());
             signOut.setOnClickListener(v -> {
                 modelsRequested = false;
                 if (invoke(JugglucoChat::nativeLogoutMessages)) question.setText("");
@@ -1197,8 +1220,19 @@ public final class JugglucoChat {
             if (activityDetails != null) activityDetails.setText(activityText);
             loginUrl = snapshot.optString("login_url", "");
             userCode = snapshot.optString("user_code", "");
+            loginKind = snapshot.optString("login_kind", "");
+            operationId = snapshot.optLong("operation_id", -1);
+            callbackReceived = snapshot.optBoolean("callback_received", false);
+            accountEmail = snapshot.optString("account_email", "");
+            accountPlan = snapshot.optString("account_plan", "");
             code.setText(userCode);
-            loginLink.setText(loginUrl);
+            // The authorize URL carries the OAuth state; show only the device page.
+            loginLink.setText("browser".equals(loginKind) ? "" : loginUrl);
+            if (busy && resumed && "browser".equals(loginKind) && !loginUrl.isEmpty()
+                    && running.openedBrowserOperation != operationId) {
+                running.openedBrowserOperation = operationId;
+                handler.post(this::openLogin);
+            }
             JSONArray available = snapshot.optJSONArray("models");
             updateModels(available == null ? new JSONArray() : available);
             JSONArray messages = snapshot.optJSONArray("messages");
@@ -1507,10 +1541,28 @@ public final class JugglucoChat {
 
         void updateControls() {
             if (closed) return;
-            boolean loginActive = busy && (!loginUrl.isEmpty() || !userCode.isEmpty());
+            boolean browserActive = busy && "browser".equals(loginKind);
+            boolean deviceActive = busy && !browserActive && (!userCode.isEmpty() || "device".equals(loginKind));
+            boolean loginActive = loginActive();
             boolean accountPage = !loggedIn || settingsOpen || loginActive;
-            for (View view : modelViews) view.setVisibility(loggedIn ? View.VISIBLE : View.GONE);
-            for (View view : loginViews) view.setVisibility(loginActive ? View.VISIBLE : View.GONE);
+            modelSection.setVisibility(loggedIn ? View.VISIBLE : View.GONE);
+            signIn.setVisibility(!loggedIn && !loginActive ? View.VISIBLE : View.GONE);
+            useCode.setVisibility(!loggedIn && !loginActive ? View.VISIBLE : View.GONE);
+            browserWait.setVisibility(browserActive ? View.VISIBLE : View.GONE);
+            reopenBrowser.setVisibility(browserActive && !callbackReceived ? View.VISIBLE : View.GONE);
+            reopenBrowser.setEnabled(allowedLoginUrl(loginUrl));
+            codeGroup.setVisibility(deviceActive && !userCode.isEmpty() ? View.VISIBLE : View.GONE);
+            loginLink.setVisibility(loginLink.length() > 0 ? View.VISIBLE : View.GONE);
+            cancelLogin.setVisibility(loginActive && !callbackReceived ? View.VISIBLE : View.GONE);
+            signedInActions.setVisibility(loggedIn && !loginActive ? View.VISIBLE : View.GONE);
+            if (loggedIn) {
+                accountTitle.setText(accountEmail.isEmpty() ? s(R.string.jgchat_chatgpt_account) : accountEmail);
+                accountDetail.setText(accountPlan.isEmpty() ? s(R.string.jgchat_signed_in)
+                        : s(R.string.jgchat_plan_value, accountPlan.substring(0, 1).toUpperCase(Locale.ROOT) + accountPlan.substring(1)));
+            } else {
+                accountTitle.setText(s(R.string.jgchat_not_signed_in));
+                accountDetail.setText(s(R.string.jgchat_sign_in_explanation));
+            }
             settings.setVisibility(loggedIn && !accountPage ? View.VISIBLE : View.GONE);
             settings.setEnabled(initialized);
             activityButton.setVisibility(loggedIn || busy ? View.VISIBLE : View.GONE);
@@ -1520,8 +1572,9 @@ public final class JugglucoChat {
             thinking.setVisibility(busy ? View.VISIBLE : View.GONE);
             elapsed.setVisibility(busy ? View.VISIBLE : View.GONE);
             newChat.setVisibility(loggedIn ? View.VISIBLE : View.GONE);
-            signIn.setText(loggedIn ? s(R.string.jgchat_sign_in_again) : s(R.string.jgchat_sign_in));
             signIn.setEnabled(initialized && !busy);
+            useCode.setEnabled(initialized && !busy);
+            signInAgain.setEnabled(initialized && !busy);
             signOut.setEnabled(initialized && !busy);
             newChat.setEnabled(initialized && !busy);
             chooseModel.setEnabled(initialized && loggedIn && !busy);
@@ -1533,7 +1586,7 @@ public final class JugglucoChat {
             shareChat.setEnabled(initialized && hasChat);
             clearAnalysis.setVisibility(loggedIn ? View.VISIBLE : View.GONE);
             clearAnalysis.setEnabled(initialized && !busy);
-            stopRequest.setVisibility(busy ? View.VISIBLE : View.GONE);
+            stopRequest.setVisibility(busy && !loginActive ? View.VISIBLE : View.GONE);
             stopRequest.setEnabled(initialized && busy);
             Model selected = selectedModel();
             chooseModel.setText(selected == null ? s(R.string.jgchat_select_a_model) : selected.name.isEmpty() ? selected.id : selected.name);
@@ -1548,7 +1601,8 @@ public final class JugglucoChat {
             openBrowser.setEnabled(busy && allowedLoginUrl(loginUrl));
             copyCode.setEnabled(busy && !userCode.isEmpty());
             settingsStatus.setText(status.getText());
-            settingsStatus.setVisibility(busy || !loggedIn ? View.VISIBLE : View.GONE);
+            // While a sign-in waits for the user the card already says what to do.
+            settingsStatus.setVisibility(busy && (!loginActive || callbackReceived) ? View.VISIBLE : View.GONE);
             displayPage(accountPage);
         }
         void chooseChatExport(boolean share) {
@@ -1828,6 +1882,22 @@ public final class JugglucoChat {
             }
         }
 
+        boolean loginActive() {
+            return busy && ("browser".equals(loginKind) || "device".equals(loginKind)
+                    || !loginUrl.isEmpty() || !userCode.isEmpty());
+        }
+        void startBrowserLogin() {
+            hideKeyboard();
+            modelsRequested = false;
+            localError = "";
+            showError();
+            invoke(() -> nativeStartBrowserLoginMessages(activity.getPackageName()));
+        }
+        void cancelLogin() {
+            if (!busy) return;
+            running.releaseWake();
+            invoke(JugglucoChat::nativeCancelMessages);
+        }
         void showSettings(boolean show) {
             hideKeyboard();
             root.requestFocus();
@@ -1841,9 +1911,14 @@ public final class JugglucoChat {
                 if (settingsAttached) return;
                 hideKeyboard();
                 dialog.hide();
-                MainActivity.addMyContentView(activity, settingsLayout, new ViewGroup.LayoutParams(
+                // Not addMyContentView: its dynamic-theme pass would restyle
+                // the Material 3 widgets, which are already themed.
+                activity.addContentView(settingsLayout, new ViewGroup.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+                ViewCompat.requestApplyInsets(settingsLayout);
                 settingsAttached = true;
+                // Dark status-bar icons on the light surface and vice versa.
+                if (activity instanceof MainActivity) ((MainActivity) activity).lightBars(!Natives.getInvertColors());
                 WeakReference<ChatWindow> reference = new WeakReference<>(this);
                 MainActivity.setonback(() -> {
                     ChatWindow window = reference.get();
@@ -1865,8 +1940,7 @@ public final class JugglucoChat {
             settingsAttached = false;
             tk.glucodata.settings.Settings.removeContentView(settingsLayout);
             if (closed) return;
-            boolean loginActive = busy && (!loginUrl.isEmpty() || !userCode.isEmpty());
-            if (loggedIn && !loginActive) showSettings(false);
+            if (loggedIn && !loginActive()) showSettings(false);
             else dialogClose();
         }
         void removeSettings() {
@@ -1901,11 +1975,15 @@ public final class JugglucoChat {
         boolean allowedLoginUrl(String value) {
             if (value == null || value.isEmpty() || value.indexOf('\n') >= 0 || value.indexOf('\r') >= 0) return false;
             Uri uri = Uri.parse(value);
-            return "https".equalsIgnoreCase(uri.getScheme())
-                    && "auth.openai.com".equalsIgnoreCase(uri.getHost())
-                    && uri.getUserInfo() == null && (uri.getPort() == -1 || uri.getPort() == 443)
-                    && ("/codex/device".equals(uri.getPath()) || "/codex/device/".equals(uri.getPath()))
-                    && uri.getQuery() == null && uri.getFragment() == null;
+            if (!"https".equalsIgnoreCase(uri.getScheme()) || !"auth.openai.com".equalsIgnoreCase(uri.getHost())
+                    || uri.getUserInfo() != null || (uri.getPort() != -1 && uri.getPort() != 443) || uri.getFragment() != null)
+                return false;
+            if ("browser".equals(loginKind)) {
+                String redirect = uri.getQueryParameter("redirect_uri");
+                return "/oauth/authorize".equals(uri.getPath()) && redirect != null
+                        && (redirect.equals("http://127.0.0.1:1455/auth/callback") || redirect.equals("http://127.0.0.1:1457/auth/callback"));
+            }
+            return ("/codex/device".equals(uri.getPath()) || "/codex/device/".equals(uri.getPath())) && uri.getQuery() == null;
         }
         void openLogin() {
             if (!allowedLoginUrl(loginUrl)) {
@@ -1914,7 +1992,9 @@ public final class JugglucoChat {
                 return;
             }
             try {
-                activity.startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(loginUrl)));
+                Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(loginUrl));
+                intent.addCategory(Intent.CATEGORY_BROWSABLE);
+                activity.startActivity(intent);
             } catch (RuntimeException failure) {
                 localError = s(R.string.jgchat_sign_in_error, message(failure));
                 showError();
@@ -1941,6 +2021,9 @@ public final class JugglucoChat {
         void dialogClose() {
             hideKeyboard();
             running.restoreKeyboard = false;
+            // Leaving the page ends a browser sign-in: the native worker
+            // closes the loopback listener. A device code keeps running as before.
+            if (busy && "browser".equals(loginKind)) cancelLogin();
             // Dismiss only the chat. Juggluco owns the underlying screen and
             // its back stack; never discard unfinished settings on that stack.
             dialog.dismiss();
@@ -2100,7 +2183,11 @@ public final class JugglucoChat {
         }
         @Override public void onLowMemory() {}
         @Override public void onActivityResumed(Activity target) {
-            if (target == activity && !closed) { resumed = true; resizeDialog(); refresh(); }
+            if (target == activity && !closed) {
+                resumed = true; resizeDialog(); refresh();
+                if (settingsAttached && activity instanceof MainActivity)
+                    ((MainActivity) activity).lightBars(!Natives.getInvertColors());
+            }
         }
         @Override public void onActivityPaused(Activity target) {
             if (target == activity) {
@@ -2604,6 +2691,13 @@ public final class JugglucoChat {
             R.string.jgchat_native_https_transport_failed, // 458
             R.string.jgchat_native_https_unexpected_failure, // 459
             R.string.jgchat_native_native_https_unexpected_failure, // 460
+            R.string.jgchat_native_waiting_for_browser_sign_in, // 461
+            R.string.jgchat_native_completing_sign_in, // 462
+            R.string.jgchat_native_sign_in_port_busy, // 463
+            R.string.jgchat_native_browser_sign_in_timed_out, // 464
+            R.string.jgchat_native_browser_sign_in_denied, // 465
+            R.string.jgchat_native_browser_sign_in_rejected, // 466
+            R.string.jgchat_native_browser_sign_in_missing_code, // 467
         };
         // END GENERATED NATIVE RESOURCES
         static int resourceId(int id) {

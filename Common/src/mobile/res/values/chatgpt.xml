@@ -598,4 +598,21 @@
     <string name="jgchat_native_https_transport_failed">"HTTPS transport failed"</string>
     <string name="jgchat_native_https_unexpected_failure">"HTTPS unexpected failure"</string>
     <string name="jgchat_native_native_https_unexpected_failure">"Native HTTPS unexpected failure"</string>
+    <string name="jgchat_native_waiting_for_browser_sign_in">"Waiting for you to sign in in the browser"</string>
+    <string name="jgchat_native_completing_sign_in">"Completing sign-in"</string>
+    <string name="jgchat_native_sign_in_port_busy">"Another app is using the sign-in ports 1455 and 1457. Close it, or use a code instead."</string>
+    <string name="jgchat_native_browser_sign_in_timed_out">"Browser sign-in timed out. Try again."</string>
+    <string name="jgchat_native_browser_sign_in_denied">"Sign-in was cancelled or refused in the browser"</string>
+    <string name="jgchat_native_browser_sign_in_rejected">"ChatGPT did not accept this sign-in (HTTP %1$s). Try again."</string>
+    <string name="jgchat_native_browser_sign_in_missing_code">"The browser returned without a sign-in code. Try again."</string>
+    <string name="jgchat_sign_in_with_chatgpt">"Sign in with ChatGPT"</string>
+    <string name="jgchat_use_a_code_instead">"Use a code instead"</string>
+    <string name="jgchat_open_sign_in_page_again">"Open sign-in page again"</string>
+    <string name="jgchat_cancel_sign_in">"Cancel sign-in"</string>
+    <string name="jgchat_not_signed_in">"Not signed in"</string>
+    <string name="jgchat_sign_in_explanation">"Sign in with your ChatGPT account to ask questions about your Juggluco data."</string>
+    <string name="jgchat_browser_sign_in_hint">"Sign in on the OpenAI page in your browser. Juggluco comes back when you are done."</string>
+    <string name="jgchat_chatgpt_account">"ChatGPT account"</string>
+    <string name="jgchat_plan_value">"ChatGPT %1$s"</string>
+    <string name="jgchat_section_chat">"Chat"</string>
 </resources>
