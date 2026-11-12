@@ -307,7 +307,7 @@ static private void showNow(MainActivity act) {
     click(view,R.id.jm_mirror,v -> toScreen(() -> (new Backup()).mkbackupview(act)));
     View photo=view.findViewById(R.id.jm_photo);
     if(tk.glucodata.BuildConfig.SiBionics==1)
-        photo.setOnClickListener(v -> toScreen(() -> PhotoScan.scan(act,REQUEST_BARCODE)));
+        photo.setOnClickListener(v -> toScreen(() -> PhotoScan.testMenu(act))); // TEST BUILD ONLY
     else
         photo.setVisibility(View.INVISIBLE);
 

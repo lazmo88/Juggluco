@@ -116,13 +116,14 @@ private static void asktransmitter(MainActivity act,String name,long sensorptr) 
         .setNegativeButton(R.string.cancel,null)
         .setPositiveButton(R.string.ok,(d,w) -> {
             ok[0]=true;
+            if(sensorptr==0L) { Log.i(LOG_ID,"TEST transmitter ok reset="+reset.isChecked()); return; }
             Natives.setSensorptrResetSibionics2(sensorptr,reset.isChecked());
             scanner(act,REQUEST_BARCODE_SIB2,sensorptr);
             })
         .create();
     dialog.setCanceledOnTouchOutside(false);
     dialog.setOnDismissListener(d -> {
-        if(!ok[0]) {
+        if(!ok[0]&&sensorptr!=0L) {
             Natives.finishfromSensorptr(sensorptr);
             SensorBluetooth.sensorEnded(name);
             }
@@ -133,7 +134,7 @@ private static void asktransmitter(MainActivity act,String name,long sensorptr) 
 /* Which Sibionics sensor (MaterialAlertDialog with single choice).  As
  * before, OK and Back both apply the choice. */
 private static void selectType(String name,long sensorptr,MainActivity act) {
-    int subtype=Natives.getSensorptrSiSubtype(sensorptr);
+    int subtype=sensorptr==0L?0:Natives.getSensorptrSiSubtype(sensorptr);
     CharSequence[] items={act.getString(R.string.eusibionics),act.getString(R.string.hematonix),act.getString(R.string.chsibionics),act.getString(R.string.sibionics2)};
     final int[] type={subtype};
     var dialog=tk.glucodata.m3.M3Page.dialog(act)
@@ -144,6 +145,7 @@ private static void selectType(String name,long sensorptr,MainActivity act) {
     dialog.setCanceledOnTouchOutside(false);
     dialog.setOnDismissListener(d -> {
         Log.i(LOG_ID,"selected type="+type[0]);
+        if(sensorptr==0L) { Log.i(LOG_ID,"TEST type "+type[0]); if(type[0]==3) asktransmitter(act,name,0L); return; }
         if(type[0]>=0) {
             Natives.setSensorptrSiSubtype(sensorptr,type[0]);
             if(type[0]==3)
@@ -153,6 +155,20 @@ private static void selectType(String name,long sensorptr,MainActivity act) {
             }
         });
     dialog.show();
+    }
+/* TEST BUILD ONLY: show the sensor start dialogs without a sensor. */
+static void testMenu(MainActivity act) {
+    CharSequence[] items={"Scan data matrix","Sibionics type","Sensor ready (NFC)","Activation ok","Activation failed","GS3 account ID"};
+    tk.glucodata.m3.M3Page.dialog(act).setTitle("TEST sensor start").setItems(items,(d,w) -> {
+        switch(w) {
+            case 0: scan(act,REQUEST_BARCODE);break;
+            case 1: selectType("TESTSENSOR",0L,act);break;
+            case 2: SensorStart.newSensor(act,act.getString(R.string.ready_for_use),"TESTSENSOR");break;
+            case 3: SensorStart.activateResult(act,true);break;
+            case 4: SensorStart.activateResult(act,false);break;
+            case 5: GetGS3ID.gs3Number("TESTSENSOR",act);break;
+            }
+        }).show();
     }
 static void deviceAdded(MainActivity act) {
      Log.i(LOG_ID,"deviceAdded");
