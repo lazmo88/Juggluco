@@ -553,6 +553,15 @@ class Dashboard private constructor(private val act: MainActivity) {
         return DateFormat.getTimeFormat(ctx).format(date)
     }
 
+    /** Axis labels sit on whole hours: "10 PM" or "22" depending on the locale. */
+    private val hourFormat by lazy {
+        val pattern = DateFormat.getBestDateTimePattern(Locale.getDefault(), if (DateFormat.is24HourFormat(ctx)) "HH" else "ha")
+        java.text.SimpleDateFormat(pattern, Locale.getDefault())
+    }
+
+    private fun hourLabel(x: Double): String =
+        hourFormat.format(Date((chartStart + (x * 60).roundToInt()) * 1000L))
+
     @SuppressLint("ClickableViewAccessibility")
     private fun setupChart() {
         val axisText = TextComponent(color = cOnSurfaceVariant, textSizeSp = 11f)
@@ -569,7 +578,7 @@ class Dashboard private constructor(private val act: MainActivity) {
         val bottomAxis = HorizontalAxis.bottom(
             line = LineComponent(Fill(cOutlineVariant), thicknessDp = 1f),
             label = axisText,
-            valueFormatter = CartesianValueFormatter { _: CartesianMeasuringContext, value: Double, _: Axis.Position.Vertical? -> timeLabel(value) },
+            valueFormatter = CartesianValueFormatter { _: CartesianMeasuringContext, value: Double, _: Axis.Position.Vertical? -> hourLabel(value) },
             itemPlacer = HorizontalAxis.ItemPlacer.aligned(spacing = { labelSpacing }, offset = { labelOffset }),
         )
         val targetBand = HorizontalBox(
@@ -604,7 +613,7 @@ class Dashboard private constructor(private val act: MainActivity) {
             startAxis = startAxis,
             bottomAxis = bottomAxis,
             marker = marker,
-            layerPadding = { CartesianLayerPadding(unscalableStartDp = 4f, unscalableEndDp = 8f) },
+            layerPadding = { CartesianLayerPadding(unscalableStartDp = 12f, unscalableEndDp = 12f) },
             decorations = listOf(targetBand),
             getXStep = { _, _, _ -> 1.0 },
         )
@@ -734,7 +743,7 @@ class Dashboard private constructor(private val act: MainActivity) {
         val gmiMmolMol = 12.71 + 4.70587 * (s.meanMgdl / MGDL_PER_MMOL)
         vMetrics.addView(metric(fmt(s.meanMgdl), ctx.getString(R.string.dash_metric_average) + " · " + unitLabel()))
         vMetrics.addView(metric(String.format(Locale.getDefault(), "%.1f%%", gmiPercent),
-            ctx.getString(R.string.dash_metric_gmi) + " · " + String.format(Locale.getDefault(), "%.0f mmol/mol", gmiMmolMol)))
+            ctx.getString(R.string.dash_metric_gmi) + " ≈ " + String.format(Locale.getDefault(), "%.0f mmol/mol", gmiMmolMol)))
         vMetrics.addView(metric(String.format(Locale.getDefault(), "%.0f%%", s.cv * 100), ctx.getString(R.string.dash_metric_cv)))
 
         vSummaryNote.text = ctx.getString(
@@ -789,7 +798,7 @@ class Dashboard private constructor(private val act: MainActivity) {
         l.setTextColor(cOnSurfaceVariant)
         l.text = label
         box.addView(l)
-        box.layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+        box.layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = dp(12f) }
         return box
     }
 
