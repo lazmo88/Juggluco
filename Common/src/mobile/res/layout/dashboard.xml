@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   Phone dashboard shown in portrait on top of the native graph (Dashboard.kt).
-  Latest reading, recent trend chart (Vico) and 14-day glucose summary.
+  Latest reading, recent trend chart (Vico) and 14-day glucose summary. With only a
+  finger-stick meter: latest meter reading, chart of readings, list of readings and
+  a 30-day summary.
 -->
 <androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -88,6 +90,15 @@
                         android:layout_marginTop="16dp"
                         android:text="@string/dash_connect_sensor"
                         app:icon="@drawable/ic_jm_sensors" />
+
+                    <!-- Below, not beside: the two labels do not fit one row on a 360dp phone -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/dash_add_meter"
+                        style="@style/Widget.Material3.Button.TonalButton.Icon"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/dash_add_meter"
+                        app:icon="@drawable/ic_jm_water_drop" />
                 </LinearLayout>
 
                 <LinearLayout
@@ -326,7 +337,54 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- 14-day summary -->
+        <!-- Latest finger-stick meter readings; rows are added in Dashboard.kt -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/dash_meter_card"
+            style="?attr/materialCardViewFilledStyle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:visibility="gone"
+            app:cardBackgroundColor="?attr/colorSurfaceContainerLow"
+            app:cardCornerRadius="24dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingTop="16dp"
+                android:paddingBottom="4dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="16dp"
+                    android:layout_marginEnd="16dp"
+                    android:text="@string/dash_meter_title"
+                    android:textAppearance="?attr/textAppearanceTitleMedium" />
+
+                <LinearLayout
+                    android:id="@+id/dash_meter_rows"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="16dp"
+                    android:layout_marginTop="8dp"
+                    android:layout_marginEnd="16dp"
+                    android:orientation="vertical" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/dash_meter_all"
+                    style="@style/Widget.Material3.Button.TextButton.Icon"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="end"
+                    android:layout_marginEnd="8dp"
+                    android:text="@string/dash_meter_all"
+                    app:icon="@drawable/ic_jm_list" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Summary: 14 days of sensor data, or 30 days of meter readings -->
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/dash_summary_card"
             style="?attr/materialCardViewFilledStyle"
