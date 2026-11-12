@@ -1601,7 +1601,8 @@ public final class JugglucoChat {
             openBrowser.setEnabled(busy && allowedLoginUrl(loginUrl));
             copyCode.setEnabled(busy && !userCode.isEmpty());
             settingsStatus.setText(status.getText());
-            settingsStatus.setVisibility(busy ? View.VISIBLE : View.GONE);
+            // While a sign-in waits for the user the card already says what to do.
+            settingsStatus.setVisibility(busy && (!loginActive || callbackReceived) ? View.VISIBLE : View.GONE);
             displayPage(accountPage);
         }
         void chooseChatExport(boolean share) {

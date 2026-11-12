@@ -193,31 +193,23 @@
                             android:textAppearance="?attr/textAppearanceBodyMedium"
                             android:textColor="?attr/colorOnSurfaceVariant" />
 
-                        <LinearLayout
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/jgc_open_page"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="8dp"
-                            android:orientation="horizontal">
+                            android:text="@string/jgchat_open_sign_in_page"
+                            app:icon="@drawable/ic_jm_open_in_new"
+                            app:iconGravity="textStart" />
 
-                            <com.google.android.material.button.MaterialButton
-                                android:id="@+id/jgc_copy_code"
-                                style="?attr/materialButtonOutlinedStyle"
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_marginEnd="4dp"
-                                android:layout_weight="1"
-                                android:text="@string/jgchat_copy_code"
-                                app:icon="@drawable/ic_jm_content_copy" />
-
-                            <com.google.android.material.button.MaterialButton
-                                android:id="@+id/jgc_open_page"
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_marginStart="4dp"
-                                android:layout_weight="1"
-                                android:text="@string/jgchat_open_sign_in_page"
-                                app:icon="@drawable/ic_jm_open_in_new" />
-                        </LinearLayout>
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/jgc_copy_code"
+                            style="?attr/materialButtonOutlinedStyle"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/jgchat_copy_code"
+                            app:icon="@drawable/ic_jm_content_copy"
+                            app:iconGravity="textStart" />
 
                         <TextView
                             android:id="@+id/jgc_login_link"

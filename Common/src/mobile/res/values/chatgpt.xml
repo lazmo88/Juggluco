@@ -598,7 +598,7 @@
     <string name="jgchat_native_https_transport_failed">"HTTPS transport failed"</string>
     <string name="jgchat_native_https_unexpected_failure">"HTTPS unexpected failure"</string>
     <string name="jgchat_native_native_https_unexpected_failure">"Native HTTPS unexpected failure"</string>
-    <string name="jgchat_native_waiting_for_browser_sign_in">"Finish signing in in your browser"</string>
+    <string name="jgchat_native_waiting_for_browser_sign_in">"Waiting for you to sign in in the browser"</string>
     <string name="jgchat_native_completing_sign_in">"Completing sign-in"</string>
     <string name="jgchat_native_sign_in_port_busy">"Another app is using the sign-in ports 1455 and 1457. Close it, or use a code instead."</string>
     <string name="jgchat_native_browser_sign_in_timed_out">"Browser sign-in timed out. Try again."</string>
