@@ -319,10 +319,43 @@ class Dashboard private constructor(private val act: MainActivity) {
     private fun load(h: Int): Data {
         val now = System.currentTimeMillis() / 1000L
         val start = (now - h * 3600L) / 60L * 60L
-        val week2 = readings(SUMMARY_DAYS * 86400)
+        val week2 = syntheticReadings(now) // TEST BUILD ONLY: synthetic values, no sensor data
         val from = week2.time.indexOfFirst { it >= start }.let { if (it < 0) week2.size else it }
         val recent = Readings(week2.time.copyOfRange(from, week2.size), week2.mgdl.copyOfRange(from, week2.size))
-        return Data(now, start, h, recent, summarize(week2, now), Natives.lastglucose())
+        val n = recent.size
+        val rate = if (n > 6) (recent.mgdl[n - 1] - recent.mgdl[n - 6]) / ((recent.time[n - 1] - recent.time[n - 6]) / 60f) else Float.NaN
+        val last = if (n > 0) strGlucose(recent.time[n - 1], fmt(recent.mgdl[n - 1].toDouble()), "SYNTHETIC", rate, 0, 0) else null
+        return Data(now, start, h, recent, summarize(week2, now), last)
+    }
+
+    /** TEST BUILD ONLY: 14 days of made-up 1-minute values (meals, a night low, one high). */
+    private fun syntheticReadings(now: Long): Readings {
+        val rnd = java.util.Random(42)
+        val start = now - SUMMARY_DAYS * 86400L
+        val times = ArrayList<Long>()
+        val values = ArrayList<Float>()
+        val cal = Calendar.getInstance()
+        var noise = 0.0
+        var t = start - start % 60
+        while (t <= now - 60) {
+            cal.timeInMillis = t * 1000L
+            val hour = cal.get(Calendar.HOUR_OF_DAY) + cal.get(Calendar.MINUTE) / 60.0
+            val day = ((t - start) / 86400L).toInt()
+            var mg = 95.0 + 8 * Math.sin((hour - 4) / 24.0 * 2 * Math.PI)
+            for (meal in doubleArrayOf(8.0, 13.0, 19.0)) {
+                val d = hour - meal
+                if (d > 0 && d < 3) mg += (if (day % 4 == 1 && meal == 19.0) 120.0 else 35.0) * (d / 0.75) * Math.exp(1 - d / 0.75)
+            }
+            if (day % 5 == 2 && hour > 2.5 && hour < 4.5) mg -= 40 * Math.sin((hour - 2.5) / 2 * Math.PI)
+            noise = 0.9 * noise + rnd.nextGaussian() * 1.2
+            mg += noise
+            if (!(day == 6 && hour > 11 && hour < 13.5)) { // a sensor gap
+                times.add(t)
+                values.add(mg.toFloat())
+            }
+            t += 60
+        }
+        return Readings(times.toLongArray(), values.toFloatArray())
     }
 
     private fun summarize(r: Readings, now: Long): Summary? {
