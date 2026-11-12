@@ -715,19 +715,7 @@ private static void styleSpinnerShell(Context themeContext, Spinner spinner) {
         button.setBackground(DynamicThemeUtils.createDynamicButton(themeContext, currentRadius, currentIsOval));
         button.setPadding(pL, pT, pR, pB);
 
-        int textAttrId = themeContext.getResources().getIdentifier("colorButtonText", "attr", pkg);
-        int btnTextColor = DynamicThemeUtils.resolveAttributeColor(themeContext, textAttrId, Color.WHITE);
-        int disabledTextAttr = themeContext.getResources().getIdentifier(
-                "colorDisabledText", "attr", pkg);
-        int disabledTextColor = DynamicThemeUtils.resolveAttributeColor(
-                themeContext, disabledTextAttr, btnTextColor);
-        button.setTextColor(new ColorStateList(
-                new int[][] {
-                        new int[] {-android.R.attr.state_enabled},
-                        new int[] {}
-                },
-                new int[] {disabledTextColor, btnTextColor}
-        ));
+        button.setTextColor(DynamicThemeUtils.buttonTextColors(themeContext));
     }
 
     private static void applySelectedTheme(MainActivity act) {

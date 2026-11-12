@@ -178,6 +178,29 @@ void EnableIntentScanning(boolean val) {
     }
     }
 static private Settings thisone=null;
+
+/* Phones show a Material 3 settings list instead of the Layout based screen
+ * below. It lives in the mobile source set (MaterialSettings) and registers
+ * itself here, so the Wear OS build, which has no such class, is unchanged. */
+public interface Screen {
+    /* Builds the screen, adds it to the activity and returns its root view. */
+    ViewGroup show(MainActivity act);
+    /* Called when the screen is shown again, e.g. after a unit change. */
+    void update();
+    }
+public interface ScreenMaker {
+    Screen make(Settings settings);
+    }
+public static ScreenMaker phoneScreen=null;
+private Screen phonescreen=null;
+
+/* Unit currently selected on the screen: 1 mmol/L, 2 mg/dL, 0 not yet chosen.
+ * The Material screen stores a choice immediately, so it reads the setting. */
+int checkedunit() {
+    if(mmolL==null||mgdl==null)
+        return Natives.getunit();
+    return mmolL.isChecked()?1:(mgdl.isChecked()?2:0);
+    }
 public static void set(MainActivity act) {
     act.themeLightBars();
     thisone=new Settings();
@@ -193,7 +216,7 @@ public static void set(MainActivity act) {
     }
 private class Closerun implements Runnable {
  public  void run() {
-        int unit=mmolL.isChecked()?1:(mgdl.isChecked()?2:0);
+        int unit=checkedunit();
         if(unit==0) {
            activity.setonback(this);
            Applic.argToaster(activity, R.string.setunitfirst,Toast.LENGTH_SHORT);
@@ -290,7 +313,7 @@ static int getbackgroundcolor(Context context) {
 }
 
 //HorizontalScrollView settinglayout=null;
-FrameLayout settinglayout=null;
+ViewGroup settinglayout=null;
     CheckDirectionRadio mmolL;
     CheckDirectionRadio mgdl;
 
@@ -734,7 +757,7 @@ static public void setProfile(MainActivity act,int profile) {
                 }
            }
        }
-static private void alarmsettings(MainActivity context,View parview) {
+static void alarmsettings(MainActivity context,View parview) {
     parview.setVisibility(GONE);
     TextView alarmlow,alarmhigh;
     View[] lowalarm= mkalarm(context,context.getString(R.string.lowglucosealarm),Natives.hasalarmlow(),Natives.alarmlow(),0);
@@ -1018,7 +1041,7 @@ static private Spinner languagespinner(MainActivity context) {
 static void mkrangelabel(TextView view,int res,float low, float high) {
      view.setText(view.getContext().getString(res)+" "+float2string(low)+"-"+float2string(high));
    }
-static private void displaysettings(MainActivity context,Settings settings) {
+static void displaysettings(MainActivity context,Settings settings) {
 
         TextView graphlabel = new TextView(context);
         graphlabel.setText(R.string.graphrange);
@@ -1300,6 +1323,18 @@ Runnable closerun= () -> {
 //       graphrange.setLabelBehavior(LabelFormatter.LABEL_FLOATING);
  //      graphrange.setHaloRadius((int)(tk.glucodata.GlucoseCurve.metrics.density*15.0f));
 private    void mksettings(MainActivity context) {
+    if(!isWearable&&phoneScreen!=null) {
+        if(settinglayout==null) {
+            phonescreen=phoneScreen.make(this);
+            settinglayout=phonescreen.show(context);
+            }
+        else {
+            settinglayout.setVisibility(VISIBLE);
+            settinglayout.bringToFront();
+            phonescreen.update();
+            }
+        return;
+        }
 
     if(settinglayout==null) {
         mmolL = new CheckDirectionRadio(context);
@@ -1631,7 +1666,7 @@ setvalues();
 }
 
 @SuppressLint("UseCompatLoadingForDrawables")
-static private void exchanges(MainActivity context, View parent) {
+static void exchanges(MainActivity context, View parent) {
   parent.setVisibility(GONE);
  /* 
    var emulator=getbutton(context,R.string.l3emu_title);

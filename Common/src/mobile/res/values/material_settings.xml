@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Strings of the Material 3 Settings screen for phones (MaterialSettings.java).
+     The row titles reuse the existing translated strings. -->
+<resources>
+    <string name="jm_set_section_unit">Glucose unit</string>
+    <string name="jm_set_section_sensor">Sensor and scanning</string>
+    <string name="jm_set_section_alerts">Notifications and alarms</string>
+    <string name="jm_set_section_data">Data</string>
+    <string name="jm_set_section_display">Display</string>
+    <string name="jm_set_section_help">Help and about</string>
+    <string name="jm_set_on">On</string>
+    <string name="jm_set_off">Off</string>
+    <string name="jm_set_alarm_low">Low %1$s</string>
+    <string name="jm_set_alarm_high">High %1$s</string>
+    <string name="jm_set_target">Target range %1$s–%2$s %3$s</string>
+</resources>
