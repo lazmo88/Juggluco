@@ -34,6 +34,7 @@ import tk.glucodata.MainActivity;
 import tk.glucodata.Natives;
 import tk.glucodata.R;
 import tk.glucodata.m3.M3Page;
+import tk.glucodata.m3.TimeDialog;
 
 import static tk.glucodata.Log.doLog;
 
@@ -63,10 +64,9 @@ public void mkshortlistview(MainActivity act) {
     page.closeCheck(() -> {
         if(!changed)
             return true;
-        M3Page.dialog(act).setTitle(R.string.jm_alerts_discard)
+        TimeDialog.show(M3Page.dialog(act).setTitle(R.string.jm_alerts_discard)
             .setNegativeButton(android.R.string.cancel,null)
-            .setPositiveButton(R.string.jm_alerts_discard_yes,(d,w) -> page.dismiss())
-            .show();
+            .setPositiveButton(R.string.jm_alerts_discard_yes,(d,w) -> page.dismiss()));
         return false;
         });
     page.bottomBar(

@@ -99,12 +99,27 @@ static View fieldLayout(TextInputEditText edit) {
 
 /* Child rows are indented to the text of the switch row. */
 static void indent(M3Page page,View view) {
-    if(view.getLayoutParams() instanceof ViewGroup.MarginLayoutParams) {
-        ((ViewGroup.MarginLayoutParams)view.getLayoutParams()).setMarginStart(page.dp(56));
-        view.requestLayout();
+    if(view instanceof TextInputLayout) {
+        ViewGroup.MarginLayoutParams params=(ViewGroup.MarginLayoutParams)view.getLayoutParams();
+        params.setMarginStart(page.dp(56));
+        params.setMarginEnd(page.dp(16));
+        view.setLayoutParams(params);
         }
     else
         view.setPaddingRelative(page.dp(56),view.getPaddingTop(),view.getPaddingEnd(),view.getPaddingBottom());
+    }
+
+/* Thin inset line between the alarms of one section. */
+static void divider(M3Page page,LinearLayout sec) {
+    if(sec.getChildCount()==0)
+        return;
+    com.google.android.material.divider.MaterialDivider d=new com.google.android.material.divider.MaterialDivider(page.ctx);
+    d.setDividerInsetStart(page.dp(16));
+    d.setDividerInsetEnd(page.dp(16));
+    LinearLayout.LayoutParams params=new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,ViewGroup.LayoutParams.WRAP_CONTENT);
+    params.topMargin=page.dp(4);
+    params.bottomMargin=page.dp(4);
+    sec.addView(d,params);
     }
 
 /* Row that opens the sound page of an alarm kind; its summary follows. */
@@ -126,6 +141,7 @@ static Alarm alarm(M3Page page,LinearLayout sec,int icon,int title,boolean has,f
     final MainActivity act=page.act;
     final Alarm alarm=new Alarm();
     alarm.old=value;
+    divider(page,sec);
     final View[] deps=new View[2];
     alarm.on=page.toggle(sec,icon,act.getString(title),null,() -> has,on -> {
         for(View v:deps)
@@ -162,19 +178,20 @@ public static void show(MainActivity act) {
             }
         saveHolder[0].run();
         });
-    ViewGroup schedules=page.link(prof,R.drawable.ic_jm_schedule,act.getString(R.string.schedules),schedulesSummary(act),() -> {
+    final ViewGroup[] schedules={null};
+    schedules[0]=page.link(prof,R.drawable.ic_jm_schedule,act.getString(R.string.schedules),schedulesSummary(act),() -> {
         page.hideKeyboard();
         ProfileSchedulesPage.show(act);
         M3Page sub=M3Page.top(act);
         if(sub!=null&&sub!=page)
-            sub.onClose(() -> M3Page.setSummary(page.list.findViewWithTag(LOG_ID+"schedules"),schedulesSummary(act)));
+            sub.onClose(() -> M3Page.setSummary(schedules[0],schedulesSummary(act)));
         });
-    schedules.setTag(LOG_ID+"schedules");
 
     /* Glucose */
     LinearLayout gl=page.section(R.string.jm_alerts_section_glucose);
     final Alarm low=alarm(page,gl,R.drawable.ic_jm_arrow_downward,R.string.lowglucosealarm,Natives.hasalarmlow(),Natives.alarmlow(),R.string.jm_alerts_below,0);
     final Alarm high=alarm(page,gl,R.drawable.ic_jm_arrow_upward,R.string.highglucosealarm,Natives.hasalarmhigh(),Natives.alarmhigh(),R.string.jm_alerts_above,1);
+    divider(page,gl);
     page.link(gl,R.drawable.ic_jm_tune,act.getString(R.string.advanced),act.getString(R.string.jm_alerts_advanced_summary),() -> {
         page.hideKeyboard();
         showAdvanced(act);
@@ -194,6 +211,7 @@ public static void show(MainActivity act) {
     for(View v:lossDeps)
         v.setVisibility(loss.isChecked()?View.VISIBLE:View.GONE);
 
+    divider(page,other);
     final View[] valueDeps=new View[1];
     MaterialSwitch isvalue=page.toggle(other,R.drawable.ic_jm_notifications_active,act.getString(R.string.valueavailablenotification),act.getString(R.string.jm_alerts_value_summary),
         Natives::hasvaluealarm,on -> valueDeps[0].setVisibility(on?View.VISIBLE:View.GONE));
@@ -246,7 +264,7 @@ public static void show(MainActivity act) {
         };
     }
 
-static String schedulesSummary(Context ctx) {
+public static String schedulesSummary(Context ctx) {
     final int n=Natives.nrScheduledProfiles();
     if(n==0)
         return ctx.getString(R.string.jm_alerts_no_schedules);

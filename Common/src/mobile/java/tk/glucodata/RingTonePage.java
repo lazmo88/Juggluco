@@ -52,6 +52,8 @@ static boolean glucoseAlarm(int kind) {
     }
 
 static String title(Context context,String uri,int kind) {
+    if(uri==null||uri.isEmpty()) // the built-in sound: its "title" is a resource number
+        return context.getString(R.string.defaultname);
     try {
         Ringtone ringtone=Notify.mkrings(uri,kind);
         return ringtone.getTitle(context);

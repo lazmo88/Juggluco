@@ -50,6 +50,7 @@
 
     <!-- Reminders -->
     <string name="jm_alerts_reminder">Reminder</string>
+    <string name="jm_alerts_reminder_summary">At least %1$s · %2$s – %3$s</string>
     <string name="jm_alerts_new_reminder">New reminder</string>
     <string name="jm_alerts_reminders_empty">Get reminded when an amount was not entered in time</string>
     <string name="jm_alerts_no_reminders">No reminders</string>

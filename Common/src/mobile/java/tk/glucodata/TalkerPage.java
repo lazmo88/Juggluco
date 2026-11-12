@@ -118,16 +118,22 @@ public static void show(MainActivity act) {
     final String profile=act.getString(R.string.profile);
     List<String> profiles=Arrays.asList(act.getString(R.string.defaultname),profile+"1",profile+"2",profile+"3",profile+"4",profile+"5");
     final int curProfile=Natives.getProfile();
-    page.choice(prof,act.getString(R.string.profile),profiles,curProfile,i -> {
+    page.choice(prof,act.getString(R.string.jm_alerts_active_profile),profiles,curProfile,i -> {
         if(i!=curProfile) {
             tk.glucodata.settings.Settings.setProfile(act,i);
             page.dismiss();
             show(act);
             }
         });
-    page.link(prof,R.drawable.ic_jm_schedule,act.getString(R.string.schedules),null,() -> {
+    final android.view.ViewGroup[] schedules={null};
+    schedules[0]=page.link(prof,R.drawable.ic_jm_schedule,act.getString(R.string.schedules),tk.glucodata.settings.AlarmsPage.schedulesSummary(act),() -> {
         if(!PhoneUi.show("settings.scheduleprofiles",act))
             tk.glucodata.settings.Settings.scheduleProfiles(act,page.root);
+        else {
+            M3Page sub=M3Page.top(act);
+            if(sub!=null&&sub!=page)
+                sub.onClose(() -> M3Page.setSummary(schedules[0],tk.glucodata.settings.AlarmsPage.schedulesSummary(act)));
+            }
         });
 
     /* Values on screen into Talker's fields, as the old getvalues(). */

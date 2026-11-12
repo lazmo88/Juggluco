@@ -93,7 +93,7 @@ static void edit(MainActivity act,M3Page list,int wasindex) {
     final M3Page.Style delStyle=M3Page.Style.TEXT;
     if(wasindex>=0) {
         page.bottomBar(page.button(delStyle,act.getString(R.string.delete),R.drawable.ic_jm_delete,() ->
-            M3Page.confirm(act,act.getString(R.string.jm_alerts_delete_schedule),
+            TimeDialog.confirm(act,act.getString(R.string.jm_alerts_delete_schedule),
                 TimeDialog.format(minpro[0])+" → "+profileName(act,minpro[1]),act.getString(R.string.delete),() -> {
                     Natives.removeScheduleProfile(index);
                     NumAlarm.handlealarm(Applic.app);

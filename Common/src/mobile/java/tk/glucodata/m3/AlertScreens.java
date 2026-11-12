@@ -44,7 +44,7 @@ static void register() {
     }
 
 private static void overlayPermission(MainActivity act,Object[] args) {
-    M3Page.message(act,act.getString(R.string.overlaypermission),
+    TimeDialog.message(act,act.getString(R.string.overlaypermission),
         act.getString(R.string.jm_alerts_needs_permission)+"\n\n"+act.getString(R.string.overlaypermissionmessage));
     }
 }

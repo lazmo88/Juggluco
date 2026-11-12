@@ -21,6 +21,13 @@ package tk.glucodata.m3;
 import android.text.format.DateFormat;
 import android.widget.TimePicker;
 
+import android.content.Context;
+import android.content.DialogInterface;
+import android.widget.Button;
+
+import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
+
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import java.util.Locale;
@@ -52,8 +59,42 @@ public static void pick(MainActivity act,CharSequence title,int minutes,Picked p
         .setPositiveButton(android.R.string.ok,(d,w) -> {
             picker.clearFocus(); // commit a typed value
             picked.set(picker.getCurrentHour()*60+picker.getCurrentMinute());
-            })
-        .show();
+            });
+    show(builder);
+    }
+
+/*
+ * Dialog buttons came out #FF00FF (AppCompat's "unresolved colour" fallback)
+ * with M3Page.dialog() on the emulator, so the alerts screens show their
+ * dialogs through here and give the buttons the theme's primary colour.
+ */
+public static AlertDialog show(MaterialAlertDialogBuilder builder) {
+    AlertDialog dialog=builder.create();
+    final Context ctx=builder.getContext();
+    dialog.setOnShowListener(d -> {
+        int primary=M3Page.color(ctx,androidx.appcompat.R.attr.colorPrimary);
+        for(int which:new int[]{DialogInterface.BUTTON_POSITIVE,DialogInterface.BUTTON_NEGATIVE,DialogInterface.BUTTON_NEUTRAL}) {
+            Button b=((AlertDialog)d).getButton(which);
+            if(b!=null)
+                b.setTextColor(primary);
+            }
+        });
+    dialog.show();
+    return dialog;
+    }
+
+public static void confirm(Context base,CharSequence title,@Nullable CharSequence message,CharSequence yes,Runnable onYes) {
+    MaterialAlertDialogBuilder b=M3Page.dialog(base).setTitle(title).setPositiveButton(yes,(d,w) -> onYes.run()).setNegativeButton(android.R.string.cancel,null);
+    if(message!=null)
+        b.setMessage(message);
+    show(b);
+    }
+
+public static void message(Context base,@Nullable CharSequence title,CharSequence message) {
+    MaterialAlertDialogBuilder b=M3Page.dialog(base).setMessage(message).setPositiveButton(android.R.string.ok,null);
+    if(title!=null)
+        b.setTitle(title);
+    show(b);
     }
 
 /* hh:mm as the old screens showed it. */

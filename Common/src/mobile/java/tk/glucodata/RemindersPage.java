@@ -73,7 +73,7 @@ public static void show(MainActivity act) {
             short[] rest=(short[])alarmobj[1];
             final short type=rest[3];
             final String lab=(type<all.size())?all.get(type):"UNLABELED";
-            page.link(sec,R.drawable.ic_jm_alarm,lab+"  "+float2string(value),TimeDialog.format(rest[0])+" – "+TimeDialog.format(rest[1]),() -> edit(act,page,pos));
+            page.link(sec,R.drawable.ic_jm_alarm,lab,act.getString(R.string.jm_alerts_reminder_summary,float2string(value),TimeDialog.format(rest[0]),TimeDialog.format(rest[1])),() -> edit(act,page,pos));
             }
         };
     fill.run();
@@ -137,7 +137,7 @@ static void edit(MainActivity act,M3Page list,int alarmpos) {
             short type=((short[])alarmobj[1])[3];
             ArrayList<String> all=Natives.getLabels();
             String lab=type<all.size()?all.get(type):"";
-            M3Page.confirm(act,act.getString(R.string.deletereminder),lab+" "+float2string((Float)alarmobj[0]),act.getString(R.string.delete),() -> {
+            TimeDialog.confirm(act,act.getString(R.string.deletereminder),lab+" "+float2string((Float)alarmobj[0]),act.getString(R.string.delete),() -> {
                 Natives.delNumAlarm(alarmpos);
                 page.dismiss();
                 });
