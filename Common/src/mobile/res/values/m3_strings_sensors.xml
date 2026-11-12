@@ -29,7 +29,7 @@
     <string name="jm_sensors_use_bluetooth_summary">Connect to sensors via Bluetooth on this phone</string>
     <string name="jm_sensors_priority_summary">More effort to contact the sensor. May use more battery.</string>
     <string name="jm_sensors_autoconnect">Let Android connect</string>
-    <string name="jm_sensors_autoconnect_summary">Android instead of Juggluco makes the connection. Usually slower; only for connection problems.</string>
+    <string name="jm_sensors_autoconnect_summary">Slower. Only try this for connection problems.</string>
     <string name="jm_sensors_streamhistory_summary">Also receive Libre 2 history values via Bluetooth</string>
     <string name="jm_sensors_permission">Permission needed</string>
     <string name="jm_sensors_permission_summary">Juggluco may not search for Bluetooth devices. Tap to allow.</string>
