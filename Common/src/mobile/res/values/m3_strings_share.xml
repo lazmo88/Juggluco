@@ -136,4 +136,6 @@
     <string name="jm_share_host_send_head">Send to the other device</string>
     <string name="jm_share_host_sendfrom">Send data starting from</string>
     <string name="jm_share_host_save_failed">Could not save connection</string>
+    <string name="jm_share_files_sec">Files</string>
+    <string name="jm_share_files_empty_body">Files you upload here are served by the web server under /additions/.</string>
 </resources>
