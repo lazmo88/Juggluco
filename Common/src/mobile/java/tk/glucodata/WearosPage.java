@@ -102,7 +102,7 @@ public static void show(MainActivity act) {
     final ArrayList<Wearos.WatchTarget> nodeslist=Wearos.getnodeslist();
     LinearLayout sec=page.section((CharSequence)null);
     if(nodeslist.isEmpty()) {
-        page.empty(sec,R.drawable.ic_jm_watch,act.getString(R.string.nowatchesfound),null);
+        page.empty(sec,R.drawable.ic_jm_watch,act.getString(R.string.nowatchesfound),act.getString(R.string.jm_share_wear_empty_body));
         return;
         }
     final int[] pos={0};

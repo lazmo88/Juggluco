@@ -214,6 +214,16 @@ public static void show(MainActivity act) {
     page.refresh();
     }
 
+/* Password fields: keep the normal typeface (Android switches them to monospace). */
+public static void plain(com.google.android.material.textfield.TextInputEditText e) {
+    e.setTypeface(android.graphics.Typeface.DEFAULT);
+    android.view.ViewParent p=e.getParent();
+    while(p!=null&&!(p instanceof com.google.android.material.textfield.TextInputLayout))
+        p=p.getParent();
+    if(p!=null)
+        ((com.google.android.material.textfield.TextInputLayout)p).setTypeface(android.graphics.Typeface.DEFAULT);
+    }
+
 /* Re-read the hub when a sub page closes. */
 public static void refreshTop(MainActivity act) {
     M3Page top=M3Page.top(act);

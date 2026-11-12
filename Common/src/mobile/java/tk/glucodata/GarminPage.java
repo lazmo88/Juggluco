@@ -89,7 +89,7 @@ private GarminPage(MainActivity act,AllData alldata) {
     page.help(R.string.kerfstok);
 
     LinearLayout dev=page.section(R.string.jm_share_garmin_sec_watch);
-    deviceView=page.choice(dev,act.getString(R.string.watch),new ArrayList<CharSequence>(),-1,i -> {
+    deviceView=page.choice(dev,capital(act.getString(R.string.watch)),new ArrayList<CharSequence>(),-1,i -> {
         if(updating) return;
         var infos=alldata.getGarminDeviceInfos();
         if(i>=0&&i<infos.size()) {
@@ -121,7 +121,7 @@ private GarminPage(MainActivity act,AllData alldata) {
 
     LinearLayout conn=page.section(R.string.jm_share_garmin_sec_connection);
     int mode=alldata.getGarminTransportMode(act);
-    transport=page.segmented(conn,act.getString(R.string.jm_share_host_method),new CharSequence[]{act.getString(R.string.transport_automatic),"Garmin Connect",act.getString(R.string.transport_bluetooth)},
+    transport=page.segmented(conn,act.getString(R.string.jm_share_host_method),new CharSequence[]{act.getString(R.string.transport_automatic),"Connect",act.getString(R.string.transport_bluetooth)},
         modeIndex(mode),i -> {
             if(updating) return;
             alldata.setGarminTransportMode(act,i==1?AllData.GARMIN_TRANSPORT_CONNECT:(i==2?AllData.GARMIN_TRANSPORT_DIRECT:AllData.GARMIN_TRANSPORT_AUTOMATIC));
@@ -154,6 +154,16 @@ private GarminPage(MainActivity act,AllData alldata) {
 private static String capital(String s) {
     if(s==null||s.isEmpty()) return s;
     return Character.toUpperCase(s.charAt(0))+s.substring(1);
+    }
+/* App ID in groups of 8, so it wraps cleanly. */
+private static String grouped(String id) {
+    if(id==null) return "";
+    StringBuilder b=new StringBuilder();
+    for(int i=0;i<id.length();i+=8) {
+        if(i>0) b.append(' ');
+        b.append(id,i,Math.min(id.length(),i+8));
+        }
+    return b.toString();
     }
 private static int modeIndex(int mode) {
     return mode==AllData.GARMIN_TRANSPORT_CONNECT?1:(mode==AllData.GARMIN_TRANSPORT_DIRECT?2:0);
@@ -310,9 +320,18 @@ static void config(MainActivity act,AllData alldata,long peerId) {
             }
         catch(Throwable th) { Log.stack(LOG_ID,"garmin",th); }
         });
-    page.link(sec,R.drawable.ic_jm_badge,act.getString(R.string.garmin_app_id_button),Natives.getgarminid(),() -> appId(act,alldata,page));
+    page.link(sec,R.drawable.ic_jm_badge,act.getString(R.string.garmin_app_id_button),grouped(Natives.getgarminid()),() -> appId(act,alldata,page));
     page.link(sec,R.drawable.ic_jm_bolt,act.getString(R.string.shutcuts),null,() -> new Shortcuts().mkshortlistview(act));
-    page.toggle(sec,R.drawable.ic_jm_dark_mode,act.getString(R.string.darkmode),null,() -> alldata.getKerfstokBlack(act,peerId),on -> alldata.setcolor(act,peerId,on));
+    boolean known=false;
+    for(var info:alldata.getGarminDeviceInfos()) if(info.id==peerId) { known=true; break; }
+    MaterialSwitch dark=page.toggle(sec,R.drawable.ic_jm_dark_mode,act.getString(R.string.darkmode),known?null:act.getString(R.string.garmin_select_device),
+        () -> alldata.getKerfstokBlack(act,peerId),on -> alldata.setcolor(act,peerId,on));
+    if(!known) {
+        View row=(View)dark.getParent().getParent();
+        row.setEnabled(false);
+        dark.setEnabled(false);
+        row.setAlpha(0.38f);
+        }
     if(alldata.canConfigureGarminAlarms(peerId))
         page.link(sec,R.drawable.ic_jm_notifications,act.getString(R.string.alarms),null,() -> GarminAlarms.show(act,alldata,page.root,peerId));
     }

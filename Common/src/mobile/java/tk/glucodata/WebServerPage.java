@@ -68,6 +68,7 @@ public static void show(MainActivity act) {
     LinearLayout access=page.section(R.string.jm_share_web_sec_access);
     final String[] oldkey={Natives.getApiSecret()};
     final TextInputEditText secret=page.field(access,act.getString(R.string.jm_share_web_secret_label),oldkey[0],M3Page.PASSWORD,null,null);
+    tk.glucodata.settings.ExchangePage.plain(secret);
 
     /* HTTPS */
     LinearLayout https=page.section(R.string.jm_share_web_sec_https);

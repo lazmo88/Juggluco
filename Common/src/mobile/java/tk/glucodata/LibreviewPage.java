@@ -121,9 +121,10 @@ public static void show(MainActivity act,Runnable done) {
 
     /* Account */
     LinearLayout account=page.section(R.string.jm_share_lv_sec_account);
-    s.email=page.field(account,act.getString(R.string.email),s.wasemail,M3Page.EMAIL,null,null);
+    s.email=page.field(account,act.getString(R.string.jm_share_lv_email),s.wasemail,M3Page.EMAIL,null,null);
     String passwas=getlibrepass();
     s.pass=page.field(account,act.getString(R.string.password),passwas==null?"":passwas,M3Page.PASSWORD,null,null);
+    tk.glucodata.settings.ExchangePage.plain(s.pass);
     page.toggle(account,R.drawable.ic_jm_language,act.getString(R.string.jm_share_lv_russia),null,() -> s.russia[0],on -> s.russia[0]=on);
     final View idRow=page.link(account,R.drawable.ic_jm_badge,act.getString(R.string.jm_share_lv_accountid),String.valueOf(Natives.getlibreAccountIDnumber()),
         () -> {

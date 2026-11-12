@@ -50,6 +50,7 @@ public static void show(MainActivity act) {
     final TextInputEditText url=page.field(site,act.getString(R.string.jm_share_ns_url),Natives.getnightuploadurl(),M3Page.URL,null,null);
     String secretwas=Natives.getnightuploadsecret();
     final TextInputEditText secret=page.field(site,act.getString(R.string.jm_share_web_secret_label),secretwas==null?"":secretwas,M3Page.PASSWORD,null,null);
+    tk.glucodata.settings.ExchangePage.plain(secret);
     page.toggle(site,R.drawable.ic_jm_tune,act.getString(R.string.jm_share_ns_v3),null,() -> v3[0],on -> v3[0]=on);
 
     LinearLayout data=page.section(R.string.jm_share_web_sec_data);
@@ -69,6 +70,13 @@ public static void show(MainActivity act) {
     final android.widget.TextView statusView=page.note(status,datestr(NightPost.uploadtime)+": "+NightPost.uploadstatus);
     statusView.setTextIsSelectable(true);
     page.refresher(() -> statusView.setText(datestr(NightPost.uploadtime)+": "+NightPost.uploadstatus));
+    Runnable tick=new Runnable() { public void run() {
+        if(!page.isOpen()) return;
+        statusView.setText(datestr(NightPost.uploadtime)+": "+NightPost.uploadstatus);
+        statusView.postDelayed(this,1000L);
+        }};
+    statusView.postDelayed(tick,1000L);
+    page.onClose(() -> statusView.removeCallbacks(tick));
 
     page.bottomBar(
         page.button(M3Page.Style.TONAL,act.getString(R.string.cancel),0,page::dismiss),

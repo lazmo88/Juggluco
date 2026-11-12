@@ -248,6 +248,7 @@ public static void turnServer(MainActivity act) {
     final TextInputEditText port=page.field(sec,act.getString(R.string.port),absent?"":(""+Natives.getTurnPort(0)),M3Page.INTEGER,null,null);
     final TextInputEditText user=page.field(sec,act.getString(R.string.username),absent?"":Natives.getTurnUser(0),M3Page.TEXT,null,null);
     final TextInputEditText pass=page.field(sec,act.getString(R.string.password),absent?"":Natives.getTurnPassword(0),M3Page.PASSWORD,null,null);
+    tk.glucodata.settings.ExchangePage.plain(pass);
     if(!absent)
         page.buttons(sec,page.button(M3Page.Style.TEXT,act.getString(R.string.delete),R.drawable.ic_jm_delete,() ->
             M3Page.confirm(act,act.getString(R.string.delete)+"?",null,act.getString(R.string.delete),() -> {

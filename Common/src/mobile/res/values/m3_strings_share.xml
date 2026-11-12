@@ -156,4 +156,6 @@
     <string name="jm_share_garmin_threshold">Alarm at</string>
     <string name="jm_share_garmin_loss_after">Alarm after</string>
     <string name="jm_share_lib_title">Libre library</string>
+    <string name="jm_share_lv_email">E-mail</string>
+    <string name="jm_share_wear_empty_body">Pair a Wear OS watch with this phone and install Juggluco on it. It shows up here once connected.</string>
 </resources>

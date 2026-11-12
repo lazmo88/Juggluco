@@ -150,6 +150,7 @@ private MirrorHostPage(MainActivity act,Backup backup,int index) {
     page.toggle(conn,R.drawable.ic_jm_key,act.getString(R.string.password),act.getString(R.string.jm_share_host_password_summary),
         () -> password,on -> { password=on; update(); });
     pass=page.field(conn,act.getString(R.string.password),passstr==null?"":passstr,M3Page.PASSWORD,null,null);
+    tk.glucodata.settings.ExchangePage.plain(pass);
     passBox=box(pass);
 
     /* Network */
