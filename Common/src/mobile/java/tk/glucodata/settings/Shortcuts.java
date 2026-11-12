@@ -126,9 +126,11 @@ private void edit(MainActivity act,ArrayList<Object> current) {
     sub.help(R.string.shortcuthelp);
     LinearLayout box=sub.section((CharSequence)null);
     final TextInputEditText labedit=sub.field(box,act.getString(R.string.jm_alerts_name),current==null?"":(String)current.get(0),
-        InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD,null,null);
+        InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS,null,null);
     /* Values can be numbers or operators with numbers (e.g. *0.5). */
-    final TextInputEditText valedit=sub.field(box,act.getString(R.string.value),current==null?"":(String)current.get(1),InputType.TYPE_CLASS_PHONE,null,null);
+    final TextInputEditText valedit=sub.field(box,act.getString(R.string.value),current==null?"":pretty((String)current.get(1)),InputType.TYPE_CLASS_PHONE,null,null);
+    labedit.setTypeface(android.graphics.Typeface.DEFAULT);
+    valedit.setTypeface(android.graphics.Typeface.DEFAULT);
     if(current!=null) {
         sub.bottomBar(sub.button(M3Page.Style.TEXT,act.getString(R.string.delete),R.drawable.ic_jm_delete,() -> {
             int index=shortcuts.indexOf(current);
