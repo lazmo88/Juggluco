@@ -181,6 +181,11 @@ private void removeSearchEditor() {
 void startsearch() {
 if(!isWearable) {
     MainActivity activity = (MainActivity) getContext();
+    if(onSearchAway!=null) { // phone: result bar of a previous search
+        Natives.stopsearch();
+        runSearchAway();
+        }
+    if(PhoneUi.show("search",activity)) return; // phone: M3 SearchPage
     if(searchcontrol!=null) {
     Natives.stopsearch();
     searchcontrol.setVisibility(View.GONE);
@@ -218,6 +223,17 @@ void setminheight(View[] views,int minheight) {
     }
 //void getnumcontrol(MainActivity activity,int width,int height) {
 void getnumcontrol(MainActivity activity) {
+    if(PhoneUi.has("amountlist")) {
+        /* Phone: M3 list instead of the native-drawn list; leave no native
+         * list state or button column behind. */
+        if(numcontrol!=null)
+            numcontrol.setVisibility(GONE);
+        Natives.endnumlist();
+        requestRender();
+        if(PhoneUi.show("amountlist",activity))
+            return;
+        Natives.makenumbers();
+        }
    {if(doLog) {Log.i(LOG_ID,"getnumcontrol start");};};
 
     if(numcontrol==null) {
@@ -634,6 +650,7 @@ final    private ScaleGestureDetector.SimpleOnScaleGestureListener mScaleListene
     long reldate;
      void startdatepick(long tim) {
         reldate=tim;
+        if(PhoneUi.show("datepick",(MainActivity)getContext(),tim)) return; // phone: MaterialDatePicker
         numberview.getdateviewal((MainActivity)getContext(),tim,    (year,month,day)-> {
             Natives.movedate(reldate, year, month, day);
             requestRender();
@@ -1065,7 +1082,16 @@ private void mktimedialog( Button but,final int num ,View parent) {
     }
 
     ImageButton prev=null,next=null;
+/* Phone search result bar (SearchPage) removes itself here. */
+static Runnable onSearchAway=null;
+static void runSearchAway() {
+    Runnable r=onSearchAway;
+    onSearchAway=null;
+    if(r!=null)
+        r.run();
+    }
    void searchaway() {
+       runSearchAway();
        removeSearchEditor();
      if(searchcontrol!=null)
          searchcontrol.setVisibility(GONE);
@@ -1603,6 +1629,7 @@ public void surfaceDestroyed(SurfaceHolder holder) {
     }
 static public void    doabout(MainActivity activity) {
 if(!isWearable) {
+    if(PhoneUi.show("about",activity)) return; // phone: M3 AboutPage
     String about=activity.getString(R.string.about)+"<p>Version Code: "+ BuildConfig.VERSION_CODE+"<br>Version Name: "+ 
         BuildConfig.VERSION_NAME +"<br>"+Natives.getCPUarch()+"<br>Build time: "+ BuildTime.TIME +"</p>";
     

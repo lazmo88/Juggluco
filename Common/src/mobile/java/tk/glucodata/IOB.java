@@ -95,6 +95,7 @@ static public class InsulinTypeAdapter extends RecyclerView.Adapter<InsulinTypeH
 
 
 public static void mkview(MainActivity act) {
+    if(!Applic.isWearable) { IobPage.show(act); return; } // phone: M3 IobPage
     RecyclerView recycle = new RecyclerView(act);
     recycle.setHasFixedSize(true);
     GridLayoutManager lin=new GridLayoutManager(act,3);

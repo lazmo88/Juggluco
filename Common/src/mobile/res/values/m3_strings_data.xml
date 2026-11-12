@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Data area (rd/data) Material 3 screens. English only. -->
+<resources>
+    <string name="jm_data_editamount">Edit amount</string>
+    <string name="jm_data_fromwatch">From the other device</string>
+    <string name="jm_data_label">Label</string>
+    <string name="jm_data_amount">Amount</string>
+    <string name="jm_data_chooselabel">Choose a label</string>
+    <string name="jm_data_badnumber">Not a number</string>
+    <string name="jm_data_filter">Filter by label</string>
+    <string name="jm_data_gotodate">Go to date</string>
+    <string name="jm_data_noamounts">No amounts yet</string>
+    <string name="jm_data_noamounts_body">Amounts you enter, such as insulin or carbohydrates, are listed here by day.</string>
+    <string name="jm_data_nofilter">No amounts with this label</string>
+    <string name="jm_data_alllabels">All labels</string>
+    <string name="jm_data_deleted">Amount deleted</string>
+    <string name="jm_data_sources">Glucose sources</string>
+    <string name="jm_data_range">Values</string>
+    <string name="jm_data_from">From</string>
+    <string name="jm_data_to">To</string>
+    <string name="jm_data_timeofday">Time of day</string>
+    <string name="jm_data_anytime">Any time</string>
+    <string name="jm_data_earlier">Earlier</string>
+    <string name="jm_data_later">Later</string>
+    <string name="jm_data_report">Report</string>
+    <string name="jm_data_previous">Previous</string>
+    <string name="jm_data_next">Next</string>
+    <string name="jm_data_copied">Copied</string>
+    <string name="jm_data_copy">Copy version details</string>
+    <string name="jm_data_version">Version</string>
+    <string name="jm_data_architecture">Architecture</string>
+    <string name="jm_data_graph">Graph</string>
+    <string name="jm_data_graphlow">Graph bottom</string>
+    <string name="jm_data_graphhigh">Graph top</string>
+    <string name="jm_data_low">Low</string>
+    <string name="jm_data_high">High</string>
+    <string name="jm_data_thresholdnote">Between 0.0 and 0.8.</string>
+    <string name="jm_data_screen">Screen</string>
+    <string name="jm_data_systemlanguage">System language</string>
+    <string name="jm_data_look">Appearance</string>
+    <string name="jm_data_iobsummary">Insulin on board</string>
+    <string name="jm_data_preview">Preview</string>
+    <string name="jm_data_previewtext">Glucose curve, buttons and dialogs use these colours.</string>
+    <string name="jm_data_apply">Apply</string>
+    <string name="jm_data_themes">Themes</string>
+    <string name="jm_data_insulintypes">Insulin type per label</string>
+    <string name="jm_data_nolabels">No labels</string>
+    <string name="jm_data_labels">Labels</string>
+    <string name="jm_data_meallabel">Meal label</string>
+    <string name="jm_data_mealnote">Amounts with this label can hold a meal (ingredients).</string>
+    <string name="jm_data_labelsreadonly">Labels are set by the device this one follows and cannot be changed here.</string>
+    <string name="jm_data_none">None</string>
+    <string name="jm_data_editlabel">Edit label</string>
+    <string name="jm_data_meal">Meal</string>
+</resources>

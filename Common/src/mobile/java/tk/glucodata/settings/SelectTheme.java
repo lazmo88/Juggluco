@@ -761,6 +761,7 @@ private static void styleSpinnerShell(Context themeContext, Spinner spinner) {
     }
 
     public static void show(MainActivity act,View parent) {
+        if(tk.glucodata.PhoneUi.show("theme",act)) return; // phone: M3 ThemePage
         EnableControls(parent,false);
         int height= GlucoseCurve.getheight();
         int width= GlucoseCurve.getwidth();
@@ -787,7 +788,7 @@ private static int getResourceFromTheme(Context context,AppTheme apptheme, int a
     theme.resolveAttribute(attributeResId, typedValue, true);
     return typedValue.resourceId;
     }
-private static int getDimensionFromTheme( Context context, AppTheme apptheme, int attributeResId) {
+static int getDimensionFromTheme( Context context, AppTheme apptheme, int attributeResId) {
     Resources.Theme theme = context.getResources().newTheme();
     theme.setTo(context.getTheme());
     theme.applyStyle(apptheme.getStyleResId(), true);
@@ -808,7 +809,7 @@ private static int getDimensionFromTheme( Context context, AppTheme apptheme, in
 
 
 @DrawableRes
-private static int getDrawableResourceFromTheme( Context context, AppTheme appTheme, int attributeResId) {
+static int getDrawableResourceFromTheme( Context context, AppTheme appTheme, int attributeResId) {
     Resources.Theme theme = context.getResources().newTheme();
     theme.setTo(context.getTheme());
     theme.applyStyle(appTheme.getStyleResId(), true);

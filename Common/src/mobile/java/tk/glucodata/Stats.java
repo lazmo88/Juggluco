@@ -155,7 +155,7 @@ final Runnable closeonback=()-> {
    act.setonback(closeonback);
    }
 
-private static void webPercentiles(Context context, int days,boolean history) {
+static void webPercentiles(Context context, int days,boolean history) {
     final long endtime=Natives.percentileEndtime(days);
 	final String key=Natives.getApiSecret();
     final String addkey=(key!=null&&!key.isEmpty())?key+"/":"";
@@ -167,6 +167,7 @@ private static void webPercentiles(Context context, int days,boolean history) {
     }
 
 static void mkstats(MainActivity act) {
+    if(!Applic.isWearable) { StatsBar.show(act); return; } // phone: M3 controls, statistics stay native-drawn
      boolean showhistory=Natives.getAnalysehistory();
       MainActivity.clearonback();
 
