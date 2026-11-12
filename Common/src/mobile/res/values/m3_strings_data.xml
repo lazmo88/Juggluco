@@ -43,4 +43,13 @@
     <string name="jm_data_previewtext">Glucose curve, buttons and dialogs use these colours.</string>
     <string name="jm_data_apply">Apply</string>
     <string name="jm_data_themes">Themes</string>
+    <string name="jm_data_insulintypes">Insulin type per label</string>
+    <string name="jm_data_nolabels">No labels</string>
+    <string name="jm_data_labels">Labels</string>
+    <string name="jm_data_meallabel">Meal label</string>
+    <string name="jm_data_mealnote">Amounts with this label can hold a meal (ingredients).</string>
+    <string name="jm_data_labelsreadonly">Labels are set by the device this one follows and cannot be changed here.</string>
+    <string name="jm_data_none">None</string>
+    <string name="jm_data_editlabel">Edit label</string>
+    <string name="jm_data_meal">Meal</string>
 </resources>
