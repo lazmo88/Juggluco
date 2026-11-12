@@ -264,6 +264,15 @@ static private void showNow(MainActivity act) {
     final BottomSheetBehavior<?> behavior=dialog.getBehavior();
     behavior.setSkipCollapsed(true);
     behavior.setState(BottomSheetBehavior.STATE_EXPANDED);
+    /* The expanded sheet reaches under the status bar: icons in the sheet's contrast. */
+    dialog.setOnShowListener(d -> {
+        android.view.Window win=dialog.getWindow();
+        if(win!=null) {
+            androidx.core.view.WindowInsetsControllerCompat bars=androidx.core.view.WindowCompat.getInsetsController(win,win.getDecorView());
+            bars.setAppearanceLightStatusBars(!getInvertColors());
+            bars.setAppearanceLightNavigationBars(!getInvertColors());
+            }
+        });
 
     dialog.setOnDismissListener(d -> {
         if(sheet==dialog)
@@ -346,6 +355,8 @@ static private void showNow(MainActivity act) {
                 Stats.mkstats(act);
                 });
             }
+        else /* used to do nothing at all */
+            tk.glucodata.m3.M3Page.message(act,act.getString(R.string.jm_stats_title),act.getString(R.string.jm_stats_nodata));
         });
     click(view,R.id.jm_export,v -> {
         var c=Applic.app.curve;

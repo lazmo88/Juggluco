@@ -829,7 +829,7 @@ public LinearLayout bottomBar(MaterialButton... buttons) {
         ((LinearLayout)root).addView(divider,new LinearLayout.LayoutParams(MATCH_PARENT,WRAP_CONTENT));
         bottomBar=new LinearLayout(ctx);
         bottomBar.setGravity(Gravity.END|Gravity.CENTER_VERTICAL);
-        bottomBar.setBackgroundColor(color(com.google.android.material.R.attr.colorSurfaceContainer));
+        bottomBar.setBackgroundColor(color(com.google.android.material.R.attr.colorSurface));
         ((LinearLayout)root).addView(bottomBar,new LinearLayout.LayoutParams(MATCH_PARENT,WRAP_CONTENT));
         }
     for(MaterialButton b:buttons) {

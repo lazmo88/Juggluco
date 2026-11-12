@@ -94,14 +94,13 @@ private AmountListPage(MainActivity act) {
     page=M3Page.open(act,R.string.amountsname);
     page.action(R.drawable.ic_jm_filter_list,act.getString(R.string.jm_data_filter),this::askFilter);
     page.action(R.drawable.ic_jm_calendar_month,act.getString(R.string.jm_data_gotodate),this::askDate);
-    page.action(R.drawable.ic_jm_add_circle,act.getString(R.string.new_amount),this::newAmount);
     page.scroll.setVisibility(View.GONE);
 
     recycler=new RecyclerView(page.ctx);
     recycler.setLayoutManager(new LinearLayoutManager(page.ctx));
     recycler.setAdapter(adapter);
     recycler.setClipToPadding(false);
-    recycler.setPadding(page.dp(16),0,page.dp(16),page.dp(24)+MainActivity.systembarBottom);
+    recycler.setPadding(page.dp(16),0,page.dp(16),page.dp(96)+MainActivity.systembarBottom); // room for the FAB
     final int flat=page.color(com.google.android.material.R.attr.colorSurface);
     final int lifted=page.color(com.google.android.material.R.attr.colorSurfaceContainer);
     recycler.addOnScrollListener(new RecyclerView.OnScrollListener() {
@@ -110,7 +109,10 @@ private AmountListPage(MainActivity act) {
             }
         });
     LinearLayout root=(LinearLayout)page.root;
-    root.addView(recycler,root.indexOfChild(page.scroll)+1,new LinearLayout.LayoutParams(MATCH_PARENT,0,1f));
+    /* List, empty state and the New amount button share the space under the app bar. */
+    android.widget.FrameLayout frame=new android.widget.FrameLayout(page.ctx);
+    root.addView(frame,root.indexOfChild(page.scroll)+1,new LinearLayout.LayoutParams(MATCH_PARENT,0,1f));
+    frame.addView(recycler,new android.widget.FrameLayout.LayoutParams(MATCH_PARENT,MATCH_PARENT));
 
     LinearLayout holder=new LinearLayout(page.ctx);
     holder.setOrientation(LinearLayout.VERTICAL);
@@ -118,8 +120,22 @@ private AmountListPage(MainActivity act) {
     emptyView=page.empty(holder,R.drawable.ic_jm_list,act.getString(R.string.jm_data_noamounts),act.getString(R.string.jm_data_noamounts_body));
     emptyTitle=findTitle(emptyView);
     holder.setVisibility(View.GONE);
-    root.addView(holder,root.indexOfChild(recycler)+1,new LinearLayout.LayoutParams(MATCH_PARENT,0,1f));
+    frame.addView(holder,new android.widget.FrameLayout.LayoutParams(MATCH_PARENT,MATCH_PARENT));
     holderView=holder;
+
+    com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton fab=
+        new com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton(page.ctx);
+    fab.setText(R.string.new_amount);
+    fab.setIconResource(R.drawable.ic_jm_add);
+    fab.setOnClickListener(v -> newAmount());
+    android.widget.FrameLayout.LayoutParams fabParams=new android.widget.FrameLayout.LayoutParams(WRAP_CONTENT,WRAP_CONTENT,Gravity.BOTTOM|Gravity.END);
+    fabParams.setMargins(0,0,page.dp(16),page.dp(16)+MainActivity.systembarBottom);
+    frame.addView(fab,fabParams);
+    recycler.addOnScrollListener(new RecyclerView.OnScrollListener() {
+        @Override public void onScrolled(@NonNull RecyclerView rv,int dx,int dy) {
+            if(dy>0) fab.shrink(); else if(dy<0) fab.extend();
+            }
+        });
 
     page.onClose(() -> {
         loadNr++;
@@ -277,7 +293,7 @@ private void reloadIfOpen() {
         load();
     }
 private void askDelete(Entry e) {
-    final String mess=DateFormat.getDateTimeInstance(DateFormat.DEFAULT,DateFormat.DEFAULT).format(e.time)+" "+label(e.label)+" "+e.value;
+    final String mess=label(e.label)+" "+value(e.value)+"\n"+DateFormat.getDateTimeInstance(DateFormat.MEDIUM,DateFormat.SHORT).format(e.time);
     M3Page.confirm(act,act.getString(R.string.deletequestion),mess,act.getString(R.string.delete),() -> {
         final long ptr=numio.numptrs[e.bron];
         item now=Natives.getNumitem(ptr,e.pos);

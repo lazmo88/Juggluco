@@ -7,6 +7,15 @@
     <string name="jm_invalid_number">Enter a number</string>
     <string name="jm_saved">Saved</string>
 
+    <!-- Statistics from the menu without glucose data -->
+    <string name="jm_stats_title">Statistics</string>
+    <string name="jm_stats_nodata">There are not enough glucose values yet to calculate statistics.</string>
+
+    <!-- Camera scanner (Menu > Photo) -->
+    <string name="jm_scan_title">Scan sensor code</string>
+    <string name="jm_scan_torch_on">Turn on torch</string>
+    <string name="jm_scan_torch_off">Turn off torch</string>
+
     <!-- Speech (Talker) -->
     <string name="jm_talk_title">Speech</string>
     <string name="jm_talk_section_what">What to say</string>
