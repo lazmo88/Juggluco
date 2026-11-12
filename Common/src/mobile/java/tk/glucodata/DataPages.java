@@ -27,5 +27,13 @@ private DataPages() {}
 public static void register() {
     PhoneUi.register("amount",(act,args) -> AmountPage.show(act,(Long)args[0],(Integer)args[1]));
     PhoneUi.register("amountlist",(act,args) -> AmountListPage.show(act));
+    PhoneUi.register("search",(act,args) -> SearchPage.show(act));
+    PhoneUi.register("datepick",(act,args) -> {
+        final long tim=(Long)args[0];
+        tk.glucodata.m3.DataPickers.date(act,act.getString(R.string.date),tim,(year,month,day) -> {
+            Natives.movedate(tim,year,month,day);
+            act.requestRender();
+            },null);
+        });
     }
 }

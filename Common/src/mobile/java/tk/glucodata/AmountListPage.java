@@ -149,7 +149,7 @@ private void load() {
         ArrayList<Entry> list=new ArrayList<>();
         ArrayList<String> labs=new ArrayList<>();
         try {
-            labs=Natives.getLabels();
+            labs=AmountPage.labelNames();
             for(int bron=0;bron<numio.numptrs.length;bron++) {
                 final long ptr=numio.numptrs[bron];
                 if(ptr==0L)

@@ -14,4 +14,13 @@
     <string name="jm_data_nofilter">No amounts with this label</string>
     <string name="jm_data_alllabels">All labels</string>
     <string name="jm_data_deleted">Amount deleted</string>
+    <string name="jm_data_sources">Glucose sources</string>
+    <string name="jm_data_range">Values</string>
+    <string name="jm_data_from">From</string>
+    <string name="jm_data_to">To</string>
+    <string name="jm_data_timeofday">Time of day</string>
+    <string name="jm_data_anytime">Any time</string>
+    <string name="jm_data_earlier">Earlier</string>
+    <string name="jm_data_later">Later</string>
+    <string name="jm_data_report">Report</string>
 </resources>

@@ -181,6 +181,11 @@ private void removeSearchEditor() {
 void startsearch() {
 if(!isWearable) {
     MainActivity activity = (MainActivity) getContext();
+    if(onSearchAway!=null) { // phone: result bar of a previous search
+        Natives.stopsearch();
+        runSearchAway();
+        }
+    if(PhoneUi.show("search",activity)) return; // phone: M3 SearchPage
     if(searchcontrol!=null) {
     Natives.stopsearch();
     searchcontrol.setVisibility(View.GONE);
@@ -645,6 +650,7 @@ final    private ScaleGestureDetector.SimpleOnScaleGestureListener mScaleListene
     long reldate;
      void startdatepick(long tim) {
         reldate=tim;
+        if(PhoneUi.show("datepick",(MainActivity)getContext(),tim)) return; // phone: MaterialDatePicker
         numberview.getdateviewal((MainActivity)getContext(),tim,    (year,month,day)-> {
             Natives.movedate(reldate, year, month, day);
             requestRender();
@@ -1076,7 +1082,16 @@ private void mktimedialog( Button but,final int num ,View parent) {
     }
 
     ImageButton prev=null,next=null;
+/* Phone search result bar (SearchPage) removes itself here. */
+static Runnable onSearchAway=null;
+static void runSearchAway() {
+    Runnable r=onSearchAway;
+    onSearchAway=null;
+    if(r!=null)
+        r.run();
+    }
    void searchaway() {
+       runSearchAway();
        removeSearchEditor();
      if(searchcontrol!=null)
          searchcontrol.setVisibility(GONE);

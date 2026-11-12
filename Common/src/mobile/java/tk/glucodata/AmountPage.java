@@ -116,7 +116,7 @@ private AmountPage(MainActivity act,long hitptr,int tmpmealptr) {
     wasNew=!oldnum;
     lasttime=time;
     labelsel=type;
-    labels=Natives.getLabels();
+    labels=labelNames();
 
     page=M3Page.open(act,oldnum?act.getString(R.string.jm_data_editamount):act.getString(R.string.new_amount));
     page.help(R.string.newamount);
@@ -282,7 +282,7 @@ private void openActivity() {
                 float value=Natives.hitvalue(hit);
                 if(labelsel==previousType[0])
                     labelsel=type;
-                ArrayList<String> now=Natives.getLabels();
+                ArrayList<String> now=labelNames();
                 labels.clear();
                 labels.addAll(now);
                 if(labelsel>=0&&labelsel<labels.size())
@@ -435,6 +435,17 @@ static void removeHit(long hit) {
         alldata.changedback(index);
     Natives.freehitptr(hit);
     Applic.app.redraw();
+    }
+
+/* Natives.getLabels() without its trailing empty entry (the "no label"
+ * item of the search Spinner). */
+static ArrayList<String> labelNames() {
+    ArrayList<String> l=Natives.getLabels();
+    if(l==null)
+        return new ArrayList<>();
+    if(l.size()>0)
+        l.remove(l.size()-1); // native getLabels adds one "" after the labels
+    return l;
     }
 
 static boolean isOpen() {
