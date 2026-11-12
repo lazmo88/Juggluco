@@ -68,7 +68,7 @@ public  class GlucoseMeterGatt  extends BluetoothGattCallback {
         }
 void updateview() {
         if(view!=null) {
-            ((MainActivity)view.getContext()).runOnUiThread(()-> view.setdata(view.meterIndex));
+            view.postUpdate();
                 } 
         }
         /*

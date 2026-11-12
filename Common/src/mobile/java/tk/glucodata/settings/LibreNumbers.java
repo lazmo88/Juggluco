@@ -21,144 +21,165 @@
 
 package tk.glucodata.settings;
 
-import android.app.Activity;
-import android.util.TypedValue;
+import static tk.glucodata.Natives.canSendNumbers;
+
+import android.content.Context;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Button;
+import android.widget.LinearLayout;
+import android.widget.RadioGroup;
 
-import android.widget.TextView;
+import androidx.appcompat.app.AlertDialog;
+
+import com.google.android.material.materialswitch.MaterialSwitch;
+import com.google.android.material.radiobutton.MaterialRadioButton;
+import com.google.android.material.textfield.TextInputEditText;
+import com.google.android.material.textfield.TextInputLayout;
 
 import java.util.ArrayList;
+import java.util.function.Consumer;
 
-import androidx.annotation.NonNull;
-import androidx.recyclerview.widget.GridLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
-import tk.glucodata.Applic;
 import tk.glucodata.CheckDirectionBox;
-import tk.glucodata.Layout;
-import tk.glucodata.Log;
 import tk.glucodata.MainActivity;
 import tk.glucodata.Natives;
 import tk.glucodata.R;
+import tk.glucodata.m3.M3Page;
 
-import static android.view.View.INVISIBLE;
-import static android.view.View.VISIBLE;
-import static android.view.ViewGroup.LayoutParams.MATCH_PARENT;
-import static tk.glucodata.Applic.isWearable;
-import static tk.glucodata.MainActivity.poponback;
-import static tk.glucodata.MainActivity.setonback;
-import static tk.glucodata.Natives.canSendNumbers;
-import static tk.glucodata.RingTones.EnableControls;
-import static tk.glucodata.help.hidekeyboard;
-import static tk.glucodata.settings.Settings.hideSystemUI;
-import static tk.glucodata.settings.Settings.removeContentView;
-import static tk.glucodata.util.getbutton;
-import static tk.glucodata.util.getcheckbox;
-
-public class LibreNumbers  {
+/*
+ * What LibreView (night==0) or Nightscout (night==1) receives for each label
+ * of the amounts list, as a Material 3 page.  One row per label; tapping it
+ * asks for the kind (rapid/long acting insulin, carbohydrate with a factor,
+ * comment, don't send).  Uses Natives.getlibrenumkind/setlibrenum like the
+ * old screen (LibreNumbers + LibreNumberHolder + librenumoptions.xml).
+ *
+ * The send switch is only copied back to the caller when the page closes,
+ * as before; the caller stores it.
+ */
+public class LibreNumbers {
 private final static String LOG_ID="LibreNumbers";
 
+/* kind 1..5 as stored by setlibrenum; 0 is "not set". */
+private static final int[] KIND_NAMES={0,R.string.rapidinsulin,R.string.longinsulin,R.string.carbo,R.string.comments,R.string.dontsend};
+private static final int[] KIND_ICONS={R.drawable.ic_jm_label,R.drawable.ic_jm_vaccines,R.drawable.ic_jm_vaccines,R.drawable.ic_jm_restaurant,R.drawable.ic_jm_notes,R.drawable.ic_jm_block};
+private static final int FOOD=3;
 
-static public class LibreNumberAdapter extends RecyclerView.Adapter<LibreNumberHolder> {
-	ArrayList<String > 	labels=Natives.getLabels();
-
-	ViewGroup layout;
-	View sendnumbers;
-	int night;
-
-    LibreNumberAdapter(ViewGroup layout,View sendnumbers,int night) {
-    	this.layout=layout;
-    	this.sendnumbers=sendnumbers;
-    	this.night=night;
-
-    	}
-
-    @NonNull
-	@Override
-    public LibreNumberHolder onCreateViewHolder(ViewGroup parent, int viewType) {
-    	Button view=new Button( parent.getContext());
-
-	view.setTransformationMethod(null);
-   //     view.setTextSize(TypedValue.COMPLEX_UNIT_SP, 24f);
-   if(!isWearable)
-           view.setTextSize(TypedValue.COMPLEX_UNIT_PX,Applic.largefontsize);
-	view.setLayoutParams(new ViewGroup.LayoutParams(  ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-
-        return new LibreNumberHolder(view,layout,sendnumbers,night);
-
+/* Old entry point (Libreview and Nightscout screens). */
+public static void mklayout(MainActivity context,int night,CheckDirectionBox donum,int[] donothing,View parent) {
+    show(context,night,donum.getText(),donum.isChecked(),checked -> {
+        donothing[0]=2;
+        donum.setChecked(checked);
+        donothing[0]=0;
+        });
     }
 
-	@Override
-	public void onBindViewHolder(final LibreNumberHolder holder, int pos) {
-		TextView text=(TextView)holder.itemView;
-		text.setText(labels.get(pos));
-	    }
-        @Override
-        public int getItemCount() {
-                return labels.size()-1;
+private static String kindText(Context ctx,int night,int pos) {
+    int kind=Natives.getlibrenumkind(night,pos);
+    if(kind<=0||kind>=KIND_NAMES.length)
+        return ctx.getString(R.string.jm_sensors_kind_unset);
+    String name=ctx.getString(KIND_NAMES[kind]);
+    if(kind==FOOD)
+        name=ctx.getString(R.string.jm_sensors_kind_factor,name,Settings.float2string(Natives.getlibrefoodweight(night,pos)));
+    return name;
+    }
 
+/* New entry point for Material 3 callers: onClose gets the send switch. */
+public static void show(MainActivity act,int night,CharSequence sendLabel,boolean sendChecked,Consumer<Boolean> onClose) {
+    final M3Page page=M3Page.open(act,R.string.jm_sensors_numbers_title);
+    page.subtitle(night==1?"Nightscout":"LibreView");
+    page.help(act.getString(night==1?R.string.nightnumhelp:R.string.librenumhelp));
+
+    LinearLayout send=page.section((CharSequence)null);
+    final boolean[] checked={sendChecked};
+    MaterialSwitch sendSwitch=page.toggle(send,R.drawable.ic_jm_cloud_download,sendLabel,null,() -> checked[0],on -> checked[0]=on);
+    android.widget.TextView remark=page.note(send,act.getString(R.string.libresetalllabels));
+    Runnable canSend=() -> {
+        boolean can=canSendNumbers(night);
+        View row=sendSwitch;
+        while(row.getParent()!=send&&row.getParent() instanceof View)
+            row=(View)row.getParent();
+        row.setEnabled(can);
+        sendSwitch.setEnabled(can);
+        row.setAlpha(can?1f:0.38f);
+        remark.setVisibility(can?View.GONE:View.VISIBLE);
+        };
+    canSend.run();
+    page.refresher(canSend);
+
+    LinearLayout list=page.section(R.string.jm_sensors_section_labels);
+    Runnable fill=() -> {
+        list.removeAllViews();
+        ArrayList<String> labels=Natives.getLabels();
+        for(int pos=0;pos<labels.size()-1;pos++) {
+            final int p=pos;
+            final String label=labels.get(pos);
+            int kind=Natives.getlibrenumkind(night,pos);
+            page.link(list,KIND_ICONS[kind>=0&&kind<KIND_ICONS.length?kind:0],label,kindText(act,night,pos),() -> askKind(page,night,p,label));
+            }
+        };
+    fill.run();
+    page.refresher(fill);
+    page.onClose(() -> onClose.accept(checked[0]));
+    }
+
+/* The old librenumoptions dialog as a MaterialAlertDialog. */
+private static void askKind(M3Page page,int night,int pos,String label) {
+    final MainActivity act=page.act;
+    final Context ctx=page.ctx;
+    final int was=Natives.getlibrenumkind(night,pos);
+    LinearLayout box=new LinearLayout(ctx);
+    box.setOrientation(LinearLayout.VERTICAL);
+    box.setPadding(page.dp(24),page.dp(8),page.dp(24),0);
+    RadioGroup group=new RadioGroup(ctx);
+    final int[] ids=new int[KIND_NAMES.length];
+    for(int k=1;k<KIND_NAMES.length;k++) {
+        MaterialRadioButton b=new MaterialRadioButton(ctx);
+        ids[k]=View.generateViewId();
+        b.setId(ids[k]);
+        b.setText(KIND_NAMES[k]);
+        b.setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_BodyLarge);
+        b.setTextColor(page.color(com.google.android.material.R.attr.colorOnSurface));
+        b.setMinHeight(page.dp(48));
+        group.addView(b);
         }
-
-}
-
-
-
-
-
-public static void    mklayout(MainActivity context, int night, CheckDirectionBox donum, int[] donothing, View parent) {
-	parent.setVisibility(INVISIBLE);
-	Button close = new Button(context);
-	close.setText(R.string.closename);
-	RecyclerView recycle = new RecyclerView(context);
-	recycle.setHasFixedSize(true);
-	GridLayoutManager lin=new GridLayoutManager(context,3);
-	recycle.setLayoutManager(lin);
-	var help=getbutton(context,R.string.helpname);
-
-	var sendnumbers=getcheckbox(context,donum.getText().toString(),donum.isChecked());
-	var remark=new TextView(context);
-	if(!canSendNumbers(night)) {
-		sendnumbers.setEnabled(false);
-		remark.setText(R.string.libresetalllabels);
-		}
-
-	recycle.setLayoutParams(new ViewGroup.LayoutParams(   ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT));
-    final ViewGroup  librenumlayout=new Layout(context,(x,w,h)->{ hideSystemUI(); return new int[] {w,h}; },new View[] {recycle},new View[]{remark},new View[]{help,sendnumbers,close});
-
-	librenumlayout.setPadding(MainActivity.systembarLeft,MainActivity.systembarTop,MainActivity.systembarRight,MainActivity.systembarBottom);
-	var adapt = new LibreNumberAdapter(librenumlayout,sendnumbers,night);
-	recycle.setAdapter(adapt);
-
-	Runnable closerun=()-> {
-		hidekeyboard(context);
-		removeContentView(librenumlayout) ;
-		final var checked= sendnumbers.isChecked();
-		parent.setVisibility(VISIBLE);
-		donothing[0]=2;
-		donum.setChecked(checked);
-		donothing[0]=0;
-		};
-    setonback(closerun);
-    close.setOnClickListener(v->{
-	    poponback();
-    	   closerun.run();
-    });
-
-        librenumlayout.setBackgroundColor(Applic.backgroundcolor);
-        context.addMyContentView(librenumlayout, new ViewGroup.LayoutParams(MATCH_PARENT, MATCH_PARENT));
-	help.setOnClickListener(v->{
-		EnableControls(librenumlayout,false);
-		tk.glucodata.help.help(context.getString(night==1?R.string.nightnumhelp:R.string.librenumhelp),context,l-> {
-			Log.i(LOG_ID,"librenumhelp callback");	
-			EnableControls(librenumlayout,true); 
-			if(!canSendNumbers(night)) { 
-				sendnumbers.setEnabled(false);
-				}
-			} );
-
-		});
-
-	}
-
+    box.addView(group);
+    TextInputLayout weightBox=new TextInputLayout(new androidx.appcompat.view.ContextThemeWrapper(ctx,com.google.android.material.R.style.Widget_Material3_TextInputLayout_OutlinedBox),null,com.google.android.material.R.attr.textInputOutlinedStyle);
+    weightBox.setHint(CalibrationPage.label(act,R.string.multiply));
+    TextInputEditText weight=new TextInputEditText(weightBox.getContext());
+    weight.setInputType(M3Page.DECIMAL);
+    weight.setSingleLine(true);
+    weightBox.addView(weight);
+    LinearLayout.LayoutParams wp=new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,ViewGroup.LayoutParams.WRAP_CONTENT);
+    wp.topMargin=page.dp(8);
+    box.addView(weightBox,wp);
+    weight.setText(Settings.float2string(was==FOOD?Natives.getlibrefoodweight(night,pos):1.0f));
+    if(was>0&&was<KIND_NAMES.length)
+        group.check(ids[was]);
+    weightBox.setVisibility(was==FOOD?View.VISIBLE:View.GONE);
+    group.setOnCheckedChangeListener((g,id) -> weightBox.setVisibility(id==ids[FOOD]?View.VISIBLE:View.GONE));
+    AlertDialog dialog=M3Page.dialog(act).setTitle(label).setView(box)
+        .setPositiveButton(R.string.save,null).setNegativeButton(R.string.cancel,null).create();
+    dialog.setOnShowListener(d -> dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+        int kind=0;
+        for(int k=1;k<ids.length;k++)
+            if(group.getCheckedRadioButtonId()==ids[k])
+                kind=k;
+        if(kind==0) {
+            dialog.dismiss();
+            return;
+            }
+        float weightf=0.0f;
+        if(kind==FOOD) {
+            weightf=M3Page.number(weight);
+            if(Float.isNaN(weightf)) {
+                weightBox.setError(act.getString(R.string.jm_invalid_number));
+                return;
+                }
+            }
+        if(kind!=was||was==FOOD)
+            Natives.setlibrenum(night,pos,kind,weightf);
+        dialog.dismiss();
+        page.refresh();
+        }));
+    dialog.show();
+    }
 }

@@ -20,163 +20,156 @@
 /*      Sun Sep 21 14:02:17 CEST 2025                                                */
 package tk.glucodata;
 
-import static android.view.ViewGroup.LayoutParams.MATCH_PARENT;
-import static tk.glucodata.Applic.backgroundcolor;
-import static tk.glucodata.BluetoothGlucoseMeter.startAdapterScanner;
 import static tk.glucodata.Natives.GlucoseMeterHasIndex;
-import static tk.glucodata.NumberView.smallScreen;
-import static tk.glucodata.settings.Settings.removeContentView;
-import static tk.glucodata.util.getbutton;
-import static tk.glucodata.util.getcheckbox;
-
 import static tk.glucodata.MeterScanner.shouldUseDeviceAddress;
-
 import static tk.glucodata.Log.doLog;
 
-import android.graphics.Color;
-import android.text.SpannableString;
+import android.text.SpannableStringBuilder;
+import android.text.Spanned;
 import android.text.style.ForegroundColorSpan;
+import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Button;
-import android.widget.TextView;
+import android.widget.LinearLayout;
 
 import androidx.annotation.NonNull;
-import androidx.recyclerview.widget.GridLayoutManager;
+import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import tk.glucodata.m3.M3Page;
+
+/*
+ * "Find devices" for glucose meters (and AiDEX X sensors) as a Material 3
+ * page: Bluetooth devices found by MeterScanner as list rows; tapping one
+ * adds it like before (MeterConfig for meters, AidexXGattCallback for AiDEX X).
+ */
 public class DeviceList {
-  static private final String LOG_ID ="DeviceList";
+static private final String LOG_ID="DeviceList";
 
-   static  class DeviceListViewHolder extends RecyclerView.ViewHolder {
-       public DeviceListViewHolder(TextView view,View parent) {
-         super(view);
-         view.setOnClickListener(v -> {
-             int pos=getAbsoluteAdapterPosition();
-             final var scan=BluetoothGlucoseMeter.scanner;
-             if(scan!=null) {
-                 if(pos<scan.deviceNames.size()) {
-                     String deviceName=scan.deviceNames.get(pos);
-                     if(showAidexX) {
-                       AidexXGattCallback.addbyDeviceName((MainActivity) view.getContext(),deviceName);
+static class DeviceListViewHolder extends RecyclerView.ViewHolder {
+    DeviceListViewHolder(View view,M3Page page) {
+        super(view);
+        view.setOnClickListener(v -> {
+            int pos=getAbsoluteAdapterPosition();
+            final var scan=BluetoothGlucoseMeter.scanner;
+            if(scan!=null) {
+                if(pos>=0&&pos<scan.deviceNames.size()) {
+                    String deviceName=scan.deviceNames.get(pos);
+                    if(showAidexX) {
+                        AidexXGattCallback.addbyDeviceName(page.act,deviceName);
                         while(MainActivity.doonback())
-                                ;
+                            ;
                         }
-                     else {
-                         var device=scan.devices.get(pos);
-                         int meterIndex=Natives.GlucoseMeterGetIndex(deviceName,shouldUseDeviceAddress(deviceName,device)?device.getAddress():null);
-                         if(doLog)
-                             Log.i(LOG_ID,deviceName+" getId()="+view.getId()+" pos="+pos+" meterIndex="+meterIndex);
-                         if(meterIndex>=0) {
-                            MeterConfig.config((MainActivity)view.getContext(),meterIndex,parent,device,null);
-                            }
-                         else {
-                            Applic.Toaster("Adding meter "+deviceName+" failed");
-                            }
-                         }
-                     }
-                  else {
-                    Log.e(LOG_ID,"pos "+pos+" >=deviceNames "+ scan.deviceNames.size());
+                    else {
+                        var device=scan.devices.get(pos);
+                        int meterIndex=Natives.GlucoseMeterGetIndex(deviceName,shouldUseDeviceAddress(deviceName,device)?device.getAddress():null);
+                        if(doLog)
+                            Log.i(LOG_ID,deviceName+" pos="+pos+" meterIndex="+meterIndex);
+                        if(meterIndex>=0)
+                            MeterConfig.config(page.act,meterIndex,null,device,MeterList::refreshOpen);
+                        else
+                            page.toast("Adding meter "+deviceName+" failed");
+                        }
                     }
-                 }
-              else {
-                    Log.e(LOG_ID,"scanner==null");
-                }
-             });
-        }
-   }
-
-
-static  class DeviceListViewAdapter extends RecyclerView.Adapter<DeviceListViewHolder> {
-View parent;
-String newname;
-            DeviceListViewAdapter(View parent) { 
-              this.parent=parent;
-              this.newname=parent.getContext().getString(R.string.newname);
-            }
-
-       @NonNull
-      @Override
-       public DeviceListViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
-           Button view=new Button((MainActivity)parent.getContext());
-           return new DeviceListViewHolder((TextView)view,this.parent);
-       }
-
-private final SpannableString newcolor(String nameaddress) {
-         SpannableString str = new SpannableString(nameaddress+"\t"+newname);
-         int spanlength=str.length();
-         int newlen=newname.length();
-         str.setSpan(new ForegroundColorSpan(Color.YELLOW), spanlength-newlen,spanlength, 0);
-         return str;
-         }
-static private int aidexXindex(String name) {
-    String serial= AidexXGattCallback.deviceName2name(name);
-    return Natives.sensorIndex(serial);
-    }
-      @Override
-      public void onBindViewHolder(final DeviceListViewHolder holder, int pos) {
-             TextView text=(TextView)holder.itemView;
-             text.setId(pos);
-             var scan=BluetoothGlucoseMeter.scanner;
-             var device=scan.devices.get(pos);
-             var name=scan.deviceNames.get(pos);
-             var address=device.getAddress();
-             String nameaddress=name+"\n"+address;
-             int index= showAidexX?aidexXindex(name):GlucoseMeterHasIndex(name, shouldUseDeviceAddress(name,device)?address:null);
-                 if(index<0) {
-                     text.setText(newcolor(nameaddress));
-                     }
                 else
-                     text.setText(nameaddress);
-          }
-           @Override
-       public int getItemCount() {
-            final MeterScanner scanner=BluetoothGlucoseMeter.scanner;
-            if(scanner==null)
-                return 0;
-            return scanner.devices.size();
-           }
-
-   }
-static private boolean showAidexX=false;
-static public void show(MainActivity act, MeterList.MeterListViewAdapter meteradapt) {
-      RecyclerView recycle = new RecyclerView(act);
-      recycle.setHasFixedSize(true);
-      recycle.setLayoutParams(new ViewGroup.LayoutParams(   ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-      var lin=new GridLayoutManager(act,smallScreen?2:3);
-      recycle.setLayoutManager(lin);
-      var close=getbutton(act,R.string.closename);
-      close.setOnClickListener( v -> { 
-            MainActivity.doonback();
+                    Log.e(LOG_ID,"pos "+pos+" >=deviceNames "+scan.deviceNames.size());
+                }
+            else
+                Log.e(LOG_ID,"scanner==null");
             });
-       var help=getbutton(act,R.string.helpname);
-      var aidex=getcheckbox(act,"AiDEX X",showAidexX);
-        View[] firstrow=new View[]{help,aidex,close};
-      Layout layout=new Layout(act,(x,w,h)->{
-             return new int[] {w,h};
-               },firstrow,new View[]{recycle});
-    var deviceadapt = new DeviceListViewAdapter(layout);
+        }
+    }
+
+static class DeviceListViewAdapter extends RecyclerView.Adapter<DeviceListViewHolder> {
+    final M3Page page;
+    final String newname;
+    DeviceListViewAdapter(M3Page page) {
+        this.page=page;
+        this.newname=page.act.getString(R.string.newname);
+        }
+    @NonNull
+    @Override
+    public DeviceListViewHolder onCreateViewHolder(@NonNull ViewGroup parent,int viewType) {
+        View row=LayoutInflater.from(page.ctx).inflate(R.layout.material_settings_row,parent,false);
+        row.setLayoutParams(new RecyclerView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,ViewGroup.LayoutParams.WRAP_CONTENT));
+        ((android.widget.ImageView)row.findViewById(R.id.jm_row_icon)).setImageResource(R.drawable.ic_jm_bluetooth);
+        return new DeviceListViewHolder(row,page);
+        }
+    static private int aidexXindex(String name) {
+        String serial=AidexXGattCallback.deviceName2name(name);
+        return Natives.sensorIndex(serial);
+        }
+    @Override
+    public void onBindViewHolder(@NonNull final DeviceListViewHolder holder,int pos) {
+        View row=holder.itemView;
+        var scan=BluetoothGlucoseMeter.scanner;
+        if(scan==null||pos>=scan.devices.size())
+            return;
+        var device=scan.devices.get(pos);
+        var name=scan.deviceNames.get(pos);
+        var address=device.getAddress();
+        int index=showAidexX?aidexXindex(name):GlucoseMeterHasIndex(name,shouldUseDeviceAddress(name,device)?address:null);
+        M3Page.setTitle(row,name);
+        SpannableStringBuilder sum=new SpannableStringBuilder(address);
+        if(index<0) {
+            sum.append("  ·  ");
+            int start=sum.length();
+            sum.append(newname);
+            sum.setSpan(new ForegroundColorSpan(page.color(com.google.android.material.R.attr.colorPrimary)),start,sum.length(),Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            }
+        M3Page.setSummary(row,sum);
+        }
+    @Override
+    public int getItemCount() {
+        final MeterScanner scanner=BluetoothGlucoseMeter.scanner;
+        if(scanner==null||scanner.adapter!=this)
+            return 0;
+        return scanner.devices.size();
+        }
+    }
+
+static private boolean showAidexX=false;
+
+static public void show(MainActivity act,Runnable onClose) {
+    final M3Page page=M3Page.open(act,act.getString(R.string.finddevices).replace("\"",""));
+    page.help(R.string.DeviceList);
+    var deviceadapt=new DeviceListViewAdapter(page);
+    LinearLayout kind=page.section((CharSequence)null);
+    LinearLayout found=page.section(R.string.jm_sensors_section_found);
+    View searching=page.empty(found,R.drawable.ic_jm_bluetooth_searching,act.getString(R.string.jm_sensors_searching),act.getString(R.string.jm_sensors_searching_body));
+    RecyclerView recycle=new RecyclerView(page.ctx);
+    recycle.setLayoutManager(new LinearLayoutManager(page.ctx));
+    recycle.setNestedScrollingEnabled(false);
     recycle.setAdapter(deviceadapt);
-    startAdapterScanner(deviceadapt,showAidexX);
-    aidex.setOnCheckedChangeListener((buttonView, isChecked) -> {
-//        if(!doLog)
+    page.custom(found,recycle);
+    Runnable empty=() -> {
+        boolean none=deviceadapt.getItemCount()==0;
+        searching.setVisibility(none?View.VISIBLE:View.GONE);
+        recycle.setVisibility(none?View.GONE:View.VISIBLE);
+        };
+    deviceadapt.registerAdapterDataObserver(new RecyclerView.AdapterDataObserver() {
+        @Override public void onChanged() { empty.run(); }
+        });
+    page.toggle(kind,R.drawable.ic_jm_sensors,"AiDEX X",act.getString(R.string.jm_sensors_aidex_summary),() -> showAidexX,isChecked -> {
         showAidexX=isChecked;
-        startAdapterScanner(deviceadapt,isChecked);
+        BluetoothGlucoseMeter.startAdapterScanner(deviceadapt,isChecked);
         deviceadapt.notifyDataSetChanged();
         });
-     help.setOnClickListener(v-> tk.glucodata.help.help(R.string.DeviceList,act));
-     layout.setBackgroundColor(backgroundcolor);
-     float density=GlucoseCurve.metrics.density;
-
-    layout.systembarPadding((left,top,right,bottom)->new int[]{(int)(density*5.0)+left,top,right+(int)(density*8.0),bottom});
-
-     act.addMyContentView(layout, new ViewGroup.LayoutParams(MATCH_PARENT, MATCH_PARENT));
-      MainActivity.setonback(()-> {
-            BluetoothGlucoseMeter.stopScanner();
-           removeContentView(layout);
-            meteradapt.notifyDataSetChanged();
+    BluetoothGlucoseMeter.startAdapterScanner(deviceadapt,showAidexX);
+    empty.run();
+    page.onClose(() -> {
+        BluetoothGlucoseMeter.stopScanner();
+        if(onClose!=null)
+            onClose.run();
         });
-      act.finepermission();
-      }
+    current=page;
+    act.finepermission();
+    }
 
+static M3Page current=null;
+static void closeOpen() {
+    if(current!=null&&current.isOpen())
+        current.dismiss();
+    current=null;
+    }
 }

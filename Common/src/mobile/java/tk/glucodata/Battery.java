@@ -21,97 +21,69 @@
 
 package tk.glucodata;
 
-import android.app.Activity;
+import static tk.glucodata.MainActivity.IGNORE_BATTERY_OPTIMIZATION_SETTINGS;
+
 import android.content.Intent;
-import android.graphics.Color;
-import android.os.Build;
-import android.os.PowerManager;
 import android.text.method.LinkMovementMethod;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Button;
-
-import android.widget.ScrollView;
+import android.widget.LinearLayout;
 import android.widget.TextView;
-import android.widget.Toast;
 
-//import com.judemanutd.autostarter.AutoStartPermissionHelper;
+import com.google.android.material.materialswitch.MaterialSwitch;
 
-import static android.view.View.GONE;
-import static android.view.View.INVISIBLE;
-import static android.view.View.VISIBLE;
-import static tk.glucodata.Applic.isWearable;
-import static tk.glucodata.Layout.getMargins;
-import static tk.glucodata.MainActivity.IGNORE_BATTERY_OPTIMIZATION_SETTINGS;
-import static tk.glucodata.Natives.getInvertColors;
-import static tk.glucodata.settings.Settings.removeContentView;
-import static tk.glucodata.util.getbutton;
-import static tk.glucodata.util.sethtml;
+import tk.glucodata.m3.M3Page;
 
+/* Battery optimisation ("Doze mode?") as a Material 3 page.  The switch shows
+ * whether Android ignores battery optimisations for Juggluco; tapping it opens
+ * Android's setting, as the old screen did (the page closes and is shown again
+ * when Android returns, see MainActivity IGNORE_BATTERY_OPTIMIZATION_SETTINGS). */
 class Battery {
 static private final String LOG_ID="Battery";
 
+static void batteryscreen(MainActivity context,View parent) {
+    if(android.os.Build.VERSION.SDK_INT<android.os.Build.VERSION_CODES.M)
+        return;
+    M3Page top=M3Page.top(context);
+    if(top!=null&&top.isOpen()&&top.toolbar.getTitle()!=null&&top.toolbar.getTitle().toString().equals(context.getString(R.string.jm_sensors_battery)))
+        top.dismiss(); // returning from Android's setting: show it fresh
+    final M3Page page=M3Page.open(context,R.string.jm_sensors_battery);
+    LinearLayout state=page.section(R.string.jm_sensors_section_status);
+    ViewGroup row=page.row(state,R.drawable.ic_jm_battery_saver,context.getString(R.string.dozeupdate),null);
+    MaterialSwitch sw=new MaterialSwitch(page.ctx);
+    sw.setClickable(false);
+    sw.setFocusable(false);
+    sw.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+    M3Page.end(row).addView(sw);
+    Runnable show=() -> {
+        boolean free=SensorsPage.ignoringBattery(context);
+        sw.setChecked(free);
+        M3Page.setSummary(row,context.getString(free?R.string.jm_sensors_battery_free:R.string.jm_sensors_battery_restricted));
+        };
+    show.run();
+    page.refresher(show);
+    row.setContentDescription(context.getString(R.string.dozeupdate));
+    row.setOnClickListener(v -> {
+        page.dismiss();
+        try {
+            context.startActivityForResult(new Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS),IGNORE_BATTERY_OPTIMIZATION_SETTINGS);
+            }
+        catch(Throwable th) {
+            Log.stack(LOG_ID,"ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS",th);
+            }
+        });
+    page.note(state,context.getString(R.string.jm_sensors_battery_hint));
 
-static void batteryscreen(MainActivity context,View parent ) {
-	if(parent!=null)
-		parent.setVisibility(INVISIBLE);
-if(!isWearable) {
-	if(android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
-		Button Close=getbutton(context,R.string.closename);
-		TextView info=new TextView(context);
-
-		  final CheckDirectionBox battery = new CheckDirectionBox(context);
-
-		   int pad=(int)(GlucoseCurve.metrics.density*7.0);
-		   info.setPadding(pad,0,pad,0);
-
-		sethtml(info, R.string.battery);
-
-
-		battery.setText(R.string.dozeupdate);
-		final PowerManager pm = (PowerManager)context.getSystemService(Activity.POWER_SERVICE);
-		boolean isIgnoringBatteryOptimizations = pm.isIgnoringBatteryOptimizations(context.getPackageName());
-		battery.setChecked(isIgnoringBatteryOptimizations);
-		context.themeLightBars();
-                final var hormarg=(int)(GlucoseCurve.metrics.density*32.0);
-
-                getMargins(battery).setMarginStart(hormarg);
-                getMargins(Close).setMarginEnd(hormarg);
-               final Layout lay=new Layout(context, (l, w, h) -> {
-			return new int[] {w,h}; } , new View[]{info}
-			,isWearable?new View[]{Close}:new View[]{battery,Close}). systembarPadding();
-
-
-
-		Runnable closerun=()-> {
-			if(parent!=null)
-				parent.setVisibility(VISIBLE);
-			lay.setVisibility(GONE);
-			removeContentView(lay); 
-
-			if(!context.showui)
-   				context.lightBars(!getInvertColors( ));
-			};
-		context.setonback(closerun);
-		battery.setOnClickListener(v-> {
-			context.doonback();
-			try{
-				context.startActivityForResult(new Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS),IGNORE_BATTERY_OPTIMIZATION_SETTINGS);
-				} catch(Throwable th) {
-					Log.stack(LOG_ID,"ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS",th);
-					}
-			});
-		Close.setOnClickListener(v-> context.doonback());
-	      lay.setBackgroundResource(R.drawable.dialogbackground);
-		ScrollView scroll=new ScrollView(context);
-	  	scroll.setFillViewport(true);
-
-		scroll.addView(lay);
-//		context.addMyContentView(scroll, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,ViewGroup.LayoutParams.WRAP_CONTENT));
-		context.addMyContentView(scroll, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,ViewGroup.LayoutParams.MATCH_PARENT));
-		}
-		}
-	}
-
-
-}	
+    LinearLayout about=page.section(R.string.jm_sensors_section_about);
+    String html=context.getString(R.string.battery);
+    int h=html.indexOf("</h1>");
+    if(h>=0)
+        html=html.substring(h+5);
+    TextView info=page.note(about,SensorUi.html(html));
+    info.setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_BodyLarge);
+    info.setTextColor(page.color(com.google.android.material.R.attr.colorOnSurface));
+    info.setLinkTextColor(page.color(com.google.android.material.R.attr.colorPrimary));
+    info.setMovementMethod(LinkMovementMethod.getInstance());
+    info.setPadding(page.dp(16),page.dp(12),page.dp(16),page.dp(12));
+    }
+}

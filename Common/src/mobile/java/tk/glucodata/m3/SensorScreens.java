@@ -1,29 +1,33 @@
-/*      This file is part of Juggluco, an Android app to receive and display         */
-/*      glucose values from Freestyle Libre 2 and 3 sensors.                         */
-/*                                                                                   */
-/*      Copyright (C) 2021 Jaap Korthals Altes <jaapkorthalsaltes@gmail.com>         */
-/*                                                                                   */
-/*      Juggluco is free software: you can redistribute it and/or modify             */
-/*      it under the terms of the GNU General Public License as published            */
-/*      by the Free Software Foundation, either version 3 of the License, or         */
-/*      (at your option) any later version.                                          */
-/*                                                                                   */
-/*      Juggluco is distributed in the hope that it will be useful, but              */
-/*      WITHOUT ANY WARRANTY; without even the implied warranty of                   */
-/*      MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.                         */
-/*      See the GNU General Public License for more details.                         */
-/*                                                                                   */
-/*      You should have received a copy of the GNU General Public License            */
-/*      along with Juggluco. If not, see <https://www.gnu.org/licenses/>.            */
-
 package tk.glucodata.m3;
 
+import tk.glucodata.MainActivity;
 import tk.glucodata.PhoneUi;
 
 /* Sensors, scanning, Bluetooth, calibration, meters, pens. */
 final class SensorScreens {
 private SensorScreens() {}
 
+private static long ptr(Object[] args,int i) {
+    return args!=null&&args.length>i&&args[i] instanceof Long?(Long)args[i]:0L;
+    }
+private static String str(Object[] args,int i) {
+    return args!=null&&args.length>i&&args[i] instanceof String?(String)args[i]:null;
+    }
+
 static void register() {
+    /* Menu → Sensor (bluediag.start / nosensors) */
+    PhoneUi.register("bluediag",(act,args) -> tk.glucodata.SensorsPage.start(act));
+    /* One sensor (Sensors.show, GlucoseCurve.showsensorinfo): args text, sensorptr */
+    PhoneUi.register("sensors",(act,args) -> tk.glucodata.SensorsPage.showSensor(act,ptr(args,1),str(args,0)));
+    /* Calibrations of a sensor: args sensorptr */
+    PhoneUi.register("calibratelist",(act,args) -> tk.glucodata.CalibrateListPage.show(act,ptr(args,0)));
+    /* Settings → Calibration */
+    PhoneUi.register("settings.calibration",(act,args) -> tk.glucodata.settings.CalibrationPage.show(act));
+    /* NFC start of a sensor: args text, name */
+    PhoneUi.register("scannfcv.newsensor",(act,args) -> tk.glucodata.SensorStart.newSensor(act,str(args,0),str(args,1)));
+    PhoneUi.register("activateresult",(act,args) -> tk.glucodata.SensorStart.activateResult(act,args!=null&&args.length>0&&Boolean.TRUE.equals(args[0])));
+    /* Glucose meters list (Exchange data → Glucose Meters); phone-only class,
+     * registered so other pages can link to it: PhoneUi.show("meters",act). */
+    PhoneUi.register("meters",(act,args) -> tk.glucodata.MeterList.show(act,null));
     }
 }

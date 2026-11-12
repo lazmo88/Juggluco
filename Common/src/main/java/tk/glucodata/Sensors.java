@@ -289,6 +289,7 @@ private static void useAgain(MainActivity act,long sensorptr) {
        act.requestRender();
     }
 static    void show(MainActivity act,String text, long sensorptr) {
+    if(PhoneUi.show("sensors",act,text,sensorptr)) return;
     if(act.sensorsVisible)
         return;
     act.sensorsVisible=true;

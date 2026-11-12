@@ -21,154 +21,86 @@
 
 package tk.glucodata;
 
-
-import static android.view.View.INVISIBLE;
-import static android.view.ViewGroup.LayoutParams.WRAP_CONTENT;
 import static tk.glucodata.Log.doLog;
-import static tk.glucodata.NumberView.avoidSpinnerDropdownFocus;
-import static tk.glucodata.RingTones.EnableControls;
-import static tk.glucodata.settings.Settings.removeContentView;
-import static tk.glucodata.util.getbutton;
-import static tk.glucodata.util.getlabel;
 
 import android.bluetooth.BluetoothDevice;
-import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.AdapterView;
-import android.widget.FrameLayout;
-import android.widget.Spinner;
-import android.widget.Toast;
+import android.widget.LinearLayout;
 
-import java.text.DateFormat;
-import java.util.Calendar;
-import java.util.Locale;
+import java.util.ArrayList;
 
+import tk.glucodata.m3.M3Page;
+
+/*
+ * Settings of one glucose meter as a Material 3 page: from which date/time
+ * readings are added, the label for blood glucose, Save, "Don't use"
+ * (the old Cancel button: makes the meter inactive) and Delete.
+ * Back closes without saving.  Same Natives calls as before.
+ */
 class MeterConfig {
+static private final String LOG_ID="MeterConfig";
 
-    static private final String LOG_ID="MeterConfig";
-static void config(MainActivity context, int meterIndex, View parent, BluetoothDevice device, MeterList.MeterListViewAdapter adapter) {
-    if(parent!=null)
-       EnableControls(parent,false);
+static void config(MainActivity context,int meterIndex,View parent,BluetoothDevice device,Runnable changed) {
     if(doLog)
-       Log.i(LOG_ID,"MeterConfig "+meterIndex);
+        Log.i(LOG_ID,"MeterConfig "+meterIndex);
     String deviceName=Natives.GlucoseMeterDeviceName(meterIndex);
-    if(deviceName==null) {
+    if(deviceName==null)
         deviceName="Error: no device name";
-        }
-    var namelabel=getlabel(context,deviceName);
-   final var bloodafter=getlabel(context,context.getString(R.string.bloodafter));
-   var lasttime=Natives.GlucoseMeterGetLastTime(meterIndex);
-   long[] newtime={lasttime};
-   final var helpbutton=getbutton(context,R.string.helpname);
-   helpbutton.setOnClickListener(v-> help.help(R.string.GlucoseMeter,context));
-   final   var datebutton=getbutton(context, DateFormat.getDateInstance(DateFormat.DEFAULT).format(lasttime));
-   var cal = Calendar.getInstance();
-   var cancel=getbutton(context,R.string.cancel);
-   var ok=getbutton(context, R.string.save);
-   var deletebutton=getbutton(context,R.string.delete);
-   deletebutton.setOnClickListener(
-                v -> { 
-                Confirm.ask(context,context.getString(R.string.delete),context.getString(R.string.deletemeter),()-> {
-                    Natives.GlucoseMeterRemoveIndex(meterIndex);
-                    MainActivity.doonback();
-                    MainActivity.doonback();
-                    if(adapter!=null)
-                           adapter.notifyDataSetChanged();
-                    BluetoothGlucoseMeter.restartDevices();
-                    });
-                });
-   datebutton.setOnClickListener(
-                v -> { 
-         context.getnumberview().getdateviewal(context,newtime[0], (year,month,day)-> {
-           cal.set(Calendar.YEAR,year);
-           cal.set(Calendar.MONTH,month);
-           cal.set(Calendar.DAY_OF_MONTH,day);
-           long newmsec= cal.getTimeInMillis();
-           newtime[0]=newmsec;
-         datebutton.setText(DateFormat.getDateInstance(DateFormat.DEFAULT).format(newmsec));
-         });
+    final M3Page page=M3Page.open(context,deviceName);
+    page.help(R.string.GlucoseMeter);
+    page.action(R.drawable.ic_jm_delete,context.getString(R.string.delete),() ->
+        M3Page.confirm(context,context.getString(R.string.delete),context.getString(R.string.deletemeter),context.getString(R.string.delete),() -> {
+            Natives.GlucoseMeterRemoveIndex(meterIndex);
+            page.dismiss();
+            if(changed!=null)
+                changed.run();
+            BluetoothGlucoseMeter.restartDevices();
+            }));
 
-      });   
-   cal.setTimeInMillis(newtime[0]);
-   int[] hour={cal.get(Calendar.HOUR_OF_DAY)};
-   int[]  min={cal.get(Calendar.MINUTE)};
-   var timebutton=getbutton(context,  String.format(Locale.US,"%02d:%02d",hour[0],min[0] ));
-   Spinner spinner=new Spinner(context);
-   avoidSpinnerDropdownFocus(spinner);
-   final var labels=Natives.getLabels();
-   LabelAdapter<String> numspinadapt=new LabelAdapter<String>(context,labels,0);
-   spinner.setAdapter(numspinadapt);
-   int bloodpos=Natives.getbloodvar();
-   final int[] bloodposptr={bloodpos};
-   spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-        @Override
-        public  void onItemSelected (AdapterView<?> parent, View view, int position, long id) {
-            bloodposptr[0]=position;
-            Natives.setbloodvar((byte)position);
-            }
-        @Override
-        public  void onNothingSelected (AdapterView<?> parent) {
+    final long[] newtime={Natives.GlucoseMeterGetLastTime(meterIndex)};
+    LinearLayout from=page.section(context.getString(R.string.bloodafter).replace("\"","").trim().replaceAll(":$",""));
+    ViewGroup date=page.link(from,R.drawable.ic_jm_event,context.getString(R.string.jm_sensors_date),SensorUi.date(context,newtime[0]),null);
+    ViewGroup time=page.link(from,R.drawable.ic_jm_schedule,context.getString(R.string.jm_sensors_time),SensorUi.time(context,newtime[0]),null);
+    Runnable showTime=() -> {
+        M3Page.setSummary(date,SensorUi.date(context,newtime[0]));
+        M3Page.setSummary(time,SensorUi.time(context,newtime[0]));
+        };
+    date.setOnClickListener(v -> SensorUi.pickDate(context,newtime[0],t -> { newtime[0]=t; showTime.run(); }));
+    time.setOnClickListener(v -> SensorUi.pickTime(context,newtime[0],t -> { newtime[0]=t; showTime.run(); }));
 
-        } });
-   spinner.setSelection(bloodpos);
-   var bloodvar=getlabel(context,R.string.bloodvar);
-   float density=GlucoseCurve.metrics.density;
-   bloodvar.setPadding((int)(density*10),0,(int)(4*density),0);
-   var layout=new Layout(context,(x,w,h)->{
-         return new int[] {w,h};
-           },new View[]{namelabel},new View[]{bloodafter},new View[]{helpbutton,datebutton,timebutton},new View[]{bloodvar,spinner},new View[]{cancel,deletebutton,ok});
+    LinearLayout blood=page.section(R.string.jm_sensors_section_blood);
+    final ArrayList<String> labels=Natives.getLabels();
+    final int[] bloodpos={Natives.getbloodvar()};
+    page.choice(blood,tk.glucodata.settings.CalibrationPage.label(context,R.string.bloodvar),labels,bloodpos[0],i -> {
+        bloodpos[0]=i;
+        Natives.setbloodvar((byte)i);
+        });
 
-    layout.systembarMargins();
-   timebutton.setOnClickListener(v-> {
-     layout.setVisibility(INVISIBLE);
-     context.getnumberview().gettimepicker(context,hour[0], min[0], (h,m) -> {
-            hour[0]=h;
-            min[0]=m;
-            cal.set(Calendar.HOUR_OF_DAY,h);
-            cal.set(Calendar.MINUTE,m);
-            newtime[0]= cal.getTimeInMillis();
-            timebutton.setText(String.format(Locale.US,"%02d:%02d",h,m));
-            },()-> layout.setVisibility(View.VISIBLE));});
-      layout.setBackgroundResource(R.drawable.dialogbackground);
-
-   int pad=(int)(10.0*density);
-   layout.setPadding(pad,pad,pad,(int)(density*14.0));
-   Runnable closeall= () -> { 
-      removeContentView(layout);
-       if(parent!=null)
-           EnableControls(parent,true);
-      {if(doLog) {Log.i(LOG_ID,"MeterConfig.config back");};};
-      };
-   MainActivity.setonback(closeall);
-   ok.setOnClickListener(v -> {
-      if(bloodposptr[0]>=(labels.size()-1)) {
-         Applic.argToaster(context,context.getString(R.string.specifyblood), Toast.LENGTH_LONG);
-         return;
-         }
-      MainActivity.doonback();
-      MainActivity.doonback();
-      Log.i(LOG_ID,"save");
-      Natives.GlucoseMeterSetLastTime(meterIndex,newtime[0]);
-      if(device!=null)
-              BluetoothGlucoseMeter.addDevice(meterIndex,device);
-      });
-   cancel.setOnClickListener(v -> {
-           MainActivity.doonback();
-           Natives.GlucoseMeterSetActive(meterIndex,false); //TODO: only when new meter? Remove altogether?
-           Applic.argToaster(context,"Glucose meter will not be used", Toast.LENGTH_LONG);
-           if(adapter!=null)
-               adapter.notifyDataSetChanged();
-           BluetoothGlucoseMeter.restartDevices();
-           });
-
-    var  params =  new FrameLayout.LayoutParams(
-                    WRAP_CONTENT,
-                    WRAP_CONTENT,
-                    Gravity.CENTER_HORIZONTAL);
-
-    context.addMyContentView(layout, params);
-  // context.addMyContentView(layout, new ViewGroup.LayoutParams(WRAP_CONTENT, WRAP_CONTENT));
-     context.finepermission();
-   }
+    page.bottomBar(
+        page.button(M3Page.Style.TONAL,context.getString(R.string.jm_sensors_dont_use),0,() -> {
+            page.dismiss();
+            Natives.GlucoseMeterSetActive(meterIndex,false);
+            Applic.argToaster(context,context.getString(R.string.jm_sensors_meter_not_used),android.widget.Toast.LENGTH_LONG);
+            if(changed!=null)
+                changed.run();
+            BluetoothGlucoseMeter.restartDevices();
+            }),
+        page.button(M3Page.Style.FILLED,context.getString(R.string.save),0,() -> {
+            if(bloodpos[0]>=(labels.size()-1)) {
+                page.toast(context.getString(R.string.specifyblood).replace("\"",""));
+                return;
+                }
+            Log.i(LOG_ID,"save");
+            page.dismiss();
+            Natives.GlucoseMeterSetLastTime(meterIndex,newtime[0]);
+            if(device!=null) {
+                BluetoothGlucoseMeter.addDevice(meterIndex,device);
+                DeviceList.closeOpen(); // back to the meter list, as the old double Back
+                }
+            if(changed!=null)
+                changed.run();
+            }));
+    context.finepermission();
+    }
 }

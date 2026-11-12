@@ -21,55 +21,37 @@
 
 package tk.glucodata.NovoPen;
 
-import static android.graphics.Typeface.BOLD;
-import static android.graphics.Typeface.DEFAULT_BOLD;
-import static android.view.View.INVISIBLE;
-import static android.view.ViewGroup.LayoutParams.WRAP_CONTENT;
 import static tk.glucodata.Dialogs.fdatename;
 import static tk.glucodata.Log.doLog;
 import static tk.glucodata.Natives.novopentype;
 import static tk.glucodata.Natives.savenovopen;
 import static tk.glucodata.Natives.setnovopenttimeandtype;
 import static tk.glucodata.Log.showbytes;
-import static tk.glucodata.NumberView.avoidSpinnerDropdownFocus;
 import static tk.glucodata.ScanNfcV.failure;
 import static tk.glucodata.ScanNfcV.getvibrator;
 import static tk.glucodata.ScanNfcV.startvibration;
-import static tk.glucodata.settings.Settings.removeContentView;
-import static tk.glucodata.util.getbutton;
-import static tk.glucodata.util.getlabel;
 
-import android.view.Gravity;
-import android.widget.FrameLayout;
-import androidx.appcompat.app.AlertDialog;
-import android.content.DialogInterface;
 import android.nfc.Tag;
-import android.view.View;
 import android.view.ViewGroup;
-import android.widget.AdapterView;
-import android.widget.Space;
-import android.widget.Spinner;
+import android.widget.LinearLayout;
 
-import java.text.DateFormat;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.Locale;
+import java.util.ArrayList;
 
 import tk.glucodata.NovoPen.opennov.OpContext;
 import tk.glucodata.NovoPen.opennov.OpenNov;
 
 import tk.glucodata.Applic;
-import tk.glucodata.GlucoseCurve;
-import tk.glucodata.LabelAdapter;
-import tk.glucodata.Layout;
 import tk.glucodata.Log;
 import tk.glucodata.MainActivity;
 import tk.glucodata.Natives;
 import tk.glucodata.R;
+import tk.glucodata.SensorUi;
 import tk.glucodata.help;
+import tk.glucodata.m3.M3Page;
 
-//import android.nfc.Tag;
-
+/* NovoPen / NFC insulin pen scan result as a Material 3 page: from which time
+ * doses are added, which insulin label, Cancel / Save.  Same Natives calls and
+ * confirmations as before. */
 public class Scan {
     static final private String LOG_ID="Scan";
     static public void onTag(MainActivity act, Tag tag) {
@@ -81,7 +63,6 @@ public class Scan {
         vibrator.cancel();
         if (op == null) {
             failure(vibrator);
-            final var failread = act.getString(R.string.penfailed);
             Log.e(LOG_ID, "processTag failed");
         } else {
             if (op.specification == null) {
@@ -100,33 +81,17 @@ public class Scan {
         Applic.Toaster(failread);
     }
     private static void earlytimeconfirmation(MainActivity act) {
-        AlertDialog.Builder builder = new AlertDialog.Builder(act);
-        builder.setTitle("To get older values you have to scan again").
-           setPositiveButton(R.string.ok, new DialogInterface.OnClickListener() {
-                    public void onClick(DialogInterface dialog, int id) {
-                    }
-                }) .show().setCanceledOnTouchOutside(false);
+        M3Page.message(act,null,"To get older values you have to scan again");
     }
 private static void changeTypeconfirmation(MainActivity act,String type,Runnable save) {
-        AlertDialog.Builder builder = new AlertDialog.Builder(act);
-        builder.setTitle(act.getString(R.string.changeinsulin)+type+"?").
-           setPositiveButton(R.string.ok, new DialogInterface.OnClickListener() {
-                    public void onClick(DialogInterface dialog, int id) {
-                save.run();
-                    }
-                }) .setNegativeButton(R.string.cancel, new DialogInterface.OnClickListener() {
-            public void onClick(DialogInterface dialog, int id) {
-            }
-        }).show().setCanceledOnTouchOutside(false);
+        M3Page.confirm(act,act.getString(R.string.changeinsulin)+type+"?",null,act.getString(R.string.ok),save);
     }
-//static  public final DateFormat fhourmin=             new SimpleDateFormat("HH:mm", Locale.US);
 
 static void setInsulin(MainActivity context, OpContext op) {
     if(Natives.staticnum()) {
             help.help(R.string.staticnum,context);
             return;
            }
- 
     String serial=op.specification.getSerial();
     final long typetime =novopentype(serial);
     int type;
@@ -142,80 +107,37 @@ static void setInsulin(MainActivity context, OpContext op) {
         type=-1;
         lasttime=0L;
         }
-
-    Spinner spinner=new Spinner(context);
-//    final int minheight= GlucoseCurve.dpToPx(48);
-//    spinner.setMinimumHeight(minheight);
-    avoidSpinnerDropdownFocus(spinner);
+    final ArrayList<String> labels=Natives.getLabels();
+    /* as LabelAdapter(..,1): the last label is not offered */
+    final ArrayList<String> shown=new ArrayList<>(labels.subList(0,Math.max(0,labels.size()-1)));
     int[] selected={type<0?0:type};
-    final var labels=Natives.getLabels();
-    LabelAdapter<String> numspinadapt=new LabelAdapter<String>(context,labels,1);
-        spinner.setAdapter(numspinadapt);
-        spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-        @Override
-        public  void onItemSelected (AdapterView<?> parent, View view, int position, long id) {
-            if(position>=0&&position<labels.size()) {
-                selected[0]=position;
-                {if(doLog) {Log.i(LOG_ID, "selected " + labels.get(position));};};
-                }
-            else
-                {if(doLog) {Log.i(LOG_ID,"selected "+position);};};
-            }
-        @Override
-        public  void onNothingSelected (AdapterView<?> parent) {
 
-        } });
-    spinner.setSelection(selected[0]);
-    float density=GlucoseCurve.metrics.density;
-    int laypad=(int)(density*4.0);
-
-
-    var after=getlabel(context,context.getString(R.string.dosesprior));
-    after.setPadding((int)(density*5.0f),laypad*2,laypad*3,0);
-    var label=getlabel(context,"PEN"+serial);
-    label.setTypeface(DEFAULT_BOLD,BOLD);
-        var cancel=getbutton(context,R.string.cancel);
-        var typestr=getlabel(context,context.getString(R.string.type));
-    typestr.setPadding(laypad*2,0,0,laypad*5);
-    var ok=getbutton(context, R.string.save);
+    final M3Page page=M3Page.open(context,R.string.jm_sensors_pen_title);
+    page.subtitle("PEN"+serial);
     long[] newtime={lasttime};
-    final    var datebutton=getbutton(context, DateFormat.getDateInstance(DateFormat.DEFAULT).format(lasttime));
-    var cal = Calendar.getInstance();
-        datebutton.setOnClickListener(
-                v -> { 
-            context.getnumberview().getdateviewal(context,newtime[0], (year,month,day)-> {
-             cal.set(Calendar.YEAR,year);
-             cal.set(Calendar.MONTH,month);
-             cal.set(Calendar.DAY_OF_MONTH,day);
-             long newmsec= cal.getTimeInMillis();
-             newtime[0]=newmsec;
-            datebutton.setText(DateFormat.getDateInstance(DateFormat.DEFAULT).format(newmsec));
-            });
 
-        });    
+    LinearLayout from=page.section(context.getString(R.string.dosesprior).trim().replaceAll(":$",""));
+    ViewGroup date=page.link(from,R.drawable.ic_jm_event,context.getString(R.string.jm_sensors_date),SensorUi.date(context,newtime[0]),null);
+    ViewGroup time=page.link(from,R.drawable.ic_jm_schedule,context.getString(R.string.jm_sensors_time),SensorUi.time(context,newtime[0]),null);
+    Runnable showTime=() -> {
+        M3Page.setSummary(date,SensorUi.date(context,newtime[0]));
+        M3Page.setSummary(time,SensorUi.time(context,newtime[0]));
+        };
+    date.setOnClickListener(v -> SensorUi.pickDate(context,newtime[0],t -> { newtime[0]=t; showTime.run(); }));
+    time.setOnClickListener(v -> SensorUi.pickTime(context,newtime[0],t -> { newtime[0]=t; showTime.run(); }));
 
-    cal.setTimeInMillis(newtime[0]);
-    int[] hour={cal.get(Calendar.HOUR_OF_DAY)};
-    int[]  min={cal.get(Calendar.MINUTE)};
-    var timebutton=getbutton(context,  String.format(Locale.US,"%02d:%02d",hour[0],min[0] ));
-    Layout.getMargins(ok).bottomMargin=Layout.getMargins(cancel).bottomMargin=(int)(density*18.0f);
-    var  layout=new Layout(context,new View[]{label},new View[]{after},new View[]{datebutton,timebutton},new View[]{typestr,spinner},new View[]{ok,cancel});
-    timebutton.setOnClickListener(v-> {
-        layout.setVisibility(INVISIBLE);
-            context.getnumberview().gettimepicker(context,hour[0], min[0], (h,m) -> {
-                hour[0]=h;
-                min[0]=m;
-                cal.set(Calendar.HOUR_OF_DAY,h);
-                cal.set(Calendar.MINUTE,m);
-                     newtime[0]= cal.getTimeInMillis();
-                timebutton.setText(String.format(Locale.US,"%02d:%02d",h,m));
-               },()-> layout.setVisibility(View.VISIBLE));});
-        layout.setBackgroundColor(Applic.backgroundcolor);
-    int pad=(int)(10.0*density);
-    layout.setPadding(pad,pad,pad,0);
+    LinearLayout insulin=page.section(R.string.jm_sensors_section_insulin);
+    String typeLabel=context.getString(R.string.type).trim();
+    if(typeLabel.endsWith(":"))
+        typeLabel=typeLabel.substring(0,typeLabel.length()-1).trim();
+    page.choice(insulin,typeLabel,shown,Math.min(selected[0],Math.max(0,shown.size()-1)),i -> {
+        selected[0]=i;
+        {if(doLog) {Log.i(LOG_ID, "selected " + labels.get(i));};};
+        });
 
-    context.setonback(() -> removeContentView(layout) );
-    ok.setOnClickListener(v -> {
+    page.bottomBar(
+        page.button(M3Page.Style.TONAL,context.getString(R.string.cancel),0,page::dismiss),
+        page.button(M3Page.Style.FILLED,context.getString(R.string.save),0,() -> {
             var doses=op.doses;
             int ty=selected[0];
             Runnable saveall=()-> {
@@ -226,7 +148,7 @@ static void setInsulin(MainActivity context, OpContext op) {
                     int back=savenovopen(dose.referencetime,serial,ty,dose.rawdoses,d==lastdose);
                     if(back<0)  {
                         Applic.Toaster(context.getString(R.string.wentwrong));
-                        context.doonback();
+                        page.dismiss();
                         return;
                         }
                     else
@@ -234,7 +156,7 @@ static void setInsulin(MainActivity context, OpContext op) {
                     }
                 Applic.Toaster(nr+(nr==1?context.getString(R.string.dosis):context.getString(R.string.doses))+context.getString(R.string.saved));
                 if(nr>0) context.requestRender();
-                context.doonback();
+                page.dismiss();
                 };
             Runnable testtype=() -> {
                 if(ty==type) {
@@ -253,16 +175,10 @@ static void setInsulin(MainActivity context, OpContext op) {
                     testtype.run();
                     }
                 else {
-                    context.doonback();
+                    page.dismiss();
                     earlytimeconfirmation(context);
                     }
                 }
-            }
-            );
-    cancel.setOnClickListener(v -> context.doonback());
-//    var  params =    new FrameLayout.LayoutParams( WRAP_CONTENT, WRAP_CONTENT, Gravity.CENTER|Gravity.CENTER_HORIZONTAL);
-    var  params =    new FrameLayout.LayoutParams( WRAP_CONTENT, WRAP_CONTENT, Gravity.CENTER_HORIZONTAL);
-    params.topMargin=MainActivity.systembarTop*4/5;
-    context.addMyContentView(layout, params);
+            }));
     }
 }
