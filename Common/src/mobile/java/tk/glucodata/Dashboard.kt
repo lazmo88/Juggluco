@@ -624,7 +624,7 @@ class Dashboard private constructor(private val act: MainActivity) {
         // y range: data and target band, rounded to whole label steps
         val lo = min(dataMin, lowUnit)
         val hi = max(dataMax, highUnit)
-        val step = if (mmol) (if (hi - lo > 12) 4.0 else 2.0) else (if (hi - lo > 216) 72.0 else 36.0)
+        val step = if (mmol) (if (hi - lo > 12) 4.0 else 2.0) else (if (hi - lo > 300) 100.0 else 50.0)
         val pad = if (mmol) 0.5 else 9.0
         yStep = step
         minY = max(0.0, floor((lo - pad) / step) * step)
