@@ -241,6 +241,7 @@ static void item(MainActivity act,int mealptr,int pos,float carbmealin,IntConsum
 
     final boolean[] changing={false};
     amount.addTextChangedListener(new Watcher(ed -> {
+        M3Page.error(amount,null);
         if(changing[0])
             return;
         changing[0]=true;
@@ -287,6 +288,7 @@ static void item(MainActivity act,int mealptr,int pos,float carbmealin,IntConsum
                 total.setText(Meal.ondecimal(tot,10));
                 mealtotal.setText(Meal.ondecimal(rest+tot,10));
                 changing[0]=false;
+                amount.requestFocus();
                 }
             });
         });
