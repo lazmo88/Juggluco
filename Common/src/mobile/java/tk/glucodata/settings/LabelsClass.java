@@ -215,6 +215,7 @@ private void    askdeletelast(Spinner spinner,    LabelAdapter<String> numspinad
     }
 
 void    mklabellayout(View parent ) {
+    if(!isWearable) { LabelsPage.show(activity); return; } // phone: M3 LabelsPage
     parent.setVisibility(INVISIBLE);
     labels=Applic.app.getlabels();
     MainActivity context = activity;
