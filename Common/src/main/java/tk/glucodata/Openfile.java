@@ -61,6 +61,8 @@ Layout lay=null;
 	}
 	@SuppressLint("deprecation")
 	void showchoice(MainActivity context,boolean getback) {
+    if(PhoneUi.show("openfile",context,this,getback))
+        return;
        
     if(lay!=null) {
 	lay.setVisibility(VISIBLE);

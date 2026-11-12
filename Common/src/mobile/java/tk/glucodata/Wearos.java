@@ -54,7 +54,7 @@ class Wearos {
 static private final String LOG_ID="Wearos";
 
 
-private static final class WatchTarget {
+static final class WatchTarget {
     final String label;
     final String displayName;
     final boolean galaxy;
@@ -72,7 +72,7 @@ private static final class WatchTarget {
     }
 }
 
-private static ArrayList<WatchTarget> getnodeslist() {
+static ArrayList<WatchTarget> getnodeslist() {
     var targets=new LinkedHashMap<String,WatchTarget>();
     var send=tk.glucodata.MessageSender.getMessageSender();
     if(send!=null) {
@@ -179,6 +179,11 @@ private static void remake(CheckDirectionRadio[] sensordirect, CheckDirectionRad
 
 
 static public void show(MainActivity context,View parent) {
+    WearosPage.show(context);
+    }
+
+/* Old dialog, no longer used on phones. */
+static void showOld(MainActivity context,View parent) {
    final int[] nodenumptr={-1};
 //    var start=getbutton(context,R.string.initwatchapp);
     var defaults=getbutton(context,context.getString(R.string.defaults));
@@ -401,7 +406,7 @@ static String makenodename(WatchTarget target) {
     return target.label;
     }
 
-private static void returnSensorToPhone(MainActivity context,String name,byte[] netinfo) {
+static void returnSensorToPhone(MainActivity context,String name,byte[] netinfo) {
     // Install the reply handler before sending: an authenticated BLE peer can
     // answer immediately, before sendbluetooth() returns to this UI thread.
     var unpair=new UnpairOverlayHost(context,R.string.releasingsensor);
@@ -418,8 +423,8 @@ private static void returnSensorToPhone(MainActivity context,String name,byte[] 
 
 
 
-private static void confirmunsynced(MainActivity act,Runnable save) {
-    AlertDialog.Builder builder = new AlertDialog.Builder(act);
+static void confirmunsynced(MainActivity act,Runnable save) {
+    var builder = tk.glucodata.m3.M3Page.dialog(act);
      builder.setTitle(R.string.notsynced).
     setMessage(R.string.lossdata).
            setPositiveButton(R.string.ok, new DialogInterface.OnClickListener() {

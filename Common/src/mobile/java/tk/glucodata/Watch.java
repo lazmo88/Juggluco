@@ -43,7 +43,7 @@ import android.view.ViewGroup;
 import android.widget.FrameLayout;
 
 class Watch {
-static private final boolean TestBridge=BuildConfig.DEBUG;
+static final boolean TestBridge=BuildConfig.DEBUG;
 static private float glucose=80f;
 static private float trend=-5.2f;
 static private final  String LOG_ID="Watch";
@@ -60,10 +60,38 @@ static private void enableMessageReceiver(boolean val) {
         Log.stack(LOG_ID,e);
         }
     }
-static private void setuseWearos(boolean value) {
+static void setuseWearos(boolean value) {
     enableMessageReceiver(value);
     }
+static void testGadgetbridge() {
+            int mgdl;
+            trend += 0.6f;
+            if (trend > 5f)
+                trend = -5f;
+            if(Applic.unit==1) {
+                glucose += 0.6f;
+                if (glucose > 28f)
+                    glucose = 2.2f;
+
+            mgdl=(int)Math.round(glucose*mgdLmult);
+            }
+            else {
+                glucose += 13f;
+                if (glucose > 500f)
+                    glucose = 40f;
+                mgdl=(int)glucose;
+
+            }
+                
+                Gadgetbridge.sendglucose(""+glucose,mgdl,glucose,trend, System.currentTimeMillis());
+    }
+
 static public void show(MainActivity context) {
+    WatchPage.show(context);
+    }
+
+/* Old dialog, no longer used on phones. */
+static void showOld(MainActivity context) {
        var notify=getcheckbox(context,context.getString(R.string.notify), Notify.alertwatch);
     
     notify.setOnCheckedChangeListener(
@@ -93,27 +121,7 @@ static public void show(MainActivity context) {
     var test=TestBridge?getbutton(context,"Test"):null;
     View[] mibandrow;
     if(TestBridge) {
-        test.setOnClickListener(v-> {
-            int mgdl;
-            trend += 0.6f;
-            if (trend > 5f)
-                trend = -5f;
-            if(Applic.unit==1) {
-                glucose += 0.6f;
-                if (glucose > 28f)
-                    glucose = 2.2f;
-
-            mgdl=(int)Math.round(glucose*mgdLmult);
-            }
-            else {
-                glucose += 13f;
-                if (glucose > 500f)
-                    glucose = 40f;
-                mgdl=(int)glucose;
-
-            }
-                
-                Gadgetbridge.sendglucose(""+glucose,mgdl,glucose,trend, System.currentTimeMillis());
+        test.setOnClickListener(v-> { testGadgetbridge();
                 });
 
         mibandrow=new View[]{watchdrip,gadget,test};

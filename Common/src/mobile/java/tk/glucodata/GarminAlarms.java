@@ -49,8 +49,8 @@ import static tk.glucodata.RingTones.EnableControls;
 /** Watch preferences never write the phone's native alarm settings. */
 public final class GarminAlarms {
     private static final String PREFS="garmin_watch_alarms_v1";
-    private static volatile WeakReference<TextView> statusView=new WeakReference<>(null);
-    private static volatile long statusPeer=Long.MIN_VALUE;
+    static volatile WeakReference<TextView> statusView=new WeakReference<>(null);
+    static volatile long statusPeer=Long.MIN_VALUE;
 
     public static GarminAlarmConfig load(Context context,long id,String address) {
         SharedPreferences p=context.getApplicationContext().getSharedPreferences(PREFS,Context.MODE_PRIVATE);
@@ -123,6 +123,10 @@ public final class GarminAlarms {
     }
 
     public static void show(MainActivity context,AllData all,View parent,long peerId) {
+        GarminAlarmsPage.show(context,all,peerId);
+    }
+    /* Old screen, no longer used on phones. */
+    static void showOld(MainActivity context,AllData all,View parent,long peerId) {
         final GarminAlarmConfig original=all.getGarminAlarms(context,peerId);
         if(original==null) return;
         final boolean mmol=Natives.getunit()==1;

@@ -63,10 +63,10 @@ public final class ActivitySettings {
     private ActivitySettings() {}
     private static final String LOG_ID="ActivitySettings";
     private static final int[] intervals={0,900,1800,3600,10800,21600,86400};
-    private static String date(long seconds) {
+    static String date(long seconds) {
         return DateFormat.getDateTimeInstance(DateFormat.SHORT,DateFormat.SHORT).format(new Date(seconds*1000));
     }
-    private static String message(Exception e) {
+    static String message(Exception e) {
         return e.getMessage()==null?e.toString():e.getMessage();
     }
     private static Spinner spinner(MainActivity act,String[] values) {
@@ -104,6 +104,10 @@ public final class ActivitySettings {
           presentrun(act,parent,layout,null);
         }
     public static void show(MainActivity act,View parent) {
+        ActivityPage.show(act);
+    }
+    /* Old screen, no longer used on phones. */
+    static void showOld(MainActivity act,View parent) {
         String operation="Open activity settings";
         Log.i(LOG_ID,operation);
         try {
@@ -406,19 +410,9 @@ public final class ActivitySettings {
         if(Double.isFinite(mean))field(out,fields,5,coverage,false,locale);
     }
     static void details(MainActivity act,View parent,int group,Runnable amountsChanged,Runnable removed) {
-        if(amountsChanged!=null)
-            act.themeLightBars();
-        String operation="Open activity details: group="+group;
-        Log.i(LOG_ID,operation);
-        try {
-            double[] root=ActivityNative.record(group);if(root==null)throw new IllegalStateException(act.getString(R.string.activity_unavailable));
-            double[] summary=ActivityNative.record(ActivityNative.representative(group));
-            if(summary==null)throw new IllegalStateException(act.getString(R.string.activity_unavailable));
-            SpannableStringBuilder out=new SpannableStringBuilder();
-            Locale locale=Locale.getDefault();
-            boolean miles=(ActivityNative.config()[5]&ActivityNative.USE_MILES)!=0;
-            String[] fields=act.getResources().getStringArray(R.array.activity_fields);
-            String excess=act.getString(R.string.activity_excess);
+        ActivityPage.details(act,group,amountsChanged,removed);
+    }
+    private static void appendSources(MainActivity act,SpannableStringBuilder out,int group,Locale locale,boolean miles,String[] fields,String excess) {
             for(int source:ActivityNative.sources(group)) {
                 double[] r=ActivityNative.record(source);String[] text=ActivityNative.texts(source);
                 heading(out,ActivityHealth.typeName((int)r[2]),true);
@@ -454,6 +448,33 @@ public final class ActivitySettings {
                 if(!text[3].isEmpty())out.append(text[3]).append('\n');
                 out.append('\n');
             }
+    }
+    /* Text of the activity details page. */
+    static CharSequence detailsText(MainActivity act,int group) {
+            SpannableStringBuilder out=new SpannableStringBuilder();
+            Locale locale=Locale.getDefault();
+            boolean miles=(ActivityNative.config()[5]&ActivityNative.USE_MILES)!=0;
+            String[] fields=act.getResources().getStringArray(R.array.activity_fields);
+            String excess=act.getString(R.string.activity_excess);
+            appendSources(act,out,group,locale,miles,fields,excess);
+            return out;
+    }
+    /* Old details screen, no longer used on phones. */
+    static void detailsOld(MainActivity act,View parent,int group,Runnable amountsChanged,Runnable removed) {
+        if(amountsChanged!=null)
+            act.themeLightBars();
+        String operation="Open activity details: group="+group;
+        Log.i(LOG_ID,operation);
+        try {
+            double[] root=ActivityNative.record(group);if(root==null)throw new IllegalStateException(act.getString(R.string.activity_unavailable));
+            double[] summary=ActivityNative.record(ActivityNative.representative(group));
+            if(summary==null)throw new IllegalStateException(act.getString(R.string.activity_unavailable));
+            SpannableStringBuilder out=new SpannableStringBuilder();
+            Locale locale=Locale.getDefault();
+            boolean miles=(ActivityNative.config()[5]&ActivityNative.USE_MILES)!=0;
+            String[] fields=act.getResources().getStringArray(R.array.activity_fields);
+            String excess=act.getString(R.string.activity_excess);
+            appendSources(act,out,group,locale,miles,fields,excess);
             TextView body=getlabel(act,"");body.setText(out);body.setTextIsSelectable(true);
             body.setLineSpacing(GlucoseCurve.dpToPx(3),1.0f);
             ScrollView scroll=new ScrollView(act);

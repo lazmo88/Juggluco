@@ -55,12 +55,12 @@ public final class WebPageUpload {
     private static final String ADDITIONS="additions";
     private static final String TEMP_PREFIX=".upload-";
 
-    private static FrameLayout overlay=null;
+    private static View overlay=null;
     private static LinearLayout fileRows=null;
     private static TextView pathView=null;
     private static TextView statusView=null;
-    private static Button uploadFilesButton=null;
-    private static Button uploadTreeButton=null;
+    private static com.google.android.material.button.MaterialButton uploadFilesButton=null;
+    private static com.google.android.material.button.MaterialButton uploadTreeButton=null;
     private static Button upButton=null;
 
     private static File rootDirectory=null;
@@ -71,15 +71,15 @@ public final class WebPageUpload {
 
     private WebPageUpload() {}
 
-    /** Show the file manager rooted at getFilesDir()/additions. */
+    private static tk.glucodata.m3.M3Page page=null;
+
+    /** Show the file manager rooted at getFilesDir()/additions (Material 3 page). */
     public static void show(MainActivity context) {
         if(overlay!=null)
             return;
-
         File root=getRootDirectory(context);
         if(root==null)
             return;
-
         try {
             rootDirectory=root.getCanonicalFile();
             currentDirectory=rootDirectory;
@@ -89,136 +89,27 @@ public final class WebPageUpload {
             Applic.argToaster(context,context.getString(R.string.webcantaccessdirectory,ADDITIONS),Toast.LENGTH_LONG);
             return;
         }
-
-        final float density=GlucoseCurve.metrics.density;
-        final int pad=(int)(density*8.0f);
-        final boolean landscape=context.getResources().getConfiguration().orientation
-                ==Configuration.ORIENTATION_LANDSCAPE;
-
-        final FrameLayout screen=new FrameLayout(context);
-        screen.setClickable(true);
-        screen.setFocusable(true);
-
-        final LinearLayout panel=new LinearLayout(context);
-        panel.setOrientation(landscape?LinearLayout.HORIZONTAL:LinearLayout.VERTICAL);
-        panel.setPadding(pad,pad,pad,pad);
-        panel.setBackgroundResource(R.drawable.dialogbackground);
-
-        // The browser area gets all space not used by the landscape button column.
-        final LinearLayout browser=new LinearLayout(context);
-        browser.setOrientation(LinearLayout.VERTICAL);
-
-        pathView=new TextView(context);
-        pathView.setPadding(0,0,0,pad/2);
-        browser.addView(pathView,new LinearLayout.LayoutParams(MATCH_PARENT,WRAP_CONTENT));
-
-        ScrollView scroll=new ScrollView(context);
-        scroll.setFillViewport(true);
-        fileRows=new LinearLayout(context);
-        fileRows.setOrientation(LinearLayout.VERTICAL);
-        scroll.addView(fileRows,new ScrollView.LayoutParams(MATCH_PARENT,WRAP_CONTENT));
-        browser.addView(scroll,new LinearLayout.LayoutParams(MATCH_PARENT,0,1.0f));
-
-        statusView=new TextView(context);
-        statusView.setPadding(0,pad/2,0,0);
-        browser.addView(statusView,new LinearLayout.LayoutParams(MATCH_PARENT,WRAP_CONTENT));
-
-        uploadFilesButton=new Button(context);
-        uploadFilesButton.setText(R.string.webuploadfiles);
-        uploadFilesButton.setOnClickListener(v->openFilePicker(context));
-
-        uploadTreeButton=new Button(context);
-        uploadTreeButton.setText(R.string.webuploaddirectory);
-        uploadTreeButton.setOnClickListener(v->openTreePicker(context));
-
-        upButton=new Button(context);
-        upButton.setText(R.string.webup);
-        upButton.setOnClickListener(v->goUp(context));
-
-        Button helpButton=new Button(context);
-        helpButton.setText(R.string.helpname);
-        helpButton.setOnClickListener(v->showHelp(context));
-
-        Button close=new Button(context);
-        close.setText(R.string.closename);
-        close.setOnClickListener(v-> {
-            // Remove this file manager's callback and close regardless of the
-            // currently displayed subdirectory.
-            poponback();
-            close(context,screen);
-        });
-
-        // Create both control containers once. The buttons are moved between them
-        // when the screen changes between portrait and landscape.
-        final LinearLayout controls=new LinearLayout(context);
-        controls.setOrientation(LinearLayout.VERTICAL);
-
-        final LinearLayout uploadRow=new LinearLayout(context);
-        uploadRow.setOrientation(LinearLayout.HORIZONTAL);
-
-        final LinearLayout navigationRow=new LinearLayout(context);
-        navigationRow.setOrientation(LinearLayout.HORIZONTAL);
-
-        final boolean[] layoutLandscape={landscape};
-        configureLayout(panel,browser,controls,uploadRow,navigationRow,
-                uploadFilesButton,uploadTreeButton,upButton,helpButton,close,pad,landscape);
-
-        FrameLayout.LayoutParams panelParams=new FrameLayout.LayoutParams(MATCH_PARENT,MATCH_PARENT,Gravity.CENTER);
-       // panelParams.topMargin=MainActivity.systembarTop;
-        screen.addView(panel,panelParams);
-
-        overlay=screen;
-        var param=new FrameLayout.LayoutParams(MATCH_PARENT,MATCH_PARENT);
-        setOverlayMargins(param,MainActivity.systembarLeft,MainActivity.systembarTop,
-                MainActivity.systembarRight,MainActivity.systembarBottom);
-        context.addMyContentView(screen,param);
-
-        // System-bar insets can change independently of the orientation (for example
-        // when Juggluco shows/hides the system UI), and the left/right bars swap sides
-        // on some rotations. Do not keep the margins from the orientation in which the
-        // file manager was opened.
-        ViewCompat.setOnApplyWindowInsetsListener(screen,(v,insets)-> {
-            Insets bars=insets.getInsets(WindowInsetsCompat.Type.systemBars());
-            ViewGroup.LayoutParams raw=v.getLayoutParams();
-            if(raw instanceof FrameLayout.LayoutParams) {
-                FrameLayout.LayoutParams margins=(FrameLayout.LayoutParams)raw;
-                if(setOverlayMargins(margins,bars.left,bars.top,bars.right,bars.bottom))
-                    v.setLayoutParams(margins);
-            }
-            return insets;
-        });
-        ViewCompat.requestApplyInsets(screen);
-
-        // MainActivity handles configuration changes itself, so this overlay is not
-        // recreated on rotation. Rebuild the internal hierarchy when the configuration
-        // changes orientation, and ask Android to redispatch the new system-bar insets.
-        screen.addOnLayoutChangeListener((v,left,top,right,bottom,
-                                          oldLeft,oldTop,oldRight,oldBottom)-> {
-            boolean nowLandscape=context.getResources().getConfiguration().orientation
-                    ==Configuration.ORIENTATION_LANDSCAPE;
-            if(nowLandscape!=layoutLandscape[0]) {
-                layoutLandscape[0]=nowLandscape;
-                configureLayout(panel,browser,controls,uploadRow,navigationRow,
-                        uploadFilesButton,uploadTreeButton,upButton,helpButton,close,pad,nowLandscape);
-                refresh(context);
-                ViewCompat.requestApplyInsets(screen);
-            }
-        });
-
-        final Runnable[] holder=new Runnable[1];
-        holder[0]=()-> {
-            if(overlay!=screen)
-                return;
-            if(!sameFile(currentDirectory,rootDirectory)) {
-                setonback(holder[0]);
+        final tk.glucodata.m3.M3Page p=tk.glucodata.m3.M3Page.open(context,R.string.webuploadpages);
+        page=p;
+        overlay=p.root;
+        p.help(R.string.webpageshelp);
+        LinearLayout top=p.section((CharSequence)null);
+        pathView=p.note(top,displayPath());
+        uploadFilesButton=p.button(tk.glucodata.m3.M3Page.Style.TONAL,context.getString(R.string.webuploadfiles),R.drawable.ic_jm_upload_file,()->openFilePicker(context));
+        uploadTreeButton=p.button(tk.glucodata.m3.M3Page.Style.TONAL,context.getString(R.string.webuploaddirectory),R.drawable.ic_jm_drive_folder_upload,()->openTreePicker(context));
+        p.buttons(top,uploadFilesButton,uploadTreeButton);
+        statusView=p.note(top,"");
+        statusView.setVisibility(View.GONE);
+        fileRows=p.section(R.string.jm_share_files_sec);
+        upButton=null;
+        p.closeCheck(()-> {
+            if(currentDirectory!=null&&rootDirectory!=null&&!sameFile(currentDirectory,rootDirectory)) {
                 goUp(context);
+                return false;
             }
-            else {
-                close(context,screen);
-            }
-        };
-        backproc=holder[0];
-        setonback(backproc);
+            return true;
+        });
+        p.onClose(()-> close(context,p.root));
         refresh(context);
     }
 
@@ -286,12 +177,10 @@ public final class WebPageUpload {
         help.help(R.string.webpageshelp,context);
     }
 
-    private static void close(MainActivity context,FrameLayout screen) {
+    private static void close(MainActivity context,View screen) {
         if(overlay!=screen)
             return;
-        ViewGroup parent=(ViewGroup)screen.getParent();
-        if(parent!=null)
-            parent.removeView(screen);
+        page=null;
         overlay=null;
         fileRows=null;
         pathView=null;
@@ -687,7 +576,7 @@ public final class WebPageUpload {
         if(busy||entry==null||!isDirectChild(currentDirectory,entry))
             return;
         int question=entry.isDirectory()?R.string.webdeletedirectoryquestion:R.string.webdeletefilequestion;
-        Confirm.ask(context,context.getString(question,entry.getName()),"",()->deleteEntry(context,entry));
+        tk.glucodata.m3.M3Page.confirm(context,context.getString(question,entry.getName()),null,context.getString(R.string.delete),()->deleteEntry(context,entry));
     }
 
     private static boolean isDirectChild(File directory,File entry) {
@@ -776,74 +665,57 @@ public final class WebPageUpload {
     }
 
     private static void refresh(MainActivity context) {
-        if(overlay==null||fileRows==null||rootDirectory==null||currentDirectory==null)
+        final tk.glucodata.m3.M3Page p=page;
+        if(p==null||overlay==null||fileRows==null||rootDirectory==null||currentDirectory==null)
             return;
         if(!validDirectory(currentDirectory)) {
             currentDirectory=rootDirectory;
             if(!validDirectory(currentDirectory))
                 return;
         }
-
+        boolean atRoot=sameFile(currentDirectory,rootDirectory);
         if(pathView!=null)
             pathView.setText(displayPath());
+        if(statusView!=null)
+            statusView.setVisibility(statusView.getText().length()>0?View.VISIBLE:View.GONE);
         if(uploadFilesButton!=null)
             uploadFilesButton.setEnabled(!busy);
         if(uploadTreeButton!=null)
             uploadTreeButton.setEnabled(!busy);
-        if(upButton!=null)
-            upButton.setEnabled(!sameFile(currentDirectory,rootDirectory)&&!busy);
-
         fileRows.removeAllViews();
+        if(!atRoot)
+            p.link(fileRows,R.drawable.ic_jm_arrow_upward,context.getString(R.string.webup),null,()->goUp(context));
         File[] entries=currentDirectory.listFiles(file->!file.getName().startsWith(TEMP_PREFIX));
         if(entries==null||entries.length==0) {
-            TextView empty=new TextView(context);
-            empty.setText(R.string.webdirectoryempty);
-            fileRows.addView(empty,new LinearLayout.LayoutParams(MATCH_PARENT,WRAP_CONTENT));
-            if(Applic.DynamicTheme)
-                DynamicThemeUtils.applyTheme(empty);
+            p.empty(fileRows,R.drawable.ic_jm_folder_open,context.getString(R.string.webdirectoryempty),context.getString(R.string.jm_share_files_empty_body));
             return;
         }
-
         Arrays.sort(entries,(a,b)-> {
             if(a.isDirectory()!=b.isDirectory())
                 return a.isDirectory()?-1:1;
             return a.getName().compareToIgnoreCase(b.getName());
         });
-
         for(File entry:entries) {
-            LinearLayout row=new LinearLayout(context);
-            row.setOrientation(LinearLayout.HORIZONTAL);
-            row.setGravity(Gravity.CENTER_VERTICAL);
-
-            if(entry.isDirectory()) {
-                Button name=new Button(context);
-                name.setAllCaps(false);
-                name.setGravity(Gravity.START|Gravity.CENTER_VERTICAL);
-                name.setText(context.getString(R.string.webdirectoryentry,entry.getName()));
-                name.setEnabled(!busy);
-                name.setOnClickListener(v->enterDirectory(context,entry));
-                row.addView(name,new LinearLayout.LayoutParams(0,WRAP_CONTENT,1.0f));
-            }
-            else {
-                TextView name=new TextView(context);
-                name.setText(entry.getName()+"   "+formatSize(entry.length()));
-                int pad=(int)(GlucoseCurve.metrics.density*8.0f);
-                name.setPadding(pad,0,pad,0);
-                name.setOnClickListener(v->openInBrowser(context,entry));
-                row.addView(name,new LinearLayout.LayoutParams(0,WRAP_CONTENT,1.0f));
-            }
-
-            Button delete=new Button(context);
-            delete.setText(R.string.delete);
-            delete.setEnabled(!busy);
-            delete.setOnClickListener(v->askDelete(context,entry));
-            row.addView(delete,new LinearLayout.LayoutParams(WRAP_CONTENT,WRAP_CONTENT));
-            fileRows.addView(row,new LinearLayout.LayoutParams(MATCH_PARENT,WRAP_CONTENT));
-            if(Applic.DynamicTheme)
-                DynamicThemeUtils.applyTheme(row);
+            ViewGroup row;
+            if(entry.isDirectory())
+                row=p.link(fileRows,R.drawable.ic_jm_folder,entry.getName(),null,()->enterDirectory(context,entry));
+            else
+                row=p.item(fileRows,R.drawable.ic_jm_description,entry.getName(),formatSize(entry.length()),()->openInBrowser(context,entry));
+            row.setEnabled(!busy);
+            android.widget.ImageButton del=new android.widget.ImageButton(p.ctx);
+            del.setImageResource(R.drawable.ic_jm_delete);
+            del.setBackgroundResource(android.R.color.transparent);
+            del.setColorFilter(p.color(com.google.android.material.R.attr.colorOnSurfaceVariant));
+            del.setContentDescription(context.getString(R.string.delete)+" "+entry.getName());
+            del.setPadding(p.dp(12),p.dp(12),p.dp(12),p.dp(12));
+            del.setEnabled(!busy);
+            del.setOnClickListener(v->askDelete(context,entry));
+            android.widget.FrameLayout end=tk.glucodata.m3.M3Page.end(row);
+            end.removeAllViews();
+            end.addView(del);
+            end.setVisibility(View.VISIBLE);
         }
     }
-
     private static String displayPath() {
         try {
             String root=rootDirectory.getCanonicalPath();

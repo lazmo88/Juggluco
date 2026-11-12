@@ -64,7 +64,7 @@ import tk.glucodata.SendLikexDrip;
 import tk.glucodata.XInfuus;
 
 public class Broadcasts {
-static private  ArrayList<String> actionListeners(String action) {
+static ArrayList<String> actionListeners(String action) {
         final Context context= Applic.app;
         Intent intent = new Intent(action);
    	var receivers = context.getPackageManager().queryBroadcastReceivers(intent, 0);
@@ -79,7 +79,7 @@ static private  ArrayList<String> actionListeners(String action) {
 	}
 
 
-static private boolean isElement(String name,String[] strs) {
+static boolean isElement(String name,String[] strs) {
 	if(strs==null)
 		return false;
 	for(var s:strs) {

@@ -59,6 +59,11 @@ final class ClarityAmounts {
     }
 
     static void show(MainActivity act,View parent,Runnable saved) {
+        ClarityPage.categories(act,saved);
+        }
+
+    /* Old screen, no longer used on phones. */
+    static void showOld(MainActivity act,View parent,Runnable saved) {
         final int[] kinds=Natives.clarityCategories();
         final ArrayList<String> labels=Natives.getLabels();
         if(kinds==null || labels==null || labels.size()!=kinds.length+1) {

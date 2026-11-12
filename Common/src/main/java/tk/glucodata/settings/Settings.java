@@ -1671,6 +1671,8 @@ setvalues();
 
 @SuppressLint("UseCompatLoadingForDrawables")
 static void exchanges(MainActivity context, View parent) {
+  if(tk.glucodata.PhoneUi.show("settings.exchanges",context,parent))
+     return;
   parent.setVisibility(GONE);
  /* 
    var emulator=getbutton(context,R.string.l3emu_title);

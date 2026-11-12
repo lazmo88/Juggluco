@@ -56,6 +56,8 @@ static public  EditText getedit(Context act, String text) {
       return label;
       }
 public static void show(MainActivity context,View parent) {
+   if(PhoneUi.show("turnserver",context))
+      return;
    EnableControls(parent,false);
    var delete=getbutton(context,context.getString(R.string.delete));
    var save=getbutton(context,R.string.save);
