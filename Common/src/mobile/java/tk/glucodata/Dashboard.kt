@@ -172,6 +172,7 @@ class Dashboard private constructor(private val act: MainActivity) {
     private val cOnSurface = color(com.google.android.material.R.attr.colorOnSurface, Color.BLACK)
     private val cOnSurfaceVariant = color(com.google.android.material.R.attr.colorOnSurfaceVariant, Color.DKGRAY)
     private val cOutlineVariant = color(com.google.android.material.R.attr.colorOutlineVariant, Color.LTGRAY)
+    private val cOutline = color(com.google.android.material.R.attr.colorOutline, Color.GRAY)
     private val cSurface = color(com.google.android.material.R.attr.colorSurface, Color.WHITE)
     private val cSurfaceHighest = color(com.google.android.material.R.attr.colorSurfaceContainerHighest, Color.LTGRAY)
 
@@ -191,6 +192,7 @@ class Dashboard private constructor(private val act: MainActivity) {
     private val vTirLegend: LinearLayout = content.findViewById(R.id.dash_tir_legend)
     private val vMetrics: LinearLayout = content.findViewById(R.id.dash_metrics)
     private val vSummaryNote: TextView = content.findViewById(R.id.dash_summary_note)
+    private val vSummaryDivider: View = content.findViewById(R.id.dash_summary_divider)
     private val tirBar = TirBar(ctx)
 
     private val tick = object : Runnable {
@@ -368,8 +370,9 @@ class Dashboard private constructor(private val act: MainActivity) {
         vUnit.text = unitLabel()
         if (d.recent.size == 0 && d.last == null) {
             latestTime = 0
-            vValue.text = "–"
-            vValue.setTextColor(cOnSurfaceVariant)
+            vValue.text = "--"
+            vValue.setTextColor(cOutline)
+            vUnit.visibility = View.GONE
             vStatus.visibility = View.GONE
             vArrow.visibility = View.INVISIBLE
             vTrend.setText(R.string.dash_no_reading)
@@ -387,6 +390,7 @@ class Dashboard private constructor(private val act: MainActivity) {
             mgdl = parseToMgdl(d.last.value)
         }
         latestTime = time
+        vUnit.visibility = View.VISIBLE
         val rate = d.last?.takeIf { abs(it.time - time) < 90 }?.rate ?: Float.NaN
         val stale = d.now - time > STALE_SEC
         val col = if (stale) cOnSurfaceVariant else statusColor(mgdl)
@@ -603,10 +607,12 @@ class Dashboard private constructor(private val act: MainActivity) {
         if (r.size == 0) {
             vChart.visibility = View.INVISIBLE
             vChartEmpty.visibility = View.VISIBLE
+            vChartCaption.visibility = View.GONE
             return
         }
         vChart.visibility = View.VISIBLE
         vChartEmpty.visibility = View.GONE
+        vChartCaption.visibility = View.VISIBLE
 
         var dataMin = Double.MAX_VALUE
         var dataMax = -Double.MAX_VALUE
@@ -679,10 +685,12 @@ class Dashboard private constructor(private val act: MainActivity) {
             vTirLabel.setText(R.string.dash_summary_empty)
             tirBar.visibility = View.GONE
             vSummaryNote.visibility = View.GONE
+            vSummaryDivider.visibility = View.GONE
             return
         }
         tirBar.visibility = View.VISIBLE
         vSummaryNote.visibility = View.VISIBLE
+        vSummaryDivider.visibility = View.VISIBLE
         val days = (s.spanSec / 86400L).toInt()
         vSummaryTitle.text = if (days >= SUMMARY_DAYS - 1) res.getQuantityString(R.plurals.dash_summary_days, SUMMARY_DAYS, SUMMARY_DAYS)
             else if (days >= 1) res.getQuantityString(R.plurals.dash_summary_days, days + 1, days + 1)

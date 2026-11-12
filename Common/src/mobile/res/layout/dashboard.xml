@@ -134,6 +134,10 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
+                        android:maxLines="1"
+                        android:minWidth="0dp"
+                        android:paddingStart="4dp"
+                        android:paddingEnd="4dp"
                         android:text="@string/dash_h3" />
 
                     <com.google.android.material.button.MaterialButton
@@ -142,6 +146,10 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
+                        android:maxLines="1"
+                        android:minWidth="0dp"
+                        android:paddingStart="4dp"
+                        android:paddingEnd="4dp"
                         android:text="@string/dash_h6" />
 
                     <com.google.android.material.button.MaterialButton
@@ -150,6 +158,10 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
+                        android:maxLines="1"
+                        android:minWidth="0dp"
+                        android:paddingStart="4dp"
+                        android:paddingEnd="4dp"
                         android:text="@string/dash_h12" />
 
                     <com.google.android.material.button.MaterialButton
@@ -158,6 +170,10 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
+                        android:maxLines="1"
+                        android:minWidth="0dp"
+                        android:paddingStart="4dp"
+                        android:paddingEnd="4dp"
                         android:text="@string/dash_h24" />
                 </com.google.android.material.button.MaterialButtonToggleGroup>
 
@@ -256,6 +272,7 @@
                     android:orientation="vertical" />
 
                 <com.google.android.material.divider.MaterialDivider
+                    android:id="@+id/dash_summary_divider"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="12dp"

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Strings shared by the Material 3 phone screens (tk.glucodata.m3).
+     Area specific strings go in m3_strings_<area>.xml. -->
+<resources>
+    <string name="jm_unit_seconds">s</string>
+    <string name="jm_unit_minutes">min</string>
+    <string name="jm_invalid_number">Enter a number</string>
+    <string name="jm_saved">Saved</string>
+
+    <!-- Speech (Talker) -->
+    <string name="jm_talk_title">Speech</string>
+    <string name="jm_talk_section_what">What to say</string>
+    <string name="jm_talk_section_voice">Voice</string>
+    <string name="jm_talk_section_profile">Profile</string>
+    <string name="jm_talk_media">Use media volume</string>
+    <string name="jm_talk_media_summary">Speak through the media stream instead of notifications</string>
+</resources>

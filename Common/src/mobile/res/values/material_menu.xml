@@ -8,12 +8,82 @@
 -->
 <resources>
 
+    <!-- These are applied through ContextThemeWrapper on top of the activity's
+         AppTheme.*, which sets android:textColor, widget styles and colours at
+         theme level.  Anything AppTheme sets that Material 3 does not would
+         leak into M3 screens (brown text on dark cards with the cream themes),
+         so both themes put every one of them back to Material values. -->
+
     <style name="Juggluco.M3.Light" parent="Theme.Material3.Light.NoActionBar">
         <item name="bottomSheetDialogTheme">@style/Juggluco.M3.BottomSheetDialog.Light</item>
+        <item name="isAppLightTheme">true</item>
+        <item name="android:textColor">@null</item>
+        <item name="android:textViewStyle">@android:style/Widget.TextView</item>
+        <item name="android:textAppearanceButton">@style/TextAppearance.Material3.LabelLarge</item>
+        <item name="android:buttonStyle">@style/Widget.Material3.Button</item>
+        <item name="android:checkboxStyle">@style/Widget.Material3.CompoundButton.CheckBox</item>
+        <item name="android:radioButtonStyle">@style/Widget.Material3.CompoundButton.RadioButton</item>
+        <item name="android:spinnerStyle">@style/Widget.AppCompat.Spinner</item>
+        <item name="android:spinnerDropDownItemStyle">@style/Widget.AppCompat.DropDownItem.Spinner</item>
+        <item name="android:disabledAlpha">0.38</item>
+        <item name="android:windowBackground">?attr/colorSurface</item>
+        <item name="alertDialogTheme">@style/ThemeOverlay.Material3.Dialog.Alert</item>
+        <item name="android:alertDialogTheme">@style/ThemeOverlay.Material3.Dialog.Alert</item>
+        <item name="colorAccent">?attr/colorPrimary</item>
+        <item name="android:colorAccent">?attr/colorPrimary</item>
+        <item name="colorControlActivated">?attr/colorPrimary</item>
+        <item name="android:colorControlActivated">?attr/colorPrimary</item>
+        <item name="colorControlNormal">?attr/colorOnSurfaceVariant</item>
+        <item name="android:colorControlNormal">?attr/colorOnSurfaceVariant</item>
+        <item name="colorButtonNormal">?attr/colorSecondaryContainer</item>
+        <item name="themedButtonBackground">@drawable/button_rectangle</item>
+        <item name="colorButtonBackground">?attr/colorSecondaryContainer</item>
+        <item name="colorButtonText">?attr/colorOnSecondaryContainer</item>
+        <item name="colorButtonDisabledBackground">?attr/colorSurfaceContainerHighest</item>
+        <item name="buttonCornerRadius">20dp</item>
+        <item name="colorSpinnerDropdownText">?attr/colorOnSurface</item>
+        <item name="colorDialogBackground">?attr/colorSurfaceContainerHigh</item>
+        <item name="colorDialogBorder">?attr/colorOutlineVariant</item>
+        <item name="colorHelpBackground">?attr/colorSurface</item>
+        <item name="colorHelpBorder">?attr/colorOutlineVariant</item>
+        <item name="colorDisabledText">?attr/colorOnSurfaceVariant</item>
+        <item name="colorDisabledControl">?attr/colorSurfaceContainerHighest</item>
     </style>
 
     <style name="Juggluco.M3.Dark" parent="Theme.Material3.Dark.NoActionBar">
         <item name="bottomSheetDialogTheme">@style/Juggluco.M3.BottomSheetDialog.Dark</item>
+        <item name="isAppLightTheme">false</item>
+        <item name="android:textColor">@null</item>
+        <item name="android:textViewStyle">@android:style/Widget.TextView</item>
+        <item name="android:textAppearanceButton">@style/TextAppearance.Material3.LabelLarge</item>
+        <item name="android:buttonStyle">@style/Widget.Material3.Button</item>
+        <item name="android:checkboxStyle">@style/Widget.Material3.CompoundButton.CheckBox</item>
+        <item name="android:radioButtonStyle">@style/Widget.Material3.CompoundButton.RadioButton</item>
+        <item name="android:spinnerStyle">@style/Widget.AppCompat.Spinner</item>
+        <item name="android:spinnerDropDownItemStyle">@style/Widget.AppCompat.DropDownItem.Spinner</item>
+        <item name="android:disabledAlpha">0.38</item>
+        <item name="android:windowBackground">?attr/colorSurface</item>
+        <item name="alertDialogTheme">@style/ThemeOverlay.Material3.Dialog.Alert</item>
+        <item name="android:alertDialogTheme">@style/ThemeOverlay.Material3.Dialog.Alert</item>
+        <item name="colorAccent">?attr/colorPrimary</item>
+        <item name="android:colorAccent">?attr/colorPrimary</item>
+        <item name="colorControlActivated">?attr/colorPrimary</item>
+        <item name="android:colorControlActivated">?attr/colorPrimary</item>
+        <item name="colorControlNormal">?attr/colorOnSurfaceVariant</item>
+        <item name="android:colorControlNormal">?attr/colorOnSurfaceVariant</item>
+        <item name="colorButtonNormal">?attr/colorSecondaryContainer</item>
+        <item name="themedButtonBackground">@drawable/button_rectangle</item>
+        <item name="colorButtonBackground">?attr/colorSecondaryContainer</item>
+        <item name="colorButtonText">?attr/colorOnSecondaryContainer</item>
+        <item name="colorButtonDisabledBackground">?attr/colorSurfaceContainerHighest</item>
+        <item name="buttonCornerRadius">20dp</item>
+        <item name="colorSpinnerDropdownText">?attr/colorOnSurface</item>
+        <item name="colorDialogBackground">?attr/colorSurfaceContainerHigh</item>
+        <item name="colorDialogBorder">?attr/colorOutlineVariant</item>
+        <item name="colorHelpBackground">?attr/colorSurface</item>
+        <item name="colorHelpBorder">?attr/colorOutlineVariant</item>
+        <item name="colorDisabledText">?attr/colorOnSurfaceVariant</item>
+        <item name="colorDisabledControl">?attr/colorSurfaceContainerHighest</item>
     </style>
 
     <style name="Juggluco.M3.BottomSheetDialog.Light" parent="ThemeOverlay.Material3.BottomSheetDialog">

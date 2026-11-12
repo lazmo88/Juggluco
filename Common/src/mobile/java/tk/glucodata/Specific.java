@@ -27,6 +27,7 @@ import android.content.IntentFilter;
 public class Specific {
 	static void start(Application context) {
 		tk.glucodata.settings.MaterialSettings.register();
+		tk.glucodata.m3.Screens.register();
 		watchdrip.set(Natives.getwatchdrip());
 		SuperGattCallback.doGadgetbridge = Natives.getgadgetbridge();
 	}

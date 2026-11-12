@@ -75,11 +75,14 @@ public class Talker {
 static public final String LOG_ID="Talker";
     private TextToSpeech engine;
 
-static    private float curpitch=1.0f;
-static  private float curspeed=1.0f;
-static private    long   cursep=50*1000L;
-static private int voicepos=-1;
-static private String playstring=null;
+/* Package access for the phone's TalkerPage. */
+static float curpitch=1.0f;
+static float curspeed=1.0f;
+static long   cursep=50*1000L;
+static int voicepos=-1;
+static String playstring=null;
+/* Run when the voice list is known (phone TalkerPage). */
+static Runnable onVoices=null;
 static private Spinner spinner=null;
 //static final private int minandroid=24; //21
 static final private int minandroid=21; //21
@@ -97,7 +100,7 @@ if(!DontTalk) {
         }
     }
 
-static final private ArrayList<Voice> voiceChoice=new ArrayList<>();
+static final ArrayList<Voice> voiceChoice=new ArrayList<>();
 void setvalues() {
 if(!DontTalk) {
    var gine=engine;
@@ -168,6 +171,9 @@ if(!DontTalk) {
                             voiceChoice.add(voice);
                             }
                         }
+                    var voicesChanged=onVoices;
+                    if(voicesChanged!=null)
+                        voicesChanged.run();
                     var spin=spinner;
                     if(spin!=null) {
                         {if(doLog) {Log.i(LOG_ID,"Talker spinner!=null");};};
@@ -385,6 +391,8 @@ public  static boolean istalking() {
     }
 public static void config(MainActivity context) {
     if(!DontTalk) {
+        if(PhoneUi.show("talker",context))
+            return;
         if(!istalking()) {
              SuperGattCallback.newtalker(context);
             }

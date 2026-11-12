@@ -1,0 +1,35 @@
+/*      This file is part of Juggluco, an Android app to receive and display         */
+/*      glucose values from Freestyle Libre 2 and 3 sensors.                         */
+/*                                                                                   */
+/*      Copyright (C) 2021 Jaap Korthals Altes <jaapkorthalsaltes@gmail.com>         */
+/*                                                                                   */
+/*      Juggluco is free software: you can redistribute it and/or modify             */
+/*      it under the terms of the GNU General Public License as published            */
+/*      by the Free Software Foundation, either version 3 of the License, or         */
+/*      (at your option) any later version.                                          */
+/*                                                                                   */
+/*      Juggluco is distributed in the hope that it will be useful, but              */
+/*      WITHOUT ANY WARRANTY; without even the implied warranty of                   */
+/*      MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.                         */
+/*      See the GNU General Public License for more details.                         */
+/*                                                                                   */
+/*      You should have received a copy of the GNU General Public License            */
+/*      along with Juggluco. If not, see <https://www.gnu.org/licenses/>.            */
+
+package tk.glucodata.m3;
+
+/*
+ * Registers every Material 3 phone screen with tk.glucodata.PhoneUi.
+ * One registrar per area so parallel work does not touch the same file:
+ * add your screens in your area's register() only.
+ */
+public final class Screens {
+private Screens() {}
+
+public static void register() {
+    AlertScreens.register();
+    SensorScreens.register();
+    ShareScreens.register();
+    DataScreens.register();
+    }
+}

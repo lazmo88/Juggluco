@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- View tags used by the Material 3 page framework (tk.glucodata.m3). -->
+<resources>
+    <item name="jm_m3_page" type="id" />
+    <item name="jm_bars_light" type="id" />
+</resources>
