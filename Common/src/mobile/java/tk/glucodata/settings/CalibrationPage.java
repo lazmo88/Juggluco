@@ -37,7 +37,7 @@ public final class CalibrationPage {
 private CalibrationPage() {}
 
 /* Label name without the old screen's trailing colon. */
-static String label(MainActivity act,int id) {
+public static String label(MainActivity act,int id) {
     String s=act.getString(id).trim();
     if(s.endsWith(":"))
         s=s.substring(0,s.length()-1).trim();
