@@ -128,7 +128,7 @@
                     app:selectionRequired="true"
                     app:singleSelection="true">
 
-                    <Button
+                    <com.google.android.material.button.MaterialButton
                         android:id="@+id/dash_h3"
                         style="?attr/materialButtonOutlinedStyle"
                         android:layout_width="0dp"
@@ -136,7 +136,7 @@
                         android:layout_weight="1"
                         android:text="@string/dash_h3" />
 
-                    <Button
+                    <com.google.android.material.button.MaterialButton
                         android:id="@+id/dash_h6"
                         style="?attr/materialButtonOutlinedStyle"
                         android:layout_width="0dp"
@@ -144,7 +144,7 @@
                         android:layout_weight="1"
                         android:text="@string/dash_h6" />
 
-                    <Button
+                    <com.google.android.material.button.MaterialButton
                         android:id="@+id/dash_h12"
                         style="?attr/materialButtonOutlinedStyle"
                         android:layout_width="0dp"
@@ -152,7 +152,7 @@
                         android:layout_weight="1"
                         android:text="@string/dash_h12" />
 
-                    <Button
+                    <com.google.android.material.button.MaterialButton
                         android:id="@+id/dash_h24"
                         style="?attr/materialButtonOutlinedStyle"
                         android:layout_width="0dp"
@@ -278,7 +278,7 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/dash_fullgraph"
             style="@style/Widget.Material3.Button.TonalButton.Icon"
             android:layout_width="wrap_content"
