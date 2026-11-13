@@ -473,7 +473,7 @@ private void build() {
         }
     link(helpsec,R.drawable.ic_jm_school,"Intro",v -> help(R.string.introhelp,context));
     if(doLog)
-        link(helpsec,R.drawable.ic_jm_bug_report,act.getString(R.string.logging),v -> LogConfig.make(context,inner));
+        link(helpsec,R.drawable.ic_jm_bug_report,act.getString(R.string.logging),v -> LogPage.show(context));
     View about=link(helpsec,R.drawable.ic_jm_info,act.getString(R.string.aboutname),v -> GlucoseCurve.doabout(context));
     setSummary(about,BuildConfig.VERSION_NAME);
 
