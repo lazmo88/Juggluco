@@ -284,11 +284,12 @@ private static void scanGoogle(MainActivity act,int type,long sensorptr) {
            e -> {
             var message=e.getMessage();
             if(doLog) {Log.i(LOG_ID,message);};
-            Toast.makeText(act, message, Toast.LENGTH_SHORT).show();  
             if(useZXing) {
-                Toast.makeText(act, "Move to zXing", Toast.LENGTH_SHORT).show();
+                /* The built-in scanner opens instead; no toasts, they would cover its hint. */
                 scanZXingAlg(act,type,sensorptr);
                 }
+            else
+                Toast.makeText(act, message, Toast.LENGTH_SHORT).show();
         
          // Task failed with an exception
            });
