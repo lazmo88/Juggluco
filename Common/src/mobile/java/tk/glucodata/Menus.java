@@ -91,7 +91,27 @@ static void newTask() {
     }
 
 static void configurationChanged(MainActivity act, Configuration config) {
-    /* The sheet follows the current orientation; nothing to force. */
+    /* The sheet follows the current orientation; nothing to force.
+     * Android's dark theme may have been switched: follow it. */
+    if(tk.glucodata.m3.ThemeMode.sync(act))
+        themeChanged(act);
+    }
+
+/* Light/dark changed while the app is open: redraw the graph and rebuild the
+ * dashboard, the menu button and an open menu in the new colours. */
+static public void themeChanged(MainActivity act) {
+    act.requestRender();
+    final boolean menuOpen=sheet!=null;
+    if(launcher!=null)
+        attachLauncher(act);
+    if(menuOpen) {
+        leavingForScreen=true;
+        dismissSheet();
+        leavingForScreen=false;
+        show(act);
+        }
+    else if(!inScreen)
+        act.lightBars(!getInvertColors());
     }
 
 static Context themed(MainActivity act) {
@@ -126,6 +146,10 @@ static public void attachLauncher(MainActivity act) {
     final ViewGroup content=act.findViewById(android.R.id.content);
     if(content==null)
         return;
+    if(tk.glucodata.m3.ThemeMode.sync(act)) { // follow Android's dark theme
+        act.requestRender();
+        act.lightBars(!getInvertColors());
+        }
     Dashboard.attach(act);
     final Context ctx=themed(act);
     final FloatingActionButton fab=new FloatingActionButton(ctx);
@@ -476,19 +500,24 @@ static private void showNow(MainActivity act) {
         Natives.setRotate(isChecked);
         act.applyScreenOrientation(act.getResources().getConfiguration());
         });
-    toggle(view,R.id.jm_darkmode,getInvertColors(),(b,isChecked) -> {
-        Natives.setInvertColors(isChecked);
-        act.requestRender();
-        /* Rebuild the sheet and the menu button in the new colours. */
-        view.post(() -> {
-            if(launcher!=null)
-                attachLauncher(act);
-            leavingForScreen=true;
-            dismissSheet();
-            leavingForScreen=false;
-            show(act);
+    /* Appearance: System (follow Android's dark theme), Light or Dark. */
+    final com.google.android.material.button.MaterialButtonToggleGroup appearance=view.findViewById(R.id.jm_appearance);
+    if(appearance!=null) {
+        final int[] ids={R.id.jm_appearance_system,R.id.jm_appearance_light,R.id.jm_appearance_dark};
+        appearance.check(ids[tk.glucodata.m3.ThemeMode.get(act)]);
+        appearance.addOnButtonCheckedListener((group,id,isChecked) -> {
+            if(!isChecked)
+                return;
+            int mode=tk.glucodata.m3.ThemeMode.SYSTEM;
+            if(id==R.id.jm_appearance_light)
+                mode=tk.glucodata.m3.ThemeMode.LIGHT;
+            else if(id==R.id.jm_appearance_dark)
+                mode=tk.glucodata.m3.ThemeMode.DARK;
+            /* Rebuild the sheet, the dashboard and the menu button in the new colours. */
+            if(tk.glucodata.m3.ThemeMode.set(act,mode))
+                view.post(() -> themeChanged(act));
             });
-        });
+        }
     toggle(view,R.id.jm_glucosefloat,Natives.getfloatglucose(),(b,isChecked) -> Floating.setfloatglucose(act,isChecked));
     toggle(view,R.id.jm_systemui,getsystemui(),(b,isChecked) -> {
         setsystemui(isChecked);

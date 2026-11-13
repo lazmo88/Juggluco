@@ -67,7 +67,27 @@ public static void date(MainActivity act,CharSequence title,long localMillis,Dat
         if(!chosen[0]&&dismissed!=null)
             dismissed.run();
         });
+    fixButtons(picker,com.google.android.material.R.id.confirm_button,com.google.android.material.R.id.cancel_button);
     picker.show(act.getSupportFragmentManager(),"jm_data_date");
+    }
+
+/* The pickers' text buttons resolve their colour to #FF00FF (AppCompat's
+ * unresolved-colour fallback) under the old activity theme, like the alert
+ * dialogs (M3Page.dialog): give them colorPrimary when the dialog starts. */
+private static void fixButtons(androidx.fragment.app.DialogFragment picker,int... ids) {
+    picker.getLifecycle().addObserver((androidx.lifecycle.LifecycleEventObserver)(source,event) -> {
+        if(event!=androidx.lifecycle.Lifecycle.Event.ON_START)
+            return;
+        final android.app.Dialog dialog=picker.getDialog();
+        if(dialog==null)
+            return;
+        final int primary=M3Page.color(dialog.getContext(),androidx.appcompat.R.attr.colorPrimary);
+        for(int id:ids) {
+            android.view.View v=dialog.findViewById(id);
+            if(v instanceof android.widget.TextView)
+                ((android.widget.TextView)v).setTextColor(primary);
+            }
+        });
     }
 
 public static void time(MainActivity act,CharSequence title,int hour,int minute,TimeSet set) {
@@ -79,6 +99,7 @@ public static void time(MainActivity act,CharSequence title,int hour,int minute,
         .setTheme(getInvertColors()?R.style.JmData_Clock_Dark:R.style.JmData_Clock_Light)
         .build();
     picker.addOnPositiveButtonClickListener(v -> set.set(picker.getHour(),picker.getMinute()));
+    fixButtons(picker,com.google.android.material.R.id.material_timepicker_ok_button,com.google.android.material.R.id.material_timepicker_cancel_button);
     picker.show(act.getSupportFragmentManager(),"jm_data_time");
     }
 }

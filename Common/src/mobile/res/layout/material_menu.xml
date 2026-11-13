@@ -255,10 +255,61 @@
                     style="@style/Juggluco.M3.Switch"
                     android:text="@string/autorotate" />
 
-                <com.google.android.material.materialswitch.MaterialSwitch
-                    android:id="@+id/jm_darkmode"
-                    style="@style/Juggluco.M3.Switch"
-                    android:text="@string/darkmode" />
+                <!-- Light or dark: follow Android, or choose one -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:layout_marginTop="12dp"
+                    android:text="@string/jm_appearance"
+                    android:textAppearance="?attr/textAppearanceBodyLarge"
+                    android:textColor="?attr/colorOnSurface" />
+
+                <com.google.android.material.button.MaterialButtonToggleGroup
+                    android:id="@+id/jm_appearance"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:layout_marginBottom="4dp"
+                    app:selectionRequired="true"
+                    app:singleSelection="true">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/jm_appearance_system"
+                        style="?attr/materialButtonOutlinedStyle"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:maxLines="1"
+                        android:minWidth="0dp"
+                        android:paddingStart="4dp"
+                        android:paddingEnd="4dp"
+                        android:text="@string/jm_appearance_system" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/jm_appearance_light"
+                        style="?attr/materialButtonOutlinedStyle"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:maxLines="1"
+                        android:minWidth="0dp"
+                        android:paddingStart="4dp"
+                        android:paddingEnd="4dp"
+                        android:text="@string/light" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/jm_appearance_dark"
+                        style="?attr/materialButtonOutlinedStyle"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:maxLines="1"
+                        android:minWidth="0dp"
+                        android:paddingStart="4dp"
+                        android:paddingEnd="4dp"
+                        android:text="@string/dark" />
+                </com.google.android.material.button.MaterialButtonToggleGroup>
 
                 <com.google.android.material.materialswitch.MaterialSwitch
                     android:id="@+id/jm_glucosefloat"
