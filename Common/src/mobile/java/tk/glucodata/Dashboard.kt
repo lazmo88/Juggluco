@@ -413,8 +413,9 @@ class Dashboard private constructor(private val act: MainActivity) {
 
     /** Whether a label is set as blood glucose (Settings, Calibration); the meter page sets it too. */
     private fun bloodLabelSet(): Boolean = try {
+        // getLabels() ends with an empty entry, "no label": that position is what unset reads as.
         val blood = Natives.getbloodvar().toInt()
-        blood >= 0 && blood < (Natives.getLabels()?.size ?: 0)
+        blood >= 0 && blood < (Natives.getLabels()?.size ?: 0) - 1
     } catch (th: Throwable) {
         Log.stack(LOG_ID, "bloodLabelSet", th)
         true // no hint rather than a wrong one
