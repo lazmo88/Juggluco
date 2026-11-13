@@ -350,6 +350,18 @@ private void showFocused() {
     View focus=root.findFocus();
     if(focus==null)
         return;
+    /* A field outside the scrolling part (the search bar of Help, the
+     * search field above the ingredient list) has nothing to scroll, and
+     * offsetDescendantRectToMyCoords throws for a view that is not inside. */
+    boolean inside=false;
+    for(android.view.ViewParent parent=focus.getParent();parent!=null;parent=parent.getParent()) {
+        if(parent==scroll) {
+            inside=true;
+            break;
+            }
+        }
+    if(!inside)
+        return;
     android.graphics.Rect r=new android.graphics.Rect();
     focus.getDrawingRect(r);
     scroll.offsetDescendantRectToMyCoords(focus,r);
