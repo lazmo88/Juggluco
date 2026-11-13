@@ -98,6 +98,8 @@ static final class MeterView {
                     addtext+="\n"+context.getString(gatt.newvalues?R.string.newdata:R.string.nonewdata)+": "+bluediag.datestr(gatt.receivedTime);
                 }
             }
+        if(MeterAsk.enabled(name))
+            addtext+="\n"+context.getString(R.string.jm_meterask_list_on);
         M3Page.setTitle(row,name!=null?name:"?");
         M3Page.setSummary(row,addtext.trim());
         active.setContentDescription(context.getString(R.string.active));

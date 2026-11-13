@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- "Ask before saving readings" of a shared Bluetooth glucose meter
+     (tk.glucodata.MeterAsk, phone).  English only. -->
+<resources>
+    <!-- Meter settings page -->
+    <string name="jm_meterask_section">Shared meter</string>
+    <string name="jm_meterask_toggle">Ask before saving readings</string>
+    <string name="jm_meterask_toggle_summary">For a meter used by more than one person. After each sync you choose which readings are yours.</string>
+    <string name="jm_meterask_choose">Choose your readings</string>
+    <plurals name="jm_meterask_waiting">
+        <item quantity="one">%d reading is waiting for your choice</item>
+        <item quantity="other">%d readings are waiting for your choice</item>
+    </plurals>
+    <string name="jm_meterask_still_on">Still on. First choose which of the waiting readings are yours.</string>
+
+    <!-- Meter list row -->
+    <string name="jm_meterask_list_on">Asks before saving readings</string>
+
+    <!-- Dialog after a sync -->
+    <string name="jm_meterask_title">New meter readings</string>
+    <string name="jm_meterask_message">Choose the readings that are yours. The others are not saved on this phone.</string>
+    <string name="jm_meterask_all">All mine</string>
+    <string name="jm_meterask_none">None mine</string>
+    <string name="jm_meterask_later">Later</string>
+    <!-- value, unit -->
+    <string name="jm_meterask_value">%1$s %2$s</string>
+    <string name="jm_meterask_no_value">No value</string>
+</resources>
