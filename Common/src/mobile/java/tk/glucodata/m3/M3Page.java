@@ -729,7 +729,19 @@ public static float number(TextInputEditText edit) {
 public MaterialAutoCompleteTextView choice(LinearLayout parent,CharSequence label,List<? extends CharSequence> items,int selected,IndexSet set) {
     TextInputLayout layout=textLayout(true);
     layout.setHint(label);
-    MaterialAutoCompleteTextView auto=new MaterialAutoCompleteTextView(layout.getContext());
+    MaterialAutoCompleteTextView auto=new MaterialAutoCompleteTextView(layout.getContext()) {
+        /* Nothing is typed here: a keyboard left open by a text field would
+         * stay up (as a letter keyboard) and cover the list. */
+        @Override
+        protected void onFocusChanged(boolean focused,int direction,android.graphics.Rect previous) {
+            super.onFocusChanged(focused,direction,previous);
+            if(focused) {
+                InputMethodManager imm=(InputMethodManager)getContext().getSystemService(Context.INPUT_METHOD_SERVICE);
+                if(imm!=null)
+                    imm.hideSoftInputFromWindow(getWindowToken(),0);
+                }
+            }
+        };
     auto.setInputType(InputType.TYPE_NULL);
     auto.setKeyListener(null);
     ArrayAdapter<CharSequence> adapter=new ArrayAdapter<>(layout.getContext(),com.google.android.material.R.layout.m3_auto_complete_simple_item,new ArrayList<>(items)) {

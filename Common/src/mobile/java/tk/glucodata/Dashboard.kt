@@ -1181,7 +1181,16 @@ class Dashboard private constructor(private val act: MainActivity) {
         tirBar.set(bands, rangeColors)
 
         val names = intArrayOf(R.string.dash_band_very_low, R.string.dash_band_low, R.string.dash_band_in_range, R.string.dash_band_high, R.string.dash_band_very_high)
-        val ranges = arrayOf(
+        // The consensus limits as published for each unit: converting 181 mg/dL would show
+        // "10.0" as the start of High, the same figure as the end of In range.
+        fun mm(v: Double) = String.format(Locale.getDefault(), "%.1f", v)
+        val ranges = if (mmol) arrayOf(
+            "< " + mm(3.0),
+            mm(3.0) + "–" + mm(3.8),
+            mm(3.9) + "–" + mm(10.0),
+            mm(10.1) + "–" + mm(13.9),
+            "> " + mm(13.9),
+        ) else arrayOf(
             "< " + fmt(54.0),
             fmt(54.0) + "–" + fmt(69.0),
             fmt(70.0) + "–" + fmt(180.0),

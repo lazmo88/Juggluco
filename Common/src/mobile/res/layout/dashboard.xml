@@ -89,7 +89,8 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="16dp"
                         android:text="@string/dash_connect_sensor"
-                        app:icon="@drawable/ic_jm_sensors" />
+                        app:icon="@drawable/ic_jm_sensors"
+                        app:iconGravity="textStart" />
 
                     <!-- Below, not beside: the two labels do not fit one row on a 360dp phone.
                          Full width and outlined: a tonal button disappears on the tonal card. -->
@@ -99,7 +100,8 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="@string/dash_add_meter"
-                        app:icon="@drawable/ic_jm_water_drop" />
+                        app:icon="@drawable/ic_jm_water_drop"
+                        app:iconGravity="textStart" />
                 </LinearLayout>
 
                 <LinearLayout
