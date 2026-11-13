@@ -7,8 +7,9 @@
     <string name="dash_full_graph">Full graph</string>
     <string name="dash_no_reading">No reading yet</string>
     <string name="dash_no_reading_detail">Connect a sensor from Menu → Sensors.</string>
-    <string name="dash_empty_detail">Connect a sensor or a glucose meter to see your values here.</string>
+    <string name="dash_empty_detail">Connect a sensor, or add a Bluetooth glucose meter: its finger-stick readings appear here as soon as the meter sends them.</string>
     <string name="dash_connect_sensor">Connect sensor</string>
+    <string name="dash_add_meter">Add glucose meter</string>
     <string name="dash_q_amount">Add amount</string>
     <string name="dash_q_sensors">Sensors</string>
     <string name="dash_q_stats">Statistics</string>
@@ -32,6 +33,12 @@
     <!-- %1$s rate, %2$s unit -->
     <string name="dash_rate">%1$s %2$s/min</string>
 
+    <!-- Finger-stick meter reading in the top card -->
+    <string name="dash_meter_reading">Meter reading</string>
+    <!-- %1$s clock time -->
+    <string name="dash_today_at">Today %1$s</string>
+    <string name="dash_yesterday_at">Yesterday %1$s</string>
+
     <string name="dash_just_now">just now</string>
     <plurals name="dash_minutes_ago">
         <item quantity="one">%d minute ago</item>
@@ -41,6 +48,22 @@
         <item quantity="one">%d hour ago</item>
         <item quantity="other">%d hours ago</item>
     </plurals>
+
+    <plurals name="dash_days_ago">
+        <item quantity="one">%d day ago</item>
+        <item quantity="other">%d days ago</item>
+    </plurals>
+
+    <!-- Chart periods while only a meter is used -->
+    <string name="dash_m7d">7 d</string>
+    <string name="dash_m30d">30 d</string>
+    <string name="dash_m90d">90 d</string>
+    <!-- %1$s low, %2$s high, %3$s unit -->
+    <string name="dash_meter_chart_caption">Each dot is a meter reading. Shaded band: your target %1$s–%2$s %3$s. Touch a dot to read its value.</string>
+
+    <!-- Card with the latest finger-stick readings -->
+    <string name="dash_meter_title">Meter readings</string>
+    <string name="dash_meter_all">All readings</string>
 
     <!-- %1$s low, %2$s high, %3$s unit -->
     <string name="dash_chart_caption">Shaded band: your target %1$s–%2$s %3$s. Touch the line to read a value.</string>
@@ -65,5 +88,12 @@
     <string name="dash_metric_cv">Variability (CV)</string>
     <!-- %1$s low, %2$s high, %3$s unit, %4$d percent in target, %5$d percent sensor data -->
     <string name="dash_summary_note">In your target %1$s–%2$s %3$s: %4$d%%. Sensor data for %5$d%% of the time. Ranges for the bar follow the international consensus (70–180 mg/dL). GMI estimates HbA1c from average glucose; it is not a lab result.</string>
+    <!-- Summary while only a meter is used. %1$s low, %2$s high, %3$s unit -->
+    <string name="dash_meter_tir_label">of readings in range %1$s–%2$s %3$s</string>
+    <string name="dash_metric_readings">Readings</string>
+    <string name="dash_metric_lowest">Lowest</string>
+    <string name="dash_metric_highest">Highest</string>
+    <!-- %1$d number of readings, %2$s low, %3$s high, %4$s unit, %5$d percent in target -->
+    <string name="dash_meter_summary_note">Based on %1$d finger-stick readings. These are spot checks, so the share in range is not the same as a sensor\'s time in range. In your target %2$s–%3$s %4$s: %5$d%% of readings. Ranges for the bar follow the international consensus (70–180 mg/dL).</string>
     <string name="dash_summary_empty">Not enough data yet for a summary.</string>
 </resources>

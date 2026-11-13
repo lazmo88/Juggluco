@@ -25,12 +25,14 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.RectF
+import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import android.text.format.DateFormat
+import android.text.format.DateUtils
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
@@ -41,6 +43,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import com.google.android.material.button.MaterialButton
 import com.google.android.material.button.MaterialButtonToggleGroup
 import com.google.android.material.color.MaterialColors
 import com.patrykandpatrick.vico.views.cartesian.CartesianChart
@@ -75,6 +78,8 @@ import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import tk.glucodata.nums.item
+import tk.glucodata.nums.numio
 import tk.glucodata.settings.Settings
 import java.util.Calendar
 import java.util.Date
@@ -85,6 +90,7 @@ import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
+import kotlin.math.roundToLong
 import kotlin.math.sqrt
 
 /**
@@ -95,6 +101,12 @@ import kotlin.math.sqrt
  * turn the phone, tap "Full graph", or pick a graph action in the menu. Back
  * returns to the dashboard. Values come from Natives.dashboardValues(), which uses
  * the same sensor ranges and calibration as Juggluco's statistics.
+ *
+ * Finger-stick readings of a glucose meter are stored as amounts under the blood
+ * glucose label. They are read as well (never written): the newest one is shown on
+ * top when it is newer than the sensor value, and the latest ones are listed. Someone
+ * with only a meter (no sensor value for 14 days: "meter mode") gets the chart and
+ * the summary of the meter readings instead, over days rather than hours.
  */
 class Dashboard private constructor(private val act: MainActivity) {
 
@@ -114,10 +126,21 @@ class Dashboard private constructor(private val act: MainActivity) {
             owner.stop()
             super.onDetachedFromWindow()
         }
+
+        override fun onWindowVisibilityChanged(visibility: Int) {
+            super.onWindowVisibilityChanged(visibility)
+            owner.windowVisible(visibility == View.VISIBLE)
+        }
     }
 
     private class Readings(val time: LongArray, val mgdl: FloatArray) {
         val size get() = time.size
+
+        /** The readings from [start] on; times are ascending. */
+        fun from(start: Long): Readings {
+            val first = time.indexOfFirst { it >= start }.let { if (it < 0) size else it }
+            return Readings(time.copyOfRange(first, size), mgdl.copyOfRange(first, size))
+        }
     }
 
     private class Summary(
@@ -129,13 +152,28 @@ class Dashboard private constructor(private val act: MainActivity) {
         val coverage: Double,
     )
 
+    /** Summary of finger-stick readings: shares are shares of readings, not of time. */
+    private class MeterSummary(
+        val count: Int,
+        val bands: DoubleArray, // same order as Summary.bands
+        val meanMgdl: Double,
+        val lowestMgdl: Float,
+        val highestMgdl: Float,
+        val inTarget: Double,
+    )
+
     private class Data(
         val now: Long,
-        val start: Long,
-        val hours: Int,
-        val recent: Readings,
+        val start: Long, // of the chart period
+        val hours: Int, // length of the chart period
+        val recent: Readings, // sensor values in the chart period
         val summary: Summary?,
         val last: strGlucose?,
+        val meter: Readings, // finger-stick readings of the last 90 days, oldest first
+        val meterMode: Boolean,
+        val xUnit: Int, // seconds per x step of the chart
+        val plot: Readings, // what the chart draws: recent, or in meter mode the meter readings of the period
+        val meterSummary: MeterSummary?,
     )
 
     private val ctx: Context = Menus.themed(act)
@@ -147,11 +185,18 @@ class Dashboard private constructor(private val act: MainActivity) {
     private val modelProducer = CartesianChartModelProducer()
     private var job: Job? = null
     private var loadedGlucoseTime = Long.MIN_VALUE
+    private var loadedAmounts = Long.MIN_VALUE
     private var loadedAt = 0L
-    private var loadedHours = 0
+    private var wasActive = false
     private var latestTime = 0L
+    private var latestIsMeter = false
 
     private var hours = prefs.getInt(PREF_HOURS, 6).let { if (it in HOUR_CHOICES) it else 6 }
+    private var meterHours = prefs.getInt(PREF_METER_HOURS, 168).let { if (it in METER_HOUR_CHOICES) it else 168 }
+
+    /** Decided by load(); remembered so the period buttons start with the right labels. */
+    private var meterMode = prefs.getBoolean(PREF_METER_MODE, false)
+    private var settingButtons = false
     private var mmol = true
     private var targetLow = 70f
     private var targetHigh = 180f
@@ -159,6 +204,11 @@ class Dashboard private constructor(private val act: MainActivity) {
     private var maxY = 1.0
     private var yStep = 2.0
     private var chartStart = 0L
+    private var chartUnit = 60 // seconds per x step
+    private var chartMaxX = hours * 60.0
+    private var chartMeter = false // the chart shows meter readings
+    private var dateLabels = false // x axis labelled with dates instead of hours
+    private var meterDotDp = 10f
     private var labelOffset = 0
     private var labelSpacing = 60
     private var dotColor = 0
@@ -175,6 +225,10 @@ class Dashboard private constructor(private val act: MainActivity) {
     private val cOutline = color(com.google.android.material.R.attr.colorOutline, Color.GRAY)
     private val cSurface = color(com.google.android.material.R.attr.colorSurface, Color.WHITE)
     private val cSurfaceHighest = color(com.google.android.material.R.attr.colorSurfaceContainerHighest, Color.LTGRAY)
+    private val cCard = color(com.google.android.material.R.attr.colorSurfaceContainerLow, Color.WHITE)
+
+    /** Very low, low, in range, high, very high: the order of Summary.bands and meterLevel(). */
+    private val rangeColors = intArrayOf(cVeryLow, cLow, cInRange, cHigh, cVeryHigh)
 
     private val content: View = LayoutInflater.from(ctx).inflate(R.layout.dashboard, root, false)
     private val vStatus: TextView = content.findViewById(R.id.dash_status)
@@ -197,6 +251,9 @@ class Dashboard private constructor(private val act: MainActivity) {
     private val vMetrics: LinearLayout = content.findViewById(R.id.dash_metrics)
     private val vSummaryNote: TextView = content.findViewById(R.id.dash_summary_note)
     private val vSummaryDivider: View = content.findViewById(R.id.dash_summary_divider)
+    private val vHours: MaterialButtonToggleGroup = content.findViewById(R.id.dash_hours)
+    private val vMeterCard: View = content.findViewById(R.id.dash_meter_card)
+    private val vMeterRows: LinearLayout = content.findViewById(R.id.dash_meter_rows)
     private val tirBar = TirBar(ctx)
 
     private val tick = object : Runnable {
@@ -209,11 +266,41 @@ class Dashboard private constructor(private val act: MainActivity) {
 
     private fun color(attr: Int, fallback: Int) = MaterialColors.getColor(ctx, attr, fallback)
 
-    private fun buttonFor(h: Int) = when (h) {
-        3 -> R.id.dash_h3
-        12 -> R.id.dash_h12
-        24 -> R.id.dash_h24
-        else -> R.id.dash_h6
+    // ---------------------------------------------------------------- period buttons
+
+    /** The four buttons choose hours of sensor values, or in meter mode days of meter readings. */
+    private val rangeButtons = intArrayOf(R.id.dash_h3, R.id.dash_h6, R.id.dash_h12, R.id.dash_h24)
+
+    private fun showRangeButtons() {
+        val labels = if (meterMode) METER_HOUR_LABELS else HOUR_LABELS
+        for (i in rangeButtons.indices) content.findViewById<MaterialButton>(rangeButtons[i]).setText(labels[i])
+        val choice = if (meterMode) METER_HOUR_CHOICES.indexOf(meterHours) else HOUR_CHOICES.indexOf(hours)
+        settingButtons = true // checking a button here is not the user choosing a period
+        vHours.check(rangeButtons[max(0, choice)])
+        settingButtons = false
+    }
+
+    private fun setMeterMode(on: Boolean) {
+        if (on == meterMode) return
+        meterMode = on
+        prefs.edit().putBoolean(PREF_METER_MODE, on).apply()
+        showRangeButtons()
+    }
+
+    private fun rangeChosen(id: Int) {
+        if (settingButtons) return
+        val choice = rangeButtons.indexOf(id)
+        if (choice < 0) return
+        if (meterMode) {
+            if (METER_HOUR_CHOICES[choice] == meterHours) return
+            meterHours = METER_HOUR_CHOICES[choice]
+            prefs.edit().putInt(PREF_METER_HOURS, meterHours).apply()
+        } else {
+            if (HOUR_CHOICES[choice] == hours) return
+            hours = HOUR_CHOICES[choice]
+            prefs.edit().putInt(PREF_HOURS, hours).apply()
+        }
+        refresh(true)
     }
 
     // ---------------------------------------------------------------- visibility
@@ -231,11 +318,27 @@ class Dashboard private constructor(private val act: MainActivity) {
         val wanted = if (show) View.VISIBLE else View.GONE
         if (root.visibility != wanted) root.visibility = wanted
         handler.removeCallbacks(tick)
-        if (show && root.isAttachedToWindow) {
+        val active = show && root.isAttachedToWindow
+        if (active) {
             act.lightBars(!dark)
             ViewCompat.requestApplyInsets(content)
-            refresh(false)
+            // Back from another screen: amounts may have been added, changed or deleted there.
+            refresh(!wasActive)
             handler.postDelayed(tick, TICK_MS)
+        }
+        wasActive = active
+    }
+
+    /**
+     * The app left the screen or came back. Coming back reloads at once: the meter may
+     * have sent readings in the meantime.
+     */
+    private fun windowVisible(visible: Boolean) {
+        if (visible) {
+            updateVisibility()
+        } else {
+            wasActive = false
+            handler.removeCallbacks(tick)
         }
     }
 
@@ -248,20 +351,22 @@ class Dashboard private constructor(private val act: MainActivity) {
 
     private fun refresh(force: Boolean) {
         val lastTime = Natives.lastglucosetime()
+        val amounts = amountsStamp()
         val stale = SystemClock.elapsedRealtime() - loadedAt > RELOAD_MS
-        if (!force && lastTime == loadedGlucoseTime && hours == loadedHours && !stale) {
+        if (!force && lastTime == loadedGlucoseTime && amounts == loadedAmounts && !stale) {
             showAge()
             return
         }
         readSettings()
         loadedGlucoseTime = lastTime
-        loadedHours = hours
+        loadedAmounts = amounts
         loadedAt = SystemClock.elapsedRealtime()
         job?.cancel()
         val h = hours
+        val meterH = meterHours
         job = scope.launch {
             val data = try {
-                withContext(Dispatchers.Default) { load(h) }
+                withContext(Dispatchers.Default) { load(h, meterH) }
             } catch (th: Throwable) {
                 if (th is kotlinx.coroutines.CancellationException) throw th
                 Log.stack(LOG_ID, "load", th)
@@ -290,13 +395,129 @@ class Dashboard private constructor(private val act: MainActivity) {
         return Readings(times.toLongArray(), values.toFloatArray())
     }
 
-    private fun load(h: Int): Data {
+    /**
+     * Changes when an amount is added, so a reading the meter sends while the dashboard
+     * is open shows at the next tick. Changes made on other screens are caught by the
+     * reload in updateVisibility().
+     */
+    private fun amountsStamp(): Long {
+        var stamp = 0L
+        try {
+            for (ptr in numio.numptrs) if (ptr != 0L) stamp = stamp * 1_000_003L + Natives.getlastNum(ptr)
+        } catch (th: Throwable) {
+            Log.stack(LOG_ID, "amountsStamp", th)
+        }
+        return stamp
+    }
+
+    /**
+     * Finger-stick readings of the last 90 days, oldest first: the amounts with the blood
+     * glucose label from both amount sources (this phone and the other device), read the
+     * way AmountListPage does. Amounts hold the value in the display unit; here it becomes
+     * mg/dL like the sensor values, so the range code works on both. Read-only.
+     */
+    private fun meterReadings(now: Long): Readings {
+        val found = ArrayList<item>()
+        try {
+            // Without a blood glucose label this is the label count, which no amount has as label.
+            val blood = Natives.getbloodvar().toInt()
+            if (blood >= 0 && blood < (Natives.getLabels()?.size ?: 0)) {
+                val from = now - METER_DAYS * 86400L
+                val until = now + CLOCK_SLACK_SEC
+                for (ptr in numio.numptrs) {
+                    if (ptr == 0L) continue
+                    for (pos in Natives.getfirstNum(ptr) until Natives.getlastNum(ptr)) {
+                        val num = Natives.getNumitem(ptr, pos) ?: continue
+                        if (num.label == blood && num.value > 0f && !num.value.isInfinite() && num.time in from..until)
+                            found.add(num)
+                    }
+                }
+            }
+        } catch (th: Throwable) {
+            Log.stack(LOG_ID, "meterReadings", th) // the sensor part of the dashboard still works
+        }
+        found.sortBy { it.time }
+        // The same factor as readSettings() uses for the target, so a reading on the target limit is in target.
+        val toMg = if (mmol) MGDL_PER_MMOL.toFloat() else 1f
+        val times = ArrayList<Long>(found.size)
+        val values = ArrayList<Float>(found.size)
+        for (num in found) {
+            if (times.isNotEmpty() && times[times.size - 1] == num.time) continue // same reading stored twice
+            times.add(num.time)
+            values.add(num.value * toMg)
+        }
+        return Readings(times.toLongArray(), values.toFloatArray())
+    }
+
+    private fun load(h: Int, meterH: Int): Data {
         val now = System.currentTimeMillis() / 1000L
-        val start = (now - h * 3600L) / 60L * 60L
         val week2 = readings(SUMMARY_DAYS * 86400)
-        val from = week2.time.indexOfFirst { it >= start }.let { if (it < 0) week2.size else it }
-        val recent = Readings(week2.time.copyOfRange(from, week2.size), week2.mgdl.copyOfRange(from, week2.size))
-        return Data(now, start, h, recent, summarize(week2, now), Natives.lastglucose())
+        val last = Natives.lastglucose()
+        val meter = meterReadings(now)
+        // Meter mode: there are meter readings, but no sensor value in the last 14 days.
+        val sensorTime = max(if (week2.size > 0) week2.time[week2.size - 1] else 0L, last?.time ?: 0L)
+        if (meter.size > 0 && now - sensorTime > SUMMARY_DAYS * 86400L) {
+            val unit = meterXUnit(meterH)
+            val start = meterStart(now, meterH, unit)
+            val none = Readings(LongArray(0), FloatArray(0))
+            return Data(now, start, meterH, none, null, last, meter, true, unit, meter.from(start), summarizeMeter(meter, now))
+        }
+        val start = (now - h * 3600L) / 60L * 60L
+        val recent = week2.from(start)
+        return Data(now, start, h, recent, summarize(week2, now), last, meter, false, 60, recent, null)
+    }
+
+    /** Seconds per x step of the meter chart: coarser for longer periods, at most about 1500 steps. */
+    private fun meterXUnit(h: Int) = when {
+        h <= 24 -> 60
+        h <= 168 -> 600
+        h <= 720 -> 3600
+        else -> 7200
+    }
+
+    /**
+     * Start of the meter chart. Periods of days start a whole number of x steps before
+     * today's midnight, so the date labels, counted back from today, fall on midnights.
+     */
+    private fun meterStart(now: Long, h: Int, unit: Int): Long {
+        val raw = now - h * 3600L
+        if (h <= 24) return raw / 60L * 60L
+        val today = startOfDay(now)
+        return today - (today - raw + unit - 1) / unit * unit
+    }
+
+    /** Local midnight (epoch seconds) of the day [time] lies in. */
+    private fun startOfDay(time: Long): Long {
+        val cal = Calendar.getInstance()
+        cal.timeInMillis = time * 1000L
+        cal.set(Calendar.HOUR_OF_DAY, 0)
+        cal.set(Calendar.MINUTE, 0)
+        cal.set(Calendar.SECOND, 0)
+        cal.set(Calendar.MILLISECOND, 0)
+        return cal.timeInMillis / 1000L
+    }
+
+    private fun summarizeMeter(m: Readings, now: Long): MeterSummary? {
+        val from = now - METER_SUMMARY_DAYS * 86400L
+        val counts = IntArray(5)
+        var count = 0
+        var sum = 0.0
+        var inTarget = 0
+        var lowest = Float.MAX_VALUE
+        var highest = 0f
+        for (i in 0 until m.size) {
+            if (m.time[i] < from) continue
+            val g = m.mgdl[i]
+            count++
+            sum += g
+            counts[meterBand(g)]++
+            if (g >= targetLow && g <= targetHigh) inTarget++
+            lowest = min(lowest, g)
+            highest = max(highest, g)
+        }
+        if (count < METER_SUMMARY_MIN) return null
+        val n = count.toDouble()
+        return MeterSummary(count, DoubleArray(5) { counts[it] / n }, sum / n, lowest, highest, inTarget / n)
     }
 
     private fun summarize(r: Readings, now: Long): Summary? {
@@ -338,6 +559,27 @@ class Dashboard private constructor(private val act: MainActivity) {
         else -> 0
     }
 
+    /**
+     * Consensus range of a meter reading, compared as whole mg/dL: a reading in mmol/L has
+     * one decimal, and 10.0 mmol/L (180.2 mg/dL) belongs in the range shown as 3.9–10.0.
+     */
+    private fun meterBand(g: Float) = band(g.roundToInt().toFloat())
+
+    /**
+     * Where a meter reading lies for its colour and status, like statusColor():
+     * 0 very low, 1 below target, 2 in target, 3 above target, 4 very high.
+     */
+    private fun meterLevel(mgdl: Float): Int {
+        val whole = mgdl.roundToInt()
+        return when {
+            whole < 54 -> 0
+            mgdl < targetLow -> 1
+            whole > 250 -> 4
+            mgdl > targetHigh -> 3
+            else -> 2
+        }
+    }
+
     // ---------------------------------------------------------------- display
 
     private fun toUnit(mgdl: Double) = if (mmol) mgdl / MGDL_PER_MMOL else mgdl
@@ -357,9 +599,11 @@ class Dashboard private constructor(private val act: MainActivity) {
     }
 
     private suspend fun show(d: Data) {
+        setMeterMode(d.meterMode)
         showLatest(d)
         showChart(d)
-        showSummary(d.summary)
+        showMeterList(d)
+        if (d.meterMode) showMeterSummary(d.meterSummary) else showSummary(d.summary)
     }
 
     private fun statusColor(mgdl: Float) = when {
@@ -372,8 +616,11 @@ class Dashboard private constructor(private val act: MainActivity) {
 
     private fun showLatest(d: Data) {
         vUnit.text = unitLabel()
-        if (d.recent.size == 0 && d.last == null) {
+        val hasSensor = d.recent.size > 0 || d.last != null
+        val meterLast = d.meter.size - 1
+        if (!hasSensor && meterLast < 0) {
             latestTime = 0
+            latestIsMeter = false
             vEmpty.visibility = View.VISIBLE
             vValueRow.visibility = View.GONE
             vStatus.visibility = View.GONE
@@ -391,16 +638,24 @@ class Dashboard private constructor(private val act: MainActivity) {
         if (lastIndex >= 0) {
             time = d.recent.time[lastIndex]
             mgdl = d.recent.mgdl[lastIndex]
-        } else {
-            time = d.last!!.time
+        } else if (d.last != null) {
+            time = d.last.time
             mgdl = parseToMgdl(d.last.value)
+        } else {
+            time = Long.MIN_VALUE
+            mgdl = 0f
+        }
+        // Whichever is newer: the sensor value or the last finger-stick reading.
+        if (meterLast >= 0 && d.meter.time[meterLast] > time) {
+            showLatestMeter(d.meter.time[meterLast], d.meter.mgdl[meterLast])
+            return
         }
         latestTime = time
+        latestIsMeter = false
         vUnit.visibility = View.VISIBLE
         val rate = d.last?.takeIf { abs(it.time - time) < 90 }?.rate ?: Float.NaN
         val stale = d.now - time > STALE_SEC
         val col = if (stale) cOnSurfaceVariant else statusColor(mgdl)
-        dotColor = col
 
         vValue.text = if (mgdl > 0) fmt(mgdl.toDouble()) else d.last?.value ?: "–"
         vValue.setTextColor(col)
@@ -453,14 +708,54 @@ class Dashboard private constructor(private val act: MainActivity) {
 
     private var trendRate: Float? = null
 
+    /**
+     * A finger-stick reading on top. It is a spot value: coloured by range and never
+     * "stale", without a trend, and with the moment it was taken instead.
+     */
+    private fun showLatestMeter(time: Long, mgdl: Float) {
+        latestTime = time
+        latestIsMeter = true
+        trendRate = null
+        val level = meterLevel(mgdl)
+        val col = rangeColors[level]
+        vUnit.visibility = View.VISIBLE
+        vValue.text = fmt(mgdl.toDouble())
+        vValue.setTextColor(col)
+        vValue.contentDescription = vValue.text.toString() + " " + unitLabel()
+
+        vStatus.visibility = View.VISIBLE
+        vStatus.setText(
+            when (level) {
+                0 -> R.string.dash_status_very_low
+                1 -> R.string.dash_status_below
+                2 -> R.string.dash_status_in_target
+                else -> R.string.dash_status_above
+            }
+        )
+        vStatus.setTextColor(col)
+        (vStatus.background.mutate() as? GradientDrawable)?.setColor((col and 0x00FFFFFF) or 0x2E000000)
+
+        vArrow.visibility = View.GONE // not INVISIBLE: the unit moves up next to the value
+        vTrend.setText(R.string.dash_meter_reading)
+        vTrend.setTextColor(cOnSurface)
+        showAge()
+    }
+
     private fun showAge() {
         if (latestTime == 0L) return
-        val ageSec = System.currentTimeMillis() / 1000L - latestTime
+        val now = System.currentTimeMillis() / 1000L
+        val ageSec = now - latestTime
         val res = ctx.resources
         val age = when {
             ageSec < 60 -> ctx.getString(R.string.dash_just_now)
             ageSec < 3600 -> (ageSec / 60).toInt().let { res.getQuantityString(R.plurals.dash_minutes_ago, it, it) }
-            else -> (ageSec / 3600).toInt().let { res.getQuantityString(R.plurals.dash_hours_ago, it, it) }
+            // Sensor values keep counting hours; only a meter reading stays on top for days.
+            ageSec < 86400 || !latestIsMeter -> (ageSec / 3600).toInt().let { res.getQuantityString(R.plurals.dash_hours_ago, it, it) }
+            else -> (ageSec / 86400).toInt().let { res.getQuantityString(R.plurals.dash_days_ago, it, it) }
+        }
+        if (latestIsMeter) {
+            vDetail.text = whenLabel(latestTime, now) + " · " + age
+            return
         }
         val rate = trendRate
         vDetail.text = if (rate == null) age else {
@@ -468,6 +763,21 @@ class Dashboard private constructor(private val act: MainActivity) {
                 else String.format(Locale.getDefault(), "%+.1f", rate)
             ctx.getString(R.string.dash_rate, perMin, unitLabel()) + " · " + age
         }
+    }
+
+    /** When a meter reading was taken: "Today 08:12", "Yesterday 21:40", else short weekday, date and time. */
+    private fun whenLabel(time: Long, now: Long): String {
+        val ms = time * 1000L
+        val today = startOfDay(now)
+        if (time >= startOfDay(today - 3600L)) { // an hour before today's midnight is yesterday
+            val clock = DateFormat.getTimeFormat(ctx).format(Date(ms))
+            return ctx.getString(if (time >= today) R.string.dash_today_at else R.string.dash_yesterday_at, clock)
+        }
+        return DateUtils.formatDateTime(
+            ctx, ms,
+            DateUtils.FORMAT_SHOW_WEEKDAY or DateUtils.FORMAT_ABBREV_WEEKDAY or DateUtils.FORMAT_SHOW_DATE or
+                DateUtils.FORMAT_ABBREV_MONTH or DateUtils.FORMAT_NO_YEAR or DateUtils.FORMAT_SHOW_TIME,
+        )
     }
 
     private fun parseToMgdl(value: String?): Float {
@@ -479,7 +789,7 @@ class Dashboard private constructor(private val act: MainActivity) {
 
     private val rangeProvider = object : CartesianLayerRangeProvider {
         override fun getMinX(minX: Double, maxX: Double, extraStore: ExtraStore) = 0.0
-        override fun getMaxX(minX: Double, maxX: Double, extraStore: ExtraStore) = hours * 60.0
+        override fun getMaxX(minX: Double, maxX: Double, extraStore: ExtraStore) = chartMaxX
         override fun getMinY(minY: Double, maxY: Double, extraStore: ExtraStore) = this@Dashboard.minY
         override fun getMaxY(minY: Double, maxY: Double, extraStore: ExtraStore) = this@Dashboard.maxY
     }
@@ -525,10 +835,48 @@ class Dashboard private constructor(private val act: MainActivity) {
         }
     }
 
-    private fun timeLabel(x: Double): String {
-        val date = Date((chartStart + (x * 60).roundToInt()) * 1000L)
-        return DateFormat.getTimeFormat(ctx).format(date)
+    /** Meter readings are joined by a thin line; the dots on it carry the range colour. */
+    private val meterLine = LineCartesianLayer.Line(
+        fill = LineCartesianLayer.LineFill.single(Fill(cOutline)),
+        stroke = LineCartesianLayer.LineStroke.Continuous(thicknessDp = 1.5f, cap = Paint.Cap.ROUND),
+    )
+
+    private val meterDotLines = HashMap<Int, LineCartesianLayer.Line>()
+
+    /** Dots only, in the colour of one meterLevel(); smaller dots for the longer periods. */
+    private fun meterDotLine(level: Int): LineCartesianLayer.Line =
+        meterDotLines.getOrPut(level * 100 + meterDotDp.roundToInt()) {
+            val point = LineCartesianLayer.Point(
+                ShapeComponent(Fill(rangeColors[level]), CorneredShape.Pill, strokeFill = Fill(cCard), strokeThicknessDp = 1.5f),
+                sizeDp = meterDotDp,
+            )
+            LineCartesianLayer.Line(
+                fill = LineCartesianLayer.LineFill.single(Fill.Transparent),
+                pointProvider = LineCartesianLayer.PointProvider.single(point),
+            )
+        }
+
+    /** Time (ms) at chart position x. */
+    private fun timeAt(x: Double) = (chartStart + (x * chartUnit).roundToLong()) * 1000L
+
+    private fun timeLabel(x: Double): String = DateFormat.getTimeFormat(ctx).format(Date(timeAt(x)))
+
+    /** In the marker of a meter reading: numeric date and time, "11/12, 08:12". */
+    private fun dateTimeLabel(x: Double): String = DateUtils.formatDateTime(
+        ctx, timeAt(x),
+        DateUtils.FORMAT_SHOW_DATE or DateUtils.FORMAT_NUMERIC_DATE or DateUtils.FORMAT_NO_YEAR or DateUtils.FORMAT_SHOW_TIME,
+    )
+
+    /** Axis labels of the periods of days: day and month as numbers, "11/12" or "12.11.". */
+    private val dayFormat by lazy {
+        java.text.SimpleDateFormat(DateFormat.getBestDateTimePattern(Locale.getDefault(), "Md"), Locale.getDefault())
     }
+
+    /**
+     * These labels are a whole number of days before today's midnight, which is an hour
+     * off midnight across a daylight saving change: three hours later is the day meant.
+     */
+    private fun dayLabel(x: Double): String = dayFormat.format(Date(timeAt(x) + 3 * 3600_000L))
 
     /** Axis labels sit on whole hours: "10 PM" or "22" depending on the locale. */
     private val hourFormat by lazy {
@@ -536,8 +884,7 @@ class Dashboard private constructor(private val act: MainActivity) {
         java.text.SimpleDateFormat(pattern, Locale.getDefault())
     }
 
-    private fun hourLabel(x: Double): String =
-        hourFormat.format(Date((chartStart + (x * 60).roundToInt()) * 1000L))
+    private fun hourLabel(x: Double): String = hourFormat.format(Date(timeAt(x)))
 
     @SuppressLint("ClickableViewAccessibility")
     private fun setupChart() {
@@ -555,7 +902,9 @@ class Dashboard private constructor(private val act: MainActivity) {
         val bottomAxis = HorizontalAxis.bottom(
             line = LineComponent(Fill(cOutlineVariant), thicknessDp = 1f),
             label = axisText,
-            valueFormatter = CartesianValueFormatter { _: CartesianMeasuringContext, value: Double, _: Axis.Position.Vertical? -> hourLabel(value) },
+            valueFormatter = CartesianValueFormatter { _: CartesianMeasuringContext, value: Double, _: Axis.Position.Vertical? ->
+                if (dateLabels) dayLabel(value) else hourLabel(value)
+            },
             itemPlacer = HorizontalAxis.ItemPlacer.aligned(spacing = { labelSpacing }, offset = { labelOffset }),
         )
         val targetBand = HorizontalBox(
@@ -575,14 +924,22 @@ class Dashboard private constructor(private val act: MainActivity) {
                 if (target == null || point == null) "" else {
                     val y = point.entry.y
                     val text = if (mmol) String.format(Locale.getDefault(), "%.1f", y) else String.format(Locale.getDefault(), "%.0f", y)
-                    text + " · " + timeLabel(target.x)
+                    if (chartMeter) text + " " + unitLabel() + " · " + dateTimeLabel(target.x)
+                    else text + " · " + timeLabel(target.x)
                 }
             },
             labelPosition = DefaultCartesianMarker.LabelPosition.AbovePoint,
             guideline = LineComponent(Fill(cOutlineVariant), thicknessDp = 1f),
         )
         val layer = LineCartesianLayer(
-            lineProvider = { key, _, _ -> if (key == LAST_KEY) lastDotLine() else glucoseLine },
+            lineProvider = { key, _, _ ->
+                when (key) {
+                    LAST_KEY -> lastDotLine()
+                    METER_KEY -> meterLine
+                    in METER_DOT_KEYS -> meterDotLine(METER_DOT_KEYS.indexOf(key))
+                    else -> glucoseLine
+                }
+            },
             rangeProvider = rangeProvider,
         )
         vChart.chart = CartesianChart(
@@ -605,11 +962,19 @@ class Dashboard private constructor(private val act: MainActivity) {
     }
 
     private suspend fun showChart(d: Data) {
-        val r = d.recent
+        val r = d.plot
+        val meter = d.meterMode
         chartStart = d.start
+        chartUnit = d.xUnit
+        // Periods of days start a little early (meterStart), so they run up to now.
+        chartMaxX = if (d.hours <= 24) d.hours * 3600.0 / d.xUnit else ceil((d.now - d.start).toDouble() / d.xUnit)
+        chartMeter = meter
         val lowUnit = toUnit(targetLow.toDouble())
         val highUnit = toUnit(targetHigh.toDouble())
-        vChartCaption.text = ctx.getString(R.string.dash_chart_caption, fmt(targetLow.toDouble()), fmt(targetHigh.toDouble()), unitLabel())
+        vChartCaption.text = ctx.getString(
+            if (meter) R.string.dash_meter_chart_caption else R.string.dash_chart_caption,
+            fmt(targetLow.toDouble()), fmt(targetHigh.toDouble()), unitLabel(),
+        )
         val frameHeight = dp(if (r.size == 0) 150f else 260f)
         if (vChartFrame.layoutParams.height != frameHeight) {
             vChartFrame.layoutParams.height = frameHeight
@@ -625,27 +990,51 @@ class Dashboard private constructor(private val act: MainActivity) {
         vChartEmpty.visibility = View.GONE
         vChartCaption.visibility = View.VISIBLE
 
+        // Sensor values: a line, broken where values are missing. Meter readings: one thin
+        // line through all of them, and the readings again as dots per range colour.
         var dataMin = Double.MAX_VALUE
         var dataMax = -Double.MAX_VALUE
         val segments = ArrayList<Pair<List<Double>, List<Double>>>()
         var xs = ArrayList<Double>()
         var ys = ArrayList<Double>()
+        val dotXs = List(rangeColors.size) { ArrayList<Double>() }
+        val dotYs = List(rangeColors.size) { ArrayList<Double>() }
         var prevT = Long.MIN_VALUE
         for (i in 0 until r.size) {
             val t = r.time[i]
-            if (prevT != Long.MIN_VALUE && t - prevT > MAX_GAP_SEC && xs.isNotEmpty()) {
+            if (!meter && prevT != Long.MIN_VALUE && t - prevT > MAX_GAP_SEC && xs.isNotEmpty()) {
                 segments.add(xs to ys)
                 xs = ArrayList()
                 ys = ArrayList()
             }
             prevT = t
+            // A reading of this very minute (or from a meter whose clock runs ahead) stays on the chart's right edge.
+            val x = if (meter) min(chartMaxX, (t - d.start).toDouble() / d.xUnit) else ((t - d.start) / 60.0 * 100).roundToInt() / 100.0
             val y = toUnit(r.mgdl[i].toDouble())
             dataMin = min(dataMin, y)
             dataMax = max(dataMax, y)
-            xs.add(((t - d.start) / 60.0 * 100).roundToInt() / 100.0)
+            xs.add(x)
             ys.add(y)
+            if (meter) {
+                val level = meterLevel(r.mgdl[i])
+                dotXs[level].add(x)
+                dotYs[level].add(y)
+            }
         }
         if (xs.isNotEmpty()) segments.add(xs to ys)
+
+        // The larger dot on the newest value.
+        val newest = r.size - 1
+        dotColor = when {
+            meter -> rangeColors[meterLevel(r.mgdl[newest])]
+            d.now - r.time[newest] > STALE_SEC -> cOnSurfaceVariant
+            else -> statusColor(r.mgdl[newest])
+        }
+        meterDotDp = when {
+            d.hours <= 168 -> 10f
+            d.hours <= 720 -> 8f
+            else -> 7f
+        }
 
         // y range: data and target band, rounded to whole label steps
         val lo = min(dataMin, lowUnit)
@@ -657,31 +1046,89 @@ class Dashboard private constructor(private val act: MainActivity) {
         maxY = ceil((hi + pad) / step) * step
         if (maxY - minY < 3 * step) maxY = minY + 3 * step
 
-        // time labels on whole hours (every 1, 2, 3 or 4 hours)
-        val hoursPerLabel = when (d.hours) {
-            3 -> 1
-            6 -> 1
-            12 -> 3
-            else -> 4
+        if (d.hours <= 24) {
+            // time labels on whole hours (every 1, 2, 3 or 4 hours)
+            dateLabels = false
+            val hoursPerLabel = when (d.hours) {
+                3 -> 1
+                6 -> 1
+                12 -> 3
+                else -> 4
+            }
+            labelSpacing = hoursPerLabel * 3600 / d.xUnit
+            val cal = Calendar.getInstance()
+            cal.timeInMillis = d.start * 1000L
+            cal.set(Calendar.MINUTE, 0)
+            cal.set(Calendar.SECOND, 0)
+            cal.set(Calendar.MILLISECOND, 0)
+            while (cal.timeInMillis / 1000L < d.start || cal.get(Calendar.HOUR_OF_DAY) % hoursPerLabel != 0)
+                cal.add(Calendar.HOUR_OF_DAY, 1)
+            labelOffset = max(0, ((cal.timeInMillis / 1000L - d.start) / d.xUnit).toInt())
+        } else {
+            // date labels on midnights, counted back from today: every 2, 7 or 21 days
+            dateLabels = true
+            val daysPerLabel = when {
+                d.hours <= 168 -> 2
+                d.hours <= 720 -> 7
+                else -> 21
+            }
+            labelSpacing = daysPerLabel * 86400 / d.xUnit
+            labelOffset = ((startOfDay(d.now) - d.start) / d.xUnit).toInt() % labelSpacing
         }
-        labelSpacing = hoursPerLabel * 60
-        val cal = Calendar.getInstance()
-        cal.timeInMillis = d.start * 1000L
-        cal.set(Calendar.MINUTE, 0)
-        cal.set(Calendar.SECOND, 0)
-        cal.set(Calendar.MILLISECOND, 0)
-        while (cal.timeInMillis / 1000L < d.start || cal.get(Calendar.HOUR_OF_DAY) % hoursPerLabel != 0)
-            cal.add(Calendar.HOUR_OF_DAY, 1)
-        labelOffset = max(0, ((cal.timeInMillis / 1000L - d.start) / 60L).toInt())
 
-        val lastX = xs.lastOrNull() ?: segments.last().first.last()
-        val lastY = ys.lastOrNull() ?: segments.last().second.last()
+        val lastX = xs.last()
+        val lastY = ys.last()
         modelProducer.runTransaction {
             lineSeries {
-                for ((index, seg) in segments.withIndex()) series(seg.first, seg.second, key = index)
+                if (meter) {
+                    series(xs, ys, key = METER_KEY)
+                    for (level in dotXs.indices)
+                        if (dotXs[level].isNotEmpty()) series(dotXs[level], dotYs[level], key = METER_DOT_KEYS[level])
+                } else {
+                    for ((index, seg) in segments.withIndex()) series(seg.first, seg.second, key = index)
+                }
                 series(listOf(lastX), listOf(lastY), key = LAST_KEY)
             }
         }
+    }
+
+    // ---------------------------------------------------------------- meter readings
+
+    /** The latest finger-stick readings, newest first, whether a sensor is used or not. */
+    private fun showMeterList(d: Data) {
+        vMeterRows.removeAllViews()
+        val m = d.meter
+        vMeterCard.visibility = if (m.size == 0) View.GONE else View.VISIBLE
+        for (i in m.size - 1 downTo max(0, m.size - METER_LIST_ROWS)) vMeterRows.addView(meterRow(m.time[i], m.mgdl[i], d.now))
+    }
+
+    private fun meterRow(time: Long, mgdl: Float, now: Long): View {
+        val row = LinearLayout(ctx)
+        row.orientation = LinearLayout.HORIZONTAL
+        row.gravity = Gravity.CENTER_VERTICAL
+        row.setPadding(0, dp(8f), 0, dp(8f))
+        val dot = View(ctx)
+        dot.background = GradientDrawable().apply {
+            shape = GradientDrawable.OVAL
+            setColor(rangeColors[meterLevel(mgdl)])
+        }
+        row.addView(dot, LinearLayout.LayoutParams(dp(10f), dp(10f)).apply { marginEnd = dp(12f) })
+        val value = TextView(ctx)
+        value.setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_TitleMedium)
+        value.setTypeface(value.typeface, Typeface.BOLD)
+        value.setTextColor(cOnSurface)
+        value.text = fmt(mgdl.toDouble()) + " " + unitLabel()
+        row.addView(value, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        // The rest of the row, so a long date wraps instead of being cut off.
+        val taken = TextView(ctx)
+        taken.setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_BodyMedium)
+        taken.setTextColor(cOnSurfaceVariant)
+        taken.gravity = Gravity.END
+        taken.text = whenLabel(time, now)
+        row.addView(taken, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginStart = dp(12f) })
+        row.contentDescription = value.text.toString() + ", " + taken.text
+        row.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
+        return row
     }
 
     // ---------------------------------------------------------------- summary
@@ -709,23 +1156,8 @@ class Dashboard private constructor(private val act: MainActivity) {
             else if (days >= 1) res.getQuantityString(R.plurals.dash_summary_days, days + 1, days + 1)
             else (s.spanSec / 3600L).toInt().let { res.getQuantityString(R.plurals.dash_summary_hours, it, it) }
 
-        val pct = { f: Double -> (f * 100).roundToInt() }
-        vTirValue.text = String.format(Locale.getDefault(), "%d%%", pct(s.bands[2]))
-        vTirValue.setTextColor(cInRange)
         vTirLabel.text = ctx.getString(R.string.dash_tir_label, fmt(70.0), fmt(180.0), unitLabel())
-
-        val colors = intArrayOf(cVeryLow, cLow, cInRange, cHigh, cVeryHigh)
-        tirBar.set(s.bands, colors)
-
-        val names = intArrayOf(R.string.dash_band_very_low, R.string.dash_band_low, R.string.dash_band_in_range, R.string.dash_band_high, R.string.dash_band_very_high)
-        val ranges = arrayOf(
-            "< " + fmt(54.0),
-            fmt(54.0) + "–" + fmt(69.0),
-            fmt(70.0) + "–" + fmt(180.0),
-            fmt(181.0) + "–" + fmt(250.0),
-            "> " + fmt(250.0),
-        )
-        for (i in 4 downTo 0) vTirLegend.addView(legendRow(colors[i], ctx.getString(names[i]), ranges[i], pct(s.bands[i])))
+        showBands(s.bands)
 
         val gmiPercent = 3.31 + 0.02392 * s.meanMgdl
         val gmiMmolMol = 12.71 + 4.70587 * (s.meanMgdl / MGDL_PER_MMOL)
@@ -737,6 +1169,53 @@ class Dashboard private constructor(private val act: MainActivity) {
         vSummaryNote.text = ctx.getString(
             R.string.dash_summary_note,
             fmt(targetLow.toDouble()), fmt(targetHigh.toDouble()), unitLabel(), pct(s.inTarget), pct(s.coverage),
+        )
+    }
+
+    private fun pct(fraction: Double) = (fraction * 100).roundToInt()
+
+    /** The big in-range figure, the stacked bar and its legend: shares of time, or of meter readings. */
+    private fun showBands(bands: DoubleArray) {
+        vTirValue.text = String.format(Locale.getDefault(), "%d%%", pct(bands[2]))
+        vTirValue.setTextColor(cInRange)
+        tirBar.set(bands, rangeColors)
+
+        val names = intArrayOf(R.string.dash_band_very_low, R.string.dash_band_low, R.string.dash_band_in_range, R.string.dash_band_high, R.string.dash_band_very_high)
+        val ranges = arrayOf(
+            "< " + fmt(54.0),
+            fmt(54.0) + "–" + fmt(69.0),
+            fmt(70.0) + "–" + fmt(180.0),
+            fmt(181.0) + "–" + fmt(250.0),
+            "> " + fmt(250.0),
+        )
+        for (i in 4 downTo 0) vTirLegend.addView(legendRow(rangeColors[i], ctx.getString(names[i]), ranges[i], pct(bands[i])))
+    }
+
+    /**
+     * Meter mode: the last 30 days of finger-stick readings. Shares count readings, which
+     * are spot checks, so no GMI and no variability here; the note says what it is.
+     */
+    private fun showMeterSummary(s: MeterSummary?) {
+        vTirLegend.removeAllViews()
+        vMetrics.removeAllViews()
+        vSummaryCard.visibility = if (s == null) View.GONE else View.VISIBLE
+        if (s == null) return // too few readings to say anything
+        tirBar.visibility = View.VISIBLE
+        vSummaryNote.visibility = View.VISIBLE
+        vSummaryDivider.visibility = View.VISIBLE
+        vSummaryTitle.text = ctx.resources.getQuantityString(R.plurals.dash_summary_days, METER_SUMMARY_DAYS, METER_SUMMARY_DAYS)
+        vTirLabel.text = ctx.getString(R.string.dash_meter_tir_label, fmt(70.0), fmt(180.0), unitLabel())
+        showBands(s.bands)
+
+        // Four figures in one row: plain labels, the unit is in the line above.
+        vMetrics.addView(metric(fmt(s.meanMgdl), ctx.getString(R.string.dash_metric_average)))
+        vMetrics.addView(metric(String.format(Locale.getDefault(), "%d", s.count), ctx.getString(R.string.dash_metric_readings)))
+        vMetrics.addView(metric(fmt(s.lowestMgdl.toDouble()), ctx.getString(R.string.dash_metric_lowest)))
+        vMetrics.addView(metric(fmt(s.highestMgdl.toDouble()), ctx.getString(R.string.dash_metric_highest)))
+
+        vSummaryNote.text = ctx.getString(
+            R.string.dash_meter_summary_note,
+            s.count, fmt(targetLow.toDouble()), fmt(targetHigh.toDouble()), unitLabel(), pct(s.inTarget),
         )
     }
 
@@ -841,24 +1320,12 @@ class Dashboard private constructor(private val act: MainActivity) {
             v.setPadding(bars.left, bars.top, bars.right, bars.bottom)
             insets
         }
-        val group: MaterialButtonToggleGroup = content.findViewById(R.id.dash_hours)
-        group.check(buttonFor(hours))
-        group.addOnButtonCheckedListener { _, id, checked ->
-            if (!checked) return@addOnButtonCheckedListener
-            val h = when (id) {
-                R.id.dash_h3 -> 3
-                R.id.dash_h12 -> 12
-                R.id.dash_h24 -> 24
-                else -> 6
-            }
-            if (h != hours) {
-                hours = h
-                prefs.edit().putInt(PREF_HOURS, h).apply()
-                refresh(true)
-            }
-        }
+        showRangeButtons()
+        vHours.addOnButtonCheckedListener { _, id, checked -> if (checked) rangeChosen(id) }
         content.findViewById<View>(R.id.dash_fullgraph).setOnClickListener { showFullGraph(act) }
         content.findViewById<View>(R.id.dash_connect).setOnClickListener { Menus.openSensors(act) }
+        content.findViewById<View>(R.id.dash_add_meter).setOnClickListener { Menus.openMeters(act) }
+        content.findViewById<View>(R.id.dash_meter_all).setOnClickListener { Menus.openAmounts(act) }
         content.findViewById<View>(R.id.dash_q_sensors).setOnClickListener { Menus.openSensors(act) }
         content.findViewById<View>(R.id.dash_q_amount).setOnClickListener { Menus.openNewAmount(act) }
         content.findViewById<View>(R.id.dash_q_stats).setOnClickListener { Menus.openStatistics(act) }
@@ -870,7 +1337,19 @@ class Dashboard private constructor(private val act: MainActivity) {
     companion object {
         private const val LOG_ID = "Dashboard"
         private const val PREF_HOURS = "hours"
+        private const val PREF_METER_HOURS = "meter_hours"
+        private const val PREF_METER_MODE = "meter_mode"
         private val HOUR_CHOICES = intArrayOf(3, 6, 12, 24)
+        private val HOUR_LABELS = intArrayOf(R.string.dash_h3, R.string.dash_h6, R.string.dash_h12, R.string.dash_h24)
+
+        // Meter mode: 24 hours, 7, 30 and 90 days.
+        private val METER_HOUR_CHOICES = intArrayOf(24, 7 * 24, 30 * 24, 90 * 24)
+        private val METER_HOUR_LABELS = intArrayOf(R.string.dash_h24, R.string.dash_m7d, R.string.dash_m30d, R.string.dash_m90d)
+        private const val METER_DAYS = 90 // how far back meter readings are read
+        private const val METER_SUMMARY_DAYS = 30
+        private const val METER_SUMMARY_MIN = 3 // readings needed for a summary
+        private const val METER_LIST_ROWS = 5
+        private const val CLOCK_SLACK_SEC = 5 * 60L // a reading may be this far ahead of the phone's clock
         private const val SUMMARY_DAYS = 14
         private const val MGDL_PER_MMOL = 18.0182
         private const val MAX_GAP_SEC = 20 * 60L
@@ -879,6 +1358,8 @@ class Dashboard private constructor(private val act: MainActivity) {
         private const val TICK_MS = 30_000L
         private const val RELOAD_MS = 5 * 60_000L
         private const val LAST_KEY = "last"
+        private const val METER_KEY = "meter"
+        private val METER_DOT_KEYS: List<Any> = listOf("dot0", "dot1", "dot2", "dot3", "dot4") // per meterLevel()
 
         private var current: Dashboard? = null
 
