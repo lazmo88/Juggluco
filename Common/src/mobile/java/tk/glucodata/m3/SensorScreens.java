@@ -29,5 +29,7 @@ static void register() {
     /* Glucose meters list (Exchange data → Glucose Meters); phone-only class,
      * registered so other pages can link to it: PhoneUi.show("meters",act). */
     PhoneUi.register("meters",(act,args) -> tk.glucodata.MeterList.show(act,null));
+    /* MainActivity.onResume: readings of a shared meter that wait for "mine / not mine". */
+    PhoneUi.register("meterask",(act,args) -> tk.glucodata.MeterAsk.resume(act));
     }
 }

@@ -204,6 +204,20 @@ private boolean discover(BluetoothGatt bluetoothGatt) {
 
 long receivedTime=0L;
 boolean newvalues=false;
+/* A Glucose Measurement record to the native side, which saves it under the
+ * blood glucose label when it is newer than the last one of this meter.
+ * True: saved and measured just now. */
+boolean saveRecord(byte[] value) {
+    if(Natives.GlucoseMeterSave(meterIndex,value)) {
+        newvalues=true;
+        receivedTime=System.currentTimeMillis();
+        updateview();
+        Applic.app.redraw();
+        Applic.toGarmin(1);
+        return true;
+        }
+    return false;
+    }
     @Override
     public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
         final var value=characteristic.getValue();
@@ -212,13 +226,10 @@ boolean newvalues=false;
             Log.showbytes("Meter: onCharacteristicChanged "+uuid,value);
         switch(uuid) {
             case GlucoseCharUUID:
-                if(Natives.GlucoseMeterSave(meterIndex,value)) {
-                    newvalues=true;
-                    receivedTime=System.currentTimeMillis();
-                    updateview();
-                    Applic.app.redraw();
-                    Applic.toGarmin(1);
-                    }
+                /* MeterAsk: "Ask before saving readings" of a shared meter;
+                 * false (always when that is off): save as before. */
+                if(!MeterAsk.received(this,value))
+                    saveRecord(value);
                 break;
             case RecordsCharUUID:
                 if(Natives.recordCharacteristicChanged(value)) {
@@ -231,6 +242,7 @@ boolean newvalues=false;
                     newvalues=false;
                 receivedTime=System.currentTimeMillis();
                updateview();
+                MeterAsk.synced(this);
                 break;
             }
 
