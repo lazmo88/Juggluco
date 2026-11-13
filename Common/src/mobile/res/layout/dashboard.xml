@@ -85,17 +85,18 @@
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/dash_connect"
-                        android:layout_width="wrap_content"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="16dp"
                         android:text="@string/dash_connect_sensor"
                         app:icon="@drawable/ic_jm_sensors" />
 
-                    <!-- Below, not beside: the two labels do not fit one row on a 360dp phone -->
+                    <!-- Below, not beside: the two labels do not fit one row on a 360dp phone.
+                         Full width and outlined: a tonal button disappears on the tonal card. -->
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/dash_add_meter"
-                        style="@style/Widget.Material3.Button.TonalButton.Icon"
-                        android:layout_width="wrap_content"
+                        style="@style/Widget.Material3.Button.OutlinedButton.Icon"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="@string/dash_add_meter"
                         app:icon="@drawable/ic_jm_water_drop" />
@@ -158,59 +159,105 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- Quick actions -->
-        <HorizontalScrollView
+        <!-- Quick actions: four equal tiles, icon above label, so that all fit any phone width -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginStart="-16dp"
             android:layout_marginTop="8dp"
-            android:layout_marginEnd="-16dp"
-            android:clipToPadding="false"
-            android:paddingStart="16dp"
-            android:paddingEnd="16dp"
-            android:scrollbars="none">
+            android:baselineAligned="false"
+            android:orientation="horizontal">
 
-            <LinearLayout
-                android:layout_width="wrap_content"
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/dash_q_amount"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal">
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:maxLines="1"
+                android:minWidth="0dp"
+                android:paddingStart="4dp"
+                android:paddingTop="12dp"
+                android:paddingEnd="4dp"
+                android:paddingBottom="10dp"
+                android:text="@string/dash_q_amount"
+                android:textAppearance="?attr/textAppearanceLabelMedium"
+                app:cornerRadius="16dp"
+                app:icon="@drawable/ic_jm_add"
+                app:iconGravity="top"
+                app:iconPadding="4dp" />
 
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/dash_q_amount"
-                    style="@style/Widget.Material3.Button.TonalButton.Icon"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/dash_q_amount"
-                    app:icon="@drawable/ic_jm_add" />
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/dash_q_sensors"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:ellipsize="end"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:maxLines="1"
+                android:minWidth="0dp"
+                android:paddingStart="4dp"
+                android:paddingTop="12dp"
+                android:paddingEnd="4dp"
+                android:paddingBottom="10dp"
+                android:text="@string/dash_q_sensors"
+                android:textAppearance="?attr/textAppearanceLabelMedium"
+                app:cornerRadius="16dp"
+                app:icon="@drawable/ic_jm_sensors"
+                app:iconGravity="top"
+                app:iconPadding="4dp" />
 
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/dash_q_sensors"
-                    style="@style/Widget.Material3.Button.TonalButton.Icon"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
-                    android:text="@string/dash_q_sensors"
-                    app:icon="@drawable/ic_jm_sensors" />
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/dash_q_stats"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:ellipsize="end"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:maxLines="1"
+                android:minWidth="0dp"
+                android:paddingStart="4dp"
+                android:paddingTop="12dp"
+                android:paddingEnd="4dp"
+                android:paddingBottom="10dp"
+                android:text="@string/dash_q_stats"
+                android:textAppearance="?attr/textAppearanceLabelMedium"
+                app:cornerRadius="16dp"
+                app:icon="@drawable/ic_jm_bar_chart"
+                app:iconGravity="top"
+                app:iconPadding="4dp" />
 
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/dash_q_stats"
-                    style="@style/Widget.Material3.Button.TonalButton.Icon"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
-                    android:text="@string/dash_q_stats"
-                    app:icon="@drawable/ic_jm_bar_chart" />
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/dash_q_alarms"
-                    style="@style/Widget.Material3.Button.TonalButton.Icon"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
-                    android:text="@string/dash_q_alarms"
-                    app:icon="@drawable/ic_jm_notifications" />
-            </LinearLayout>
-        </HorizontalScrollView>
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/dash_q_alarms"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:ellipsize="end"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:maxLines="1"
+                android:minWidth="0dp"
+                android:paddingStart="4dp"
+                android:paddingTop="12dp"
+                android:paddingEnd="4dp"
+                android:paddingBottom="10dp"
+                android:text="@string/dash_q_alarms"
+                android:textAppearance="?attr/textAppearanceLabelMedium"
+                app:cornerRadius="16dp"
+                app:icon="@drawable/ic_jm_notifications"
+                app:iconGravity="top"
+                app:iconPadding="4dp" />
+        </LinearLayout>
 
         <!-- Recent chart -->
         <com.google.android.material.card.MaterialCardView

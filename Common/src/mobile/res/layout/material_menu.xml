@@ -147,14 +147,6 @@
                 style="@style/Juggluco.M3.Tile"
                 android:text="@string/photo"
                 app:icon="@drawable/ic_jm_photo_camera" />
-
-            <!-- keeps the single tile at half width -->
-            <Space
-                android:layout_width="0dp"
-                android:layout_height="0dp"
-                android:layout_marginStart="4dp"
-                android:layout_marginEnd="4dp"
-                android:layout_weight="1" />
         </LinearLayout>
 
         <!-- Data -->

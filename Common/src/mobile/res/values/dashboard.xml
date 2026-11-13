@@ -10,7 +10,7 @@
     <string name="dash_empty_detail">Connect a sensor, or add a Bluetooth glucose meter: its finger-stick readings appear here as soon as the meter sends them.</string>
     <string name="dash_connect_sensor">Connect sensor</string>
     <string name="dash_add_meter">Add glucose meter</string>
-    <string name="dash_q_amount">Add amount</string>
+    <string name="dash_q_amount">Amount</string>
     <string name="dash_q_sensors">Sensors</string>
     <string name="dash_q_stats">Statistics</string>
     <string name="dash_q_alarms">Alarms</string>
