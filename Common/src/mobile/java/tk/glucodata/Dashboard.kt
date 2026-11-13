@@ -238,6 +238,7 @@ class Dashboard private constructor(private val act: MainActivity) {
     private val vTrend: TextView = content.findViewById(R.id.dash_trend)
     private val vDetail: TextView = content.findViewById(R.id.dash_detail)
     private val vEmpty: View = content.findViewById(R.id.dash_empty)
+    private val vBloodBox: View = content.findViewById(R.id.dash_blood_box)
     private val vValueRow: View = content.findViewById(R.id.dash_value_row)
     private val vChartFrame: View = content.findViewById(R.id.dash_chart_frame)
     private val vSummaryCard: View = content.findViewById(R.id.dash_summary_card)
@@ -408,6 +409,15 @@ class Dashboard private constructor(private val act: MainActivity) {
             Log.stack(LOG_ID, "amountsStamp", th)
         }
         return stamp
+    }
+
+    /** Whether a label is set as blood glucose (Settings, Calibration); the meter page sets it too. */
+    private fun bloodLabelSet(): Boolean = try {
+        val blood = Natives.getbloodvar().toInt()
+        blood >= 0 && blood < (Natives.getLabels()?.size ?: 0)
+    } catch (th: Throwable) {
+        Log.stack(LOG_ID, "bloodLabelSet", th)
+        true // no hint rather than a wrong one
     }
 
     /**
@@ -622,6 +632,7 @@ class Dashboard private constructor(private val act: MainActivity) {
             latestTime = 0
             latestIsMeter = false
             vEmpty.visibility = View.VISIBLE
+            vBloodBox.visibility = if (bloodLabelSet()) View.GONE else View.VISIBLE
             vValueRow.visibility = View.GONE
             vStatus.visibility = View.GONE
             vTrend.visibility = View.GONE
@@ -1334,6 +1345,7 @@ class Dashboard private constructor(private val act: MainActivity) {
         content.findViewById<View>(R.id.dash_fullgraph).setOnClickListener { showFullGraph(act) }
         content.findViewById<View>(R.id.dash_connect).setOnClickListener { Menus.openSensors(act) }
         content.findViewById<View>(R.id.dash_add_meter).setOnClickListener { Menus.openMeters(act) }
+        content.findViewById<View>(R.id.dash_blood_label).setOnClickListener { Menus.openCalibration(act) }
         content.findViewById<View>(R.id.dash_meter_all).setOnClickListener { Menus.openAmounts(act) }
         content.findViewById<View>(R.id.dash_q_sensors).setOnClickListener { Menus.openSensors(act) }
         content.findViewById<View>(R.id.dash_q_amount).setOnClickListener { Menus.openNewAmount(act) }

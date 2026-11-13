@@ -102,6 +102,32 @@
                         android:text="@string/dash_add_meter"
                         app:icon="@drawable/ic_jm_water_drop"
                         app:iconGravity="textStart" />
+
+                    <!-- Only while no label is set as blood glucose: amounts entered by hand
+                         cannot be recognised as finger-stick readings until then. -->
+                    <LinearLayout
+                        android:id="@+id/dash_blood_box"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:orientation="vertical"
+                        android:visibility="gone">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/dash_blood_hint"
+                            android:textAppearance="?attr/textAppearanceBodySmall"
+                            android:textColor="?attr/colorOnSurfaceVariant" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/dash_blood_label"
+                            style="@style/Widget.Material3.Button.TextButton"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="-12dp"
+                            android:text="@string/dash_blood_label" />
+                    </LinearLayout>
                 </LinearLayout>
 
                 <LinearLayout

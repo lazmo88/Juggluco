@@ -277,6 +277,9 @@ static private void fromDashboard(MainActivity act,Runnable run) {
 static public void openSensors(MainActivity act) {
     fromDashboard(act,() -> bluediag.start(act));
     }
+static public void openCalibration(MainActivity act) {
+    fromDashboard(act,() -> tk.glucodata.settings.CalibrationPage.show(act));
+    }
 static public void openAlarms(MainActivity act) {
     fromDashboard(act,() -> tk.glucodata.settings.AlarmsPage.show(act));
     }

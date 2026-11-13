@@ -7,6 +7,8 @@
     <string name="dash_full_graph">Full graph</string>
     <string name="dash_no_reading">No reading yet</string>
     <string name="dash_no_reading_detail">Connect a sensor from Menu → Sensors.</string>
+    <string name="dash_blood_hint">Entering finger-stick values by hand? Choose which label holds them, and they appear here too.</string>
+    <string name="dash_blood_label">Choose blood glucose label</string>
     <string name="dash_empty_detail">Connect a sensor, or add a Bluetooth glucose meter: its finger-stick readings appear here as soon as the meter sends them.</string>
     <string name="dash_connect_sensor">Connect sensor</string>
     <string name="dash_add_meter">Add glucose meter</string>
