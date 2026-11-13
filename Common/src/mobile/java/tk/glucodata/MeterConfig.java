@@ -34,7 +34,8 @@ import tk.glucodata.m3.M3Page;
 
 /*
  * Settings of one glucose meter as a Material 3 page: from which date/time
- * readings are added, the label for blood glucose, Save, "Don't use"
+ * readings are added, the label for blood glucose, "Ask before saving
+ * readings" for a shared meter (MeterAsk), Save, "Don't use"
  * (the old Cancel button: makes the meter inactive) and Delete.
  * Back closes without saving.  Same Natives calls as before.
  */
@@ -76,6 +77,46 @@ static void config(MainActivity context,int meterIndex,View parent,BluetoothDevi
         bloodpos[0]=i;
         Natives.setbloodvar((byte)i);
         });
+
+    /* Shared meter: ask which readings are the user's before saving (MeterAsk). */
+    final String meter=Natives.GlucoseMeterDeviceName(meterIndex);
+    if(meter!=null) {
+        LinearLayout shared=page.section(R.string.jm_meterask_section);
+        final boolean[] wantOff={false};
+        page.toggle(shared,R.drawable.ic_jm_person,context.getString(R.string.jm_meterask_toggle),context.getString(R.string.jm_meterask_toggle_summary),() -> MeterAsk.enabled(meter),on -> {
+            if(!on&&MeterAsk.pendingCount(meter)>0) {
+                /* Not off while readings wait, they would be saved or lost
+                 * unseen: ask now, and it goes off once they are chosen. */
+                wantOff[0]=true;
+                shared.post(page::refresh); // the switch back on
+                MeterAsk.show(context,meter,() -> {
+                    wantOff[0]=false;
+                    page.toast(context.getString(R.string.jm_meterask_still_on));
+                    });
+                return;
+                }
+            wantOff[0]=false;
+            MeterAsk.setEnabled(meter,on);
+            });
+        SensorUi.summaryLines(shared.getChildAt(shared.getChildCount()-1),4);
+        final ViewGroup waiting=page.item(shared,R.drawable.ic_jm_inbox,context.getString(R.string.jm_meterask_choose),null,() -> MeterAsk.show(context,meter,null));
+        final Runnable showWaiting=() -> {
+            final int n=MeterAsk.pendingCount(meter);
+            waiting.setVisibility(n>0?View.VISIBLE:View.GONE);
+            M3Page.setSummary(waiting,context.getResources().getQuantityString(R.plurals.jm_meterask_waiting,n,n));
+            };
+        showWaiting.run();
+        page.refresher(showWaiting);
+        MeterAsk.onChanged(() -> {
+            if(wantOff[0]&&MeterAsk.pendingCount(meter)==0) {
+                wantOff[0]=false;
+                MeterAsk.setEnabled(meter,false);
+                }
+            if(page.isOpen())
+                page.refresh();
+            });
+        page.onClose(() -> MeterAsk.onChanged(null));
+        }
 
     page.bottomBar(
         page.button(M3Page.Style.TONAL,context.getString(R.string.jm_sensors_dont_use),0,() -> {

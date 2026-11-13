@@ -975,6 +975,7 @@ static boolean tocalendarapp=false;
         else
             {if(doLog) {Log.d(LOG_ID,"onResume no setnfc");};};
         }
+    PhoneUi.show("meterask",this); // phone: readings of a shared glucose meter waiting to be chosen (MeterAsk)
 
      return;
     }

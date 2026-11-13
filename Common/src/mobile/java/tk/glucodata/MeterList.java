@@ -98,6 +98,8 @@ static final class MeterView {
                     addtext+="\n"+context.getString(gatt.newvalues?R.string.newdata:R.string.nonewdata)+": "+bluediag.datestr(gatt.receivedTime);
                 }
             }
+        if(MeterAsk.enabled(name))
+            addtext+="\n"+context.getString(R.string.jm_meterask_list_on);
         M3Page.setTitle(row,name!=null?name:"?");
         M3Page.setSummary(row,addtext.trim());
         active.setContentDescription(context.getString(R.string.active));
@@ -143,6 +145,9 @@ static public void show(MainActivity act,View parent) {
     fill.run();
     page.refresher(fill);
     page.buttons(null,page.button(M3Page.Style.FILLED,act.getString(R.string.finddevices).replace("\"",""),R.drawable.ic_jm_add,() -> DeviceList.show(act,page::refresh)));
+    /* TEST ONLY - DO NOT MERGE: fake sync of the meter TESTMETER (MeterAskTest). */
+    page.buttons(null,page.button(M3Page.Style.OUTLINED,"TEST fake sync",0,() -> MeterAskTest.fakeSync(act,false)),
+        page.button(M3Page.Style.OUTLINED,"TEST resend last",0,() -> MeterAskTest.fakeSync(act,true)));
     page.onClose(() -> {
         BluetoothGlucoseMeter.zeroViews();
         if(current==page)
