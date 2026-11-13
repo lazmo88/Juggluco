@@ -105,6 +105,10 @@ static public void themeChanged(MainActivity act) {
     if(launcher!=null)
         attachLauncher(act);
     if(menuOpen) {
+        /* Reopen the menu where it was, so the Appearance choice stays in view. */
+        final View old=sheet.findViewById(R.id.jm_root);
+        if(old!=null&&old.getParent() instanceof View)
+            restoreScroll=((View)old.getParent()).getScrollY();
         leavingForScreen=true;
         dismissSheet();
         leavingForScreen=false;
@@ -335,6 +339,9 @@ static private void toggle(View root,int id,boolean checked,CompoundButton.OnChe
     b.setOnCheckedChangeListener(listener);
     }
 
+/* Scroll position for the next menu (theme change rebuilds it); -1: top. */
+static private int restoreScroll=-1;
+
 static private void showNow(MainActivity act) {
     final Context ctx=themed(act);
     final BottomSheetDialog dialog=new BottomSheetDialog(ctx);
@@ -395,11 +402,16 @@ static private void showNow(MainActivity act) {
         tk.glucodata.Watch.show(act);
         }));
     click(view,R.id.jm_mirror,v -> toScreen(() -> (new Backup()).mkbackupview(act)));
+    click(view,R.id.jm_meter,v -> toScreen(() -> {
+        act.lightBars(!getInvertColors());
+        if(!PhoneUi.show("meters",act)) // Bluetooth blood glucose meters
+            bluediag.start(act);
+        }));
     View photo=view.findViewById(R.id.jm_photo);
     if(tk.glucodata.BuildConfig.SiBionics==1)
         photo.setOnClickListener(v -> toScreen(() -> PhotoScan.scan(act,REQUEST_BARCODE)));
     else
-        photo.setVisibility(View.INVISIBLE);
+        view.findViewById(R.id.jm_photo_row).setVisibility(View.GONE);
 
     // Data
     click(view,R.id.jm_newamount,v -> {
@@ -505,6 +517,7 @@ static private void showNow(MainActivity act) {
     if(appearance!=null) {
         final int[] ids={R.id.jm_appearance_system,R.id.jm_appearance_light,R.id.jm_appearance_dark};
         appearance.check(ids[tk.glucodata.m3.ThemeMode.get(act)]);
+        tk.glucodata.m3.M3Page.checkMarks(appearance);
         appearance.addOnButtonCheckedListener((group,id,isChecked) -> {
             if(!isChecked)
                 return;
@@ -540,5 +553,10 @@ static private void showNow(MainActivity act) {
 
     view.setAccessibilityDelegate(Layout.accessDeli);
     dialog.show();
+    if(restoreScroll>0) {
+        final int y=restoreScroll;
+        view.post(() -> view.scrollTo(0,y));
+        }
+    restoreScroll=-1;
     }
 };

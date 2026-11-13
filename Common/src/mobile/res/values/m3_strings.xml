@@ -25,6 +25,8 @@
     <string name="jm_talk_no_voices">No voices installed for this language</string>
     <string name="jm_talk_media">Use media volume</string>
     <string name="jm_talk_media_summary">Speak through the media stream instead of notifications</string>
+    <string name="jm_meter">Glucose meter</string>
+    <string name="jm_close_app">Close app</string>
     <string name="jm_appearance">Appearance</string>
     <string name="jm_appearance_system">System</string>
 </resources>

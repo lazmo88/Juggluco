@@ -598,7 +598,33 @@ public MaterialButtonToggleGroup segmented(LinearLayout parent,@Nullable CharSeq
                 set.set(i);
         });
     box.addView(group,new LinearLayout.LayoutParams(MATCH_PARENT,WRAP_CONTENT));
+    if(items.length<=3)
+        checkMarks(group);
     return group;
+    }
+
+/* Material 3 segmented buttons mark the selected segment with a check, so the
+ * choice does not depend on the fill colour alone.  For groups of up to three
+ * segments; with more there is no room next to the text. */
+public static void checkMarks(MaterialButtonToggleGroup group) {
+    final Runnable mark=() -> {
+        for(int i=0;i<group.getChildCount();i++) {
+            View child=group.getChildAt(i);
+            if(!(child instanceof MaterialButton))
+                continue;
+            MaterialButton b=(MaterialButton)child;
+            if(b.isChecked()) {
+                b.setIconResource(R.drawable.ic_jm_check);
+                b.setIconGravity(MaterialButton.ICON_GRAVITY_TEXT_START);
+                b.setIconSize(Math.round(18*b.getResources().getDisplayMetrics().density));
+                b.setIconPadding(Math.round(4*b.getResources().getDisplayMetrics().density));
+                }
+            else
+                b.setIcon(null);
+            }
+        };
+    mark.run();
+    group.addOnButtonCheckedListener((g,id,isChecked) -> mark.run());
     }
 
 /* ---------- fields ---------- */
