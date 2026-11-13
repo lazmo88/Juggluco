@@ -1,10 +1,12 @@
 #include "jugglucotext.hpp"
 #ifdef INJUGGLUCO
 #ifndef WEAROS
-constexpr static std::string_view labels[]={"Carbohydra",
+/* At most 11 characters (settings.hpp: char name[12]); whole words, so that
+ * nothing looks cut off.  Only used for a new installation. */
+constexpr static std::string_view labels[]={"Carbs",
 "Dextro",
-"Fast Insuli",
-"Long Insuli",
+"Fast-acting",
+"Long-acting",
 "Bike",
 "Walk",
 "Blood"};

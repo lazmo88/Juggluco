@@ -43,7 +43,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:ellipsize="end"
-            android:maxLines="2"
+            android:maxLines="4"
             android:padding="0dp"
             android:textAlignment="viewStart"
             android:textAppearance="?attr/textAppearanceBodyMedium"

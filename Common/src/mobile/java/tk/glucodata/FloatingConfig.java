@@ -113,11 +113,15 @@ static public void show(MainActivity act) {
     /* Size */
     LinearLayout look=page.section(R.string.jm_alerts_section_look);
     final int height=GlucoseCurve.getheight();
-    final int maxfont=Math.max(6,height*7/10);
     int currentfont=Natives.getfloatingFontsize();
     if(currentfont<5||currentfont>(int)(screenheight*.8)) {
         currentfont=(int)Notify.glucosesize;
         }
+    /* The value may be as high as 70% of the screen height, but a slider over
+     * that whole range leaves the usable sizes in its first few millimetres.
+     * It goes up to a third of the screen's shorter side (the value then
+     * fills the width), or to the current size when that is larger. */
+    final int maxfont=Math.max(Math.max(6,currentfont),Math.min(height*7/10,Math.min(GlucoseCurve.getwidth(),height)/3));
     page.slider(look,act.getString(R.string.fontsize),5,maxfont,1,currentfont,v -> String.format(Locale.getDefault(),"%d",Math.round(v)),v -> {
         Natives.setfloatingFontsize(Math.round(v));
         rewritefloating(act);
