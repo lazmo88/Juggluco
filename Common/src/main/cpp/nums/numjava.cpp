@@ -24,8 +24,28 @@
 #include "net/clarity/clarity.hpp"
 #include "fromjava.h"
 extern vector<Numdata*> numdatas;
+extern std::mutex healthNumRegistryMutex;
+#include "nums/healthblood.hpp"
+#include <limits>
+
+extern "C" JNIEXPORT jlongArray JNICALL fromjava(healthConnectBloodSnapshot)(JNIEnv *env, jclass thiz) {
+    std::lock_guard<std::mutex> registry(healthNumRegistryMutex);
+    if(!settings||!settings->data())return nullptr;
+    const int blood=settings->data()->bloodvar;
+    const int unit=settings->data()->unit;
+    if(blood<0||blood>=settings->getlabelcount())return nullptr;
+    std::vector<int64_t> values;
+    if(!healthBloodSnapshot(numdatas,unit,blood,values))return nullptr;
+    if(blood!=settings->data()->bloodvar||unit!=settings->data()->unit)return nullptr;
+    if(values.size()>size_t(std::numeric_limits<jsize>::max()))return nullptr;
+    const std::vector<jlong> jvalues(values.begin(),values.end());
+    jlongArray out=env->NewLongArray(static_cast<jsize>(values.size()));
+    if(out)env->SetLongArrayRegion(out,0,static_cast<jsize>(jvalues.size()),jvalues.data());
+    return out;
+}
 
 extern "C" JNIEXPORT void JNICALL fromjava(closeNums)(JNIEnv *env, jclass thiz,jlong ptr) {
+	std::lock_guard<std::mutex> registry(healthNumRegistryMutex);
 	Numdata *numdata=reinterpret_cast<Numdata *>(ptr);
 	claritynumsremove(numdata);
 	for (auto it = numdatas.begin(); it != numdatas.end(); ++it) {
@@ -42,6 +62,8 @@ extern "C" JNIEXPORT jlong JNICALL fromjava(getident)(JNIEnv *env, jclass thiz,j
 	}
 extern "C" JNIEXPORT void JNICALL fromjava(setident)(JNIEnv *env, jclass thiz,jlong ptr,jlong ident) {
 	Numdata *numdata=reinterpret_cast<Numdata *>(ptr);
+	std::lock_guard<std::mutex> lock(numdata->nummutex);
+	if(ident!=numdata->getnewident()&&!numdata->invalidateHealthInventory())return;
 	return numdata->setnewident(ident);
 	}
 extern "C" JNIEXPORT void JNICALL fromjava(saveNumpos)(JNIEnv *env, jclass thiz,jlong ptr,jint pos,jlong time,jfloat value,int type,int meal) {
@@ -55,6 +77,9 @@ extern "C" JNIEXPORT jint JNICALL fromjava(getfirstNum)(JNIEnv *env, jclass thiz
 	 }
 extern "C" JNIEXPORT void JNICALL fromjava(setfirstNum)(JNIEnv *env, jclass thiz,jlong ptr,jint pos) {
 	Numdata *numdata=reinterpret_cast<Numdata *>(ptr);
+	std::lock_guard<std::mutex> lock(numdata->nummutex);
+	if(pos<0||size_t(pos)>numdata->capacity())return;
+	if(pos!=numdata->getfirstpos()&&!numdata->invalidateHealthInventory())return;
 	 numdata->setfirstpos(pos);
 	 }
 extern "C" JNIEXPORT jint JNICALL fromjava(getlastNum)(JNIEnv *env, jclass thiz,jlong ptr) {
@@ -67,20 +92,32 @@ extern "C" JNIEXPORT jint JNICALL fromjava(getlastpolledNum)(JNIEnv *env, jclass
 	 }
 extern "C" JNIEXPORT void JNICALL fromjava(setlastpolledNum)(JNIEnv *env, jclass thiz,jlong ptr,jint pos) {
 	Numdata *numdata=reinterpret_cast<Numdata *>(ptr);
+	std::lock_guard<std::mutex> lock(numdata->nummutex);
+	if(pos<0||size_t(pos)>numdata->capacity())return;
+	if(!numdata->getindex()&&pos<numdata->getlastpos()&&!numdata->invalidateHealthInventory())return;
 	 numdata->setlastpolledpos(pos);
 	if(!numdata->getindex())
 	 	numdata->setlastpos(pos);
 	 }
 extern "C" JNIEXPORT void JNICALL fromjava(setlastNum)(JNIEnv *env, jclass thiz,jlong ptr,jint pos) {
 	Numdata *numdata=reinterpret_cast<Numdata *>(ptr);
+	std::lock_guard<std::mutex> lock(numdata->nummutex);
+	if(pos<0||size_t(pos)>numdata->capacity())return;
+	if(pos<numdata->getlastpos()&&!numdata->invalidateHealthInventory())return;
 	 numdata->setlastpos(pos);
 	 }
 extern "C" JNIEXPORT void JNICALL fromjava(updatedNum)(JNIEnv *env, jclass thiz,jlong ptr,jint pos) {
 	Numdata *numdata=reinterpret_cast<Numdata *>(ptr);
+	std::lock_guard<std::mutex> lock(numdata->nummutex);
+	if(pos<0||size_t(pos)>numdata->capacity())return;
+	if(numdata->getindex()==0&&pos<numdata->getlastpos()&&!numdata->invalidateHealthInventory())return;
 	 numdata->updated(pos);
 	 }
 extern "C" JNIEXPORT void JNICALL fromjava(updatedNumstartend)(JNIEnv *env, jclass thiz,jlong ptr,jint start,jint end) {
 	Numdata *numdata=reinterpret_cast<Numdata *>(ptr);
+	std::lock_guard<std::mutex> lock(numdata->nummutex);
+	if(start<0||end<start||size_t(end)>numdata->capacity())return;
+	if(numdata->getindex()==0&&end<numdata->getlastpos()&&!numdata->invalidateHealthInventory())return;
 	LOGGER("updatedNumstartend %d %d\n",start,end);
 	 numdata->updated(start,end);
 	 }

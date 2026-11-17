@@ -1,3 +1,5 @@
+> **Experimental Material 3 fork:** [preview, synthetic screenshots and limitations](docs/material3-preview/README.md) · [ARM64 preview release](https://github.com/lazmo88/Juggluco/releases/tag/material3-preview-20261117). Not an official or production-approved Juggluco release. The original project documentation follows below.
+
 ![value](valuemmolL.png)
 # Juggluco
 Libre 2/2+/3/3+, Sibionics GS1, Dexcom G7/1+, Accu-Chek, CareSensAir, Aidex X

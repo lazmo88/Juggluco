@@ -65,7 +65,118 @@ extern "C" JNIEXPORT jbyteArray JNICALL   fromjava(careSenseTimeCMD)(JNIEnv *env
 extern void addCalibration(uint32_t tim,int type,Num *num,const Numdata *numdata) ;
 extern void    setnumchanged(uint32_t tim);
 
+// Lock order: MeterAsk Java lock -> meterImportMutex -> Numdata::nummutex.
+// No callback to Java while either native mutex is held. Ordinary saves and
+// clock/cursor accesses use the same meter lock as explicit accepted imports.
+static std::mutex meterImportMutex;
+
+#include "importbinding.hpp"
+#include "legacymatch.hpp"
+extern std::vector<Numdata*> numdatas;
+extern std::mutex healthNumRegistryMutex;
+
+// Read-only recovery aid for an Add accepted by an older version without a
+// conversion binding. Returns {expected corrected time, then (time,slot,unit)*}
+// for live blood-label rows within +-window seconds whose value equals this
+// record converted to mmol/L (unit 1) or mg/dL (unit 2). Null: cannot check.
+extern "C" JNIEXPORT jlongArray JNICALL fromjava(GlucoseMeterLegacyMatches)(JNIEnv *env,jclass,jint meterIndex,jbyteArray raw,jint window) {
+    if(!raw||window<0||window>7*86400)return nullptr;
+    const auto n=env->GetArrayLength(raw);
+    if(n<14||size_t(n)>meterbinding::maxRaw)return nullptr;
+    std::array<uint8_t,meterbinding::maxRaw> bytes{};
+    env->GetByteArrayRegion(raw,0,n,reinterpret_cast<jbyte*>(bytes.data()));
+    if(env->ExceptionCheck())return nullptr;
+    int64_t expected;float mmol,mg;uint32_t blood;
+    {
+        std::lock_guard<std::mutex> lock(meterImportMutex);
+        const auto *meter=settings->data()->getGlucoseMeter(meterIndex);
+        MeterData glu{};
+        if(!meter||!meterbinding::packet(bytes.data(),n,glu))return nullptr;
+        expected=int64_t(glu.time.getLocaltime())+int64_t(meter->timeoffset)+int64_t(glu.getTimeoffset())*60;
+        blood=settings->data()->bloodvar;
+        if(expected<=0||expected>UINT32_MAX||blood>=uint32_t(maxvarnr)||
+           !meterbinding::convertedValue(glu,1,mmol)||!meterbinding::convertedValue(glu,2,mg))return nullptr;
+    }
+    std::vector<legacymatch::Hit> hits;
+    {
+        // Same order as the Health Connect snapshot: registry, then per-store nummutex.
+        std::lock_guard<std::mutex> registry(healthNumRegistryMutex);
+        if(!legacymatch::find(numdatas,blood,uint32_t(expected),uint32_t(window),mmol,mg,hits))return nullptr;
+    }
+    std::vector<jlong> out{jlong(expected)};
+    for(const auto &hit:hits) {out.push_back(hit.time);out.push_back(hit.slot);out.push_back(hit.unit);}
+    jlongArray result=env->NewLongArray(jsize(out.size()));
+    if(result)env->SetLongArrayRegion(result,0,jsize(out.size()),out.data());
+    return env->ExceptionCheck()?nullptr:result;
+}
+
+extern "C" JNIEXPORT jbyteArray JNICALL fromjava(GlucoseMeterPrepareAccepted)(JNIEnv *env,jclass,jint meterIndex,jbyteArray raw) {
+    std::lock_guard<std::mutex> lock(meterImportMutex);
+    if(!raw)return nullptr;
+    const auto n=env->GetArrayLength(raw);
+    if(n<14||size_t(n)>meterbinding::maxRaw)return nullptr;
+    const auto *meter=settings->data()->getGlucoseMeter(meterIndex);
+    if(!meter)return nullptr;
+    std::array<uint8_t,meterbinding::maxRaw> bytes{};
+    env->GetByteArrayRegion(raw,0,n,reinterpret_cast<jbyte*>(bytes.data()));
+    if(env->ExceptionCheck())return nullptr;
+    std::vector<uint8_t> bound;
+    if(!meterbinding::prepare(bytes.data(),n,*meter,bound))return nullptr;
+    jbyteArray result=env->NewByteArray(bound.size());
+    if(!result)return nullptr;
+    env->SetByteArrayRegion(result,0,bound.size(),reinterpret_cast<const jbyte*>(bound.data()));
+    return env->ExceptionCheck()?nullptr:result;
+}
+
+extern "C" JNIEXPORT jlong JNICALL fromjava(GlucoseMeterCorrectedTime)(JNIEnv *env,jclass,jint meterIndex,jbyteArray raw) {
+    std::lock_guard<std::mutex> lock(meterImportMutex);
+    if(!raw)return -1;
+    const auto length=env->GetArrayLength(raw);
+    if(length<14||size_t(length)>meterbinding::maxRaw)return -1;
+    const auto *meter=settings->data()->getGlucoseMeter(meterIndex);
+    if(!meter)return -1;
+    std::array<uint8_t,meterbinding::maxRaw> bytes{};
+    env->GetByteArrayRegion(raw,0,length,reinterpret_cast<jbyte*>(bytes.data()));
+    if(env->ExceptionCheck())return -1;
+    std::vector<uint8_t> binding;
+    if(!meterbinding::prepare(bytes.data(),length,*meter,binding))return -1;
+    return meterbinding::get(binding.data()+4);
+}
+
+extern "C" JNIEXPORT jint JNICALL fromjava(GlucoseMeterImportAccepted)(JNIEnv *env,jclass,jint meterIndex,jbyteArray raw,jbyteArray binding) {
+    std::lock_guard<std::mutex> lock(meterImportMutex);
+    if(settings->staticnum()||!raw||!binding)return int(MeterImportReceipt::Rejected);
+    const auto length=env->GetArrayLength(raw),boundLength=env->GetArrayLength(binding);
+    if(length<14||size_t(length)>meterbinding::maxRaw||boundLength<104||size_t(boundLength)>meterbinding::maxSize)
+        return int(MeterImportReceipt::Rejected);
+    auto *meter=settings->data()->getGlucoseMeter(meterIndex);
+    if(!meter)return int(MeterImportReceipt::Rejected);
+    std::array<uint8_t,meterbinding::maxRaw> bytes{};
+    std::array<uint8_t,meterbinding::maxSize> bound{};
+    // No VM-critical array across a mutex wait or synchronous mapped flush.
+    env->GetByteArrayRegion(raw,0,length,reinterpret_cast<jbyte*>(bytes.data()));
+    env->GetByteArrayRegion(binding,0,boundLength,reinterpret_cast<jbyte*>(bound.data()));
+    if(env->ExceptionCheck())return int(MeterImportReceipt::Rejected);
+    uint32_t tim,blood;float value;
+    if(!meterbinding::consume(bytes.data(),length,bound.data(),boundLength,*meter,tim,value,blood))
+        return int(MeterImportReceipt::Rejected);
+    auto *numda=getherenums();
+    if(!numda)return int(MeterImportReceipt::Rejected);
+    const auto receipt=numda->importAcceptedMeter(tim,value,blood);
+    if(receipt==MeterImportReceipt::Rejected)return int(receipt);
+    const uint16_t sequence=uint16_t(bytes[1])|(uint16_t(bytes[2])<<8);
+    if(tim>meter->lastTime) {
+        meter->lastTime=tim;
+        meter->nextIndex=uint16_t(sequence+1);
+    }
+    // Explicit historical import never initiates current-value calibration.
+    if(backup)backup->wakebackup(wakenums);
+    setnumchanged(uint32_t(time(nullptr)));
+    return int(receipt);
+}
+
 extern "C" JNIEXPORT jboolean JNICALL   fromjava(GlucoseMeterSave)(JNIEnv *env, jclass cl,jint meterIndex,jbyteArray value) {
+    std::lock_guard<std::mutex> lock(meterImportMutex);
     if(settings->staticnum()) {
         LOGAR("GlucoseMeterSave: staticnum don't save");
         return false;
@@ -115,10 +226,10 @@ extern "C" JNIEXPORT jboolean JNICALL   fromjava(GlucoseMeterSave)(JNIEnv *env, 
                     setnumchanged(now);
                     ret=true;
                     }
+                meter->nextIndex=uint16_t(glu->index+1);
+                meter->lastTime=timcorrected;
                 }
             }
-        meter->nextIndex=glu->index+1;
-        meter->lastTime=timcorrected;
     }
     return ret;
     }
@@ -139,6 +250,7 @@ extern "C" JNIEXPORT jboolean JNICALL   fromjava(GlucoseMeterProcessContext)(JNI
     }
 
 extern "C" JNIEXPORT jboolean JNICALL   fromjava(GlucoseMeterSaveTime)(JNIEnv *env, jclass cl,jint meterIndex,jbyteArray value) {
+    std::lock_guard<std::mutex> lock(meterImportMutex);
     const auto arlen=env->GetArrayLength(value);
     if(arlen<7) {
         LOGGER("GlucoseMeterSaveTime length (%d) <7\n",arlen);
@@ -161,6 +273,7 @@ extern "C" JNIEXPORT jboolean JNICALL   fromjava(GlucoseMeterSaveTime)(JNIEnv *e
     return true;
     }
 extern "C" JNIEXPORT jbyteArray JNICALL   fromjava(getGlucoseMeterNewCMD)(JNIEnv *env, jclass cl,jint meterIndex) {
+    std::lock_guard<std::mutex> lock(meterImportMutex);
     GlucoseMeter *meter= settings->data()->getGlucoseMeter(meterIndex);
     if(!meter) {
         LOGGER("getGlucoseMeterNewCMD no meter at %d\n",meterIndex);
@@ -178,6 +291,7 @@ extern "C" JNIEXPORT jbyteArray JNICALL   fromjava(getGlucoseMeterNewCMD)(JNIEnv
 //Contour7802H6195553                   
 extern int newGlucoseMeter(std::string_view scangegs);
 int newGlucoseMeter(std::string_view scangegs) {
+    std::lock_guard<std::mutex> lock(meterImportMutex);
         const int len=scangegs.size();
         if(len!=12) {
                 LOGGER("newGlucoseMeter wrongsize %d %s\n",len,scangegs.data());
@@ -256,6 +370,7 @@ void deviceAddressBytes( const char *address, uint8_t*uit) {
     sscanf(address,"%hhX:%hhX:%hhX:%hhX:%hhX:%hhX",uit,uit+1,uit+2,uit+3,uit+4,uit+5);
     }
 extern "C" JNIEXPORT jint  JNICALL   fromjava(GlucoseMeterGetIndex)(JNIEnv *env, jclass cl,jstring jdeviceName,jstring jaddress) {
+    std::lock_guard<std::mutex> lock(meterImportMutex);
         uint8_t address[8]{};
         bool hasaddress=false;
         if(jaddress) {
@@ -282,9 +397,11 @@ extern "C" JNIEXPORT jint  JNICALL   fromjava(GlucoseMeterGetIndex)(JNIEnv *env,
         return -1;
         }
 extern "C" JNIEXPORT jboolean  JNICALL   fromjava(GlucoseMeterRemoveIndex)(JNIEnv *env, jclass cl,jint index) {
+    std::lock_guard<std::mutex> lock(meterImportMutex);
         return settings->data()->removeGlucoseMeter(index);
         }
 extern "C" JNIEXPORT jboolean  JNICALL   fromjava(GlucoseMeterRemove)(JNIEnv *env, jclass cl,jstring jdeviceName,jstring jaddress) {
+    std::lock_guard<std::mutex> lock(meterImportMutex);
         uint8_t address[6];
         bool hasaddress=false;
         if(jaddress) {
@@ -339,6 +456,7 @@ static bool isAidexX(const char *name) {
     }
 #if 0 
 extern "C" JNIEXPORT jintArray  JNICALL   fromjava(getActiveGlucoseMeters)(JNIEnv *env, jclass cl) {
+    std::lock_guard<std::mutex> lock(meterImportMutex);
         const uint32_t nr=settings->data()->glucoseMeterNR;
         jint meters[nr];
         int used=0;
@@ -353,6 +471,7 @@ extern "C" JNIEXPORT jintArray  JNICALL   fromjava(getActiveGlucoseMeters)(JNIEn
 	}
 #else
 extern "C" JNIEXPORT jintArray  JNICALL   fromjava(getActiveGlucoseMeters)(JNIEnv *env, jclass cl) {
+    std::lock_guard<std::mutex> lock(meterImportMutex);
     const uint32_t nr=settings->data()->glucoseMeterNR;
     LOGGER("getActiveGlucoseMeters nr=%d\n",nr);
     jint meters[nr];
@@ -385,6 +504,7 @@ extern "C" JNIEXPORT jstring  JNICALL   fromjava(GlucoseMeterDeviceName)(JNIEnv 
          return nullptr;
          }
 extern "C" JNIEXPORT jlong  JNICALL   fromjava(GlucoseMeterGetLastTime)(JNIEnv *env, jclass cl,jint meterIndex) {
+    std::lock_guard<std::mutex> lock(meterImportMutex);
         if(const GlucoseMeter *meter= settings->data()->getGlucoseMeter(meterIndex)) {
                 #ifndef NOLOG
                 time_t tim= meter->lastTime;
@@ -395,6 +515,7 @@ extern "C" JNIEXPORT jlong  JNICALL   fromjava(GlucoseMeterGetLastTime)(JNIEnv *
          return 0LL;
          }
 extern "C" JNIEXPORT void  JNICALL   fromjava(GlucoseMeterSetLastTime)(JNIEnv *env, jclass cl,jint meterIndex,jlong lasttime) {
+    std::lock_guard<std::mutex> lock(meterImportMutex);
         if(GlucoseMeter *meter= settings->data()->getGlucoseMeter(meterIndex)) {
                  meter->nextIndex=0;
                  meter->active=true;

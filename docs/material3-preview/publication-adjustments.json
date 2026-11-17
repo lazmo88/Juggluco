@@ -1,0 +1,10 @@
+{
+  "changes": [
+    {
+      "path": "Common/src/test/MAIN_MENU_TILE_TESTS.md",
+      "build_time_sha256": "9c75a452ad8263d79714d94fa8ab37fe3e508fc53e485196af7adb5008cca98e",
+      "published_sha256": "64684b3ea0d24ff9320e7e6e35ad80bc72c154717e0271e0615795f0b24bea2f",
+      "reason": "Removed an unnecessary workstation account path from test documentation after publication-hygiene review. No application code or resource change."
+    }
+  ]
+}

@@ -45,31 +45,31 @@
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/jm_weekback"
-                        style="@style/Juggluco.M3.TimeButton"
+                        style="@style/Juggluco.M3.MenuTimeButton"
                         android:text="@string/week_back"
                         app:icon="@drawable/ic_jm_keyboard_double_arrow_left" />
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/jm_dayback"
-                        style="@style/Juggluco.M3.TimeButton"
+                        style="@style/Juggluco.M3.MenuTimeButton"
                         android:text="@string/day_back"
                         app:icon="@drawable/ic_jm_chevron_left" />
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/jm_now"
-                        style="@style/Juggluco.M3.TimeButton"
+                        style="@style/Juggluco.M3.MenuTimeButton"
                         android:text="@string/now"
                         app:icon="@drawable/ic_jm_schedule" />
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/jm_daylater"
-                        style="@style/Juggluco.M3.TimeButton"
+                        style="@style/Juggluco.M3.MenuTimeButton"
                         android:text="@string/day_later"
                         app:icon="@drawable/ic_jm_chevron_right" />
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/jm_weeklater"
-                        style="@style/Juggluco.M3.TimeButton"
+                        style="@style/Juggluco.M3.MenuTimeButton"
                         android:text="@string/week_later"
                         app:icon="@drawable/ic_jm_keyboard_double_arrow_right" />
                 </LinearLayout>
@@ -82,13 +82,13 @@
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/jm_date"
-                        style="@style/Juggluco.M3.Tile"
+                        style="@style/Juggluco.M3.MenuTile"
                         android:text="@string/date"
                         app:icon="@drawable/ic_jm_calendar_month" />
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/jm_search"
-                        style="@style/Juggluco.M3.Tile"
+                        style="@style/Juggluco.M3.MenuTile"
                         android:text="@string/search"
                         app:icon="@drawable/ic_jm_search" />
                 </LinearLayout>
@@ -107,13 +107,13 @@
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/jm_sensor"
-                style="@style/Juggluco.M3.Tile"
+                style="@style/Juggluco.M3.MenuTile"
                 android:text="@string/sensor"
                 app:icon="@drawable/ic_jm_sensors" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/jm_meter"
-                style="@style/Juggluco.M3.Tile"
+                style="@style/Juggluco.M3.MenuTile"
                 android:text="@string/jm_meter"
                 app:icon="@drawable/ic_jm_bloodtype" />
         </LinearLayout>
@@ -125,13 +125,13 @@
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/jm_watch"
-                style="@style/Juggluco.M3.Tile"
+                style="@style/Juggluco.M3.MenuTile"
                 android:text="@string/watches"
                 app:icon="@drawable/ic_jm_watch" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/jm_mirror"
-                style="@style/Juggluco.M3.Tile"
+                style="@style/Juggluco.M3.MenuTile"
                 android:text="@string/mirror"
                 app:icon="@drawable/ic_jm_sync_alt" />
         </LinearLayout>
@@ -144,7 +144,7 @@
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/jm_photo"
-                style="@style/Juggluco.M3.Tile"
+                style="@style/Juggluco.M3.MenuTile"
                 android:text="@string/photo"
                 app:icon="@drawable/ic_jm_photo_camera" />
         </LinearLayout>
@@ -161,13 +161,13 @@
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/jm_newamount"
-                style="@style/Juggluco.M3.Tile"
+                style="@style/Juggluco.M3.MenuTile"
                 android:text="@string/new_amount"
                 app:icon="@drawable/ic_jm_add_circle" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/jm_list"
-                style="@style/Juggluco.M3.Tile"
+                style="@style/Juggluco.M3.MenuTile"
                 android:text="@string/list"
                 app:icon="@drawable/ic_jm_list" />
         </LinearLayout>
@@ -179,13 +179,13 @@
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/jm_statistics"
-                style="@style/Juggluco.M3.Tile"
+                style="@style/Juggluco.M3.MenuTile"
                 android:text="@string/statistics"
                 app:icon="@drawable/ic_jm_bar_chart" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/jm_export"
-                style="@style/Juggluco.M3.Tile"
+                style="@style/Juggluco.M3.MenuTile"
                 android:text="@string/export"
                 app:icon="@drawable/ic_jm_ios_share" />
         </LinearLayout>
@@ -348,13 +348,13 @@
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/jm_settings"
-                style="@style/Juggluco.M3.Tile"
+                style="@style/Juggluco.M3.MenuTile"
                 android:text="@string/settings"
                 app:icon="@drawable/ic_jm_settings" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/jm_talk"
-                style="@style/Juggluco.M3.Tile"
+                style="@style/Juggluco.M3.MenuTile"
                 android:text="@string/talk"
                 app:icon="@drawable/ic_jm_record_voice_over" />
         </LinearLayout>
@@ -366,13 +366,13 @@
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/jm_chatgpt"
-                style="@style/Juggluco.M3.Tile"
+                style="@style/Juggluco.M3.MenuTile"
                 android:text="@string/jgchat_chatgpt"
                 app:icon="@drawable/ic_jm_chat" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/jm_about"
-                style="@style/Juggluco.M3.Tile"
+                style="@style/Juggluco.M3.MenuTile"
                 android:text="@string/aboutname"
                 app:icon="@drawable/ic_jm_info" />
         </LinearLayout>

@@ -937,6 +937,26 @@ extern "C" JNIEXPORT jboolean JNICALL fromjava(showlastscan)(JNIEnv *env, jclass
 
 extern int statusbarheight;
 extern int statusbarleft,statusbarright;
+// Called on the GL thread; presentation only, no persisted settings.
+extern "C" JNIEXPORT void JNICALL fromjava(detailedGraphStyle)(JNIEnv *,jclass,jboolean enabled,jint surface,jint ink,jint grid,jint accent) {
+    const auto rgba=[](jint c) { return nvgRGBA((c>>16)&255,(c>>8)&255,c&255,(uint32_t)c>>24); };
+    appcurve.detailedPhone=enabled;
+    appcurve.legacyPhoneFrame=false;
+    appcurve.detailedSurface=rgba(surface);
+    appcurve.detailedInk=rgba(ink);
+    appcurve.detailedGrid=rgba(grid);
+    appcurve.detailedAccent=rgba(accent);
+    appcurve.detailedStart.store(0);
+    appcurve.detailedFrame.store(false);
+    if(appcurve.surfacewidth>0 && appcurve.surfaceheight>0)
+        appcurve.resizescreen(appcurve.surfacewidth,appcurve.surfaceheight,0);
+}
+extern "C" JNIEXPORT jlongArray JNICALL fromjava(detailedGraphState)(JNIEnv *env,jclass) {
+    jlong values[]={appcurve.detailedStart.load(),appcurve.detailedEnd.load(),appcurve.detailedHasContent.load()?1L:0L,appcurve.detailedFrame.load()?1L:0L};
+    auto result=env->NewLongArray(4);
+    if(result) env->SetLongArrayRegion(result,0,4,values);
+    return result;
+}
 extern "C" JNIEXPORT void JNICALL fromjava(systembar)(JNIEnv *env, jclass thiz,jint left,jint top,jint right,jint bottom) {
  appcurve.setSystemBars(left,top,right,bottom);
  }

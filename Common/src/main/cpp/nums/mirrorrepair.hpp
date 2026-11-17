@@ -11,6 +11,7 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include "num.h"
+#include "healthsource.hpp"
 
 namespace numrepair {
 inline constexpr uint32_t pending=0x52504d4e;
@@ -69,9 +70,27 @@ inline void prepare(const std::string &base,const char *file,size_t minimum) {
     const size_t count=std::max(minimum,size_t(end)+16+4096);
     if(count>size_t(PTRDIFF_MAX)/sizeof(Num))errno=EOVERFLOW;
     require(count<=size_t(PTRDIFF_MAX)/sizeof(Num),"size replacement",file);
-    // Mark the operation before truncating. Startup can repeat it if interrupted.
-    require(pwrite(original.fd,&pending,sizeof(pending),markerOffset)==sizeof(pending)&&
-        fsync(original.fd)==0,"mark mirror truncation",file);
+    // Journal a new Health Connect scope BEFORE touching auxiliary files or
+    // logical coverage. Repeating after a crash may advance again; retaining an
+    // old scope after a destructive repair would incorrectly prove deletion.
+    require(!get(header,markerOffset)||interrupted,"unknown repair marker",file);
+    put(header,markerOffset,pending);
+    healthblood::SourceToken token;
+    require(healthblood::sourceToken(header.data(),header.size(),true,token,
+        [](void *p,size_t n) {
+            Fd random(open("/dev/urandom",O_RDONLY));
+            if(random.fd<0)return false;
+            size_t done=0;
+            while(done<n) {
+                const auto got=read(random.fd,static_cast<unsigned char*>(p)+done,n-done);
+                if(got<0&&errno==EINTR)continue;
+                if(got<=0)return false;
+                done+=size_t(got);
+            }
+            return true;
+        },[&]() {
+            return pwrite(original.fd,header.data(),header.size(),0)==ssize_t(header.size())&&fsync(original.fd)==0;
+        }),"mark mirror repair scope",file);
     trim(base+"/libreids.dat",count*8);
     trim(base+"/librechanged.dat",count*4);
     trim(base+"/changetimes.dat",count*4);

@@ -1,0 +1,66 @@
+[
+  {
+    "file": "images/01-dashboard-dark.png",
+    "sha256": "6634aadcd717a5eece62ae033d1a4190731ee863bd52852bf4bed7fbdfb5773e",
+    "raw_emulator_png_sha256": "1ad599e79272d3ace6c972a740a4dea51a6772bb0d18a6d3e8cca8ec95f765c5",
+    "synthetic_only": true,
+    "modification": "Added 100px disclosure banner above unmodified screenshot pixels",
+    "emulator_apk_sha256": "e0d05fbcd724d8a9bec745cb770901302deee07423af71251900d19cc2be3871"
+  },
+  {
+    "file": "images/08-dashboard-light.png",
+    "sha256": "4327d73444652f42d5133ae32a138dcf59481f11384515a2da86a8fbe68c77f1",
+    "raw_emulator_png_sha256": "27720f07385e0c71cf726720024c10c7d07f9457f9ef8e3f9427b41af027e1c0",
+    "synthetic_only": true,
+    "modification": "Added 100px disclosure banner above unmodified screenshot pixels",
+    "emulator_apk_sha256": "e0d05fbcd724d8a9bec745cb770901302deee07423af71251900d19cc2be3871"
+  },
+  {
+    "file": "images/02-summary-dark.png",
+    "sha256": "3a3ece04feb26f179a38a63cd5fdf7f3817cbd53e9b7c2dfec5c3de964c6ba87",
+    "raw_emulator_png_sha256": "7db8309d49a952462dad3ad23a4d5235d3da99c6d6e3e844794a299376f155ed",
+    "synthetic_only": true,
+    "modification": "Added 100px disclosure banner above unmodified screenshot pixels",
+    "emulator_apk_sha256": "e0d05fbcd724d8a9bec745cb770901302deee07423af71251900d19cc2be3871"
+  },
+  {
+    "file": "images/03-menu-dark.png",
+    "sha256": "754b6bb27bca82af22d6f0d007003e35441e4456e6093eb11eb3f29092346509",
+    "raw_emulator_png_sha256": "2d3c5a1bd979e289897dab50142351689d7c9f30c94c033f0916fa1c11e18cb2",
+    "synthetic_only": true,
+    "modification": "Added 100px disclosure banner above unmodified screenshot pixels",
+    "emulator_apk_sha256": "e0d05fbcd724d8a9bec745cb770901302deee07423af71251900d19cc2be3871"
+  },
+  {
+    "file": "images/05-shared-meter-dark.png",
+    "sha256": "018909a9a25f569fb61922c816b4bcde8786046bd273cbf64610d8c28ee407e6",
+    "raw_emulator_png_sha256": "11868348248823fc34302ab79bba01c935fc188f1c9bb10c7dd63de0c9e35209",
+    "synthetic_only": true,
+    "modification": "Added 100px disclosure banner above unmodified screenshot pixels",
+    "emulator_apk_sha256": "e0d05fbcd724d8a9bec745cb770901302deee07423af71251900d19cc2be3871"
+  },
+  {
+    "file": "images/06-full-graph-dark.png",
+    "sha256": "67f7a45b9b2f5fb03539c2d5d8c12c562cf644a3342498b28c896ffe52dacf5e",
+    "raw_emulator_png_sha256": "ff314a983e1e9dfa38a92733b4276aed55377da887d09fff2278c1e8445c14d1",
+    "synthetic_only": true,
+    "modification": "Added 100px disclosure banner above unmodified screenshot pixels",
+    "emulator_apk_sha256": "e0d05fbcd724d8a9bec745cb770901302deee07423af71251900d19cc2be3871"
+  },
+  {
+    "file": "images/07-health-connect-dark.png",
+    "sha256": "8bb8f42ff6a4112ec3a644e897c6b528c1a69561536c199c7a6fb8ff2829ff03",
+    "raw_emulator_png_sha256": "c3bc3326b247ec110a9e4afffda6038c901e2df2faff28af45354267738f4d9d",
+    "synthetic_only": true,
+    "modification": "Added 100px disclosure banner above unmodified screenshot pixels",
+    "emulator_apk_sha256": "e0d05fbcd724d8a9bec745cb770901302deee07423af71251900d19cc2be3871"
+  },
+  {
+    "file": "images/12-meals-light.png",
+    "sha256": "478dd822b5056c5cef43f06f024835de5754cad6cc302e883168dcee8c047a6a",
+    "raw_emulator_png_sha256": "a598f1263367d7e5ce8d43277e63139c3a408ffbbbc4ea77fbef7441ff903470",
+    "synthetic_only": true,
+    "modification": "Added 100px disclosure banner above unmodified screenshot pixels",
+    "emulator_apk_sha256": "e0d05fbcd724d8a9bec745cb770901302deee07423af71251900d19cc2be3871"
+  }
+]

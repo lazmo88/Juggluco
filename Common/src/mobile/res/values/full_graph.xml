@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="fg_title">Glucose graph</string>
+    <string name="fg_dashboard">Back to dashboard</string>
+    <string name="fg_previous">Previous period</string>
+    <string name="fg_next">Next period</string>
+    <string name="fg_date">Choose graph date</string>
+    <string name="fg_now">Now</string>
+    <string name="fg_empty_title">No readings in this period</string>
+    <string name="fg_empty_body">Choose another date or add a device below. To show hidden data, open the menu and look under Show on graph.</string>
+    <string name="fg_gestures">Drag to explore · Pinch to zoom · Hold a reading for details</string>
+    <string name="fg_legend">%1$s · Shading: your target range</string>
+    <string name="fg_empty_gestures">Drag or use the arrows to explore another period</string>
+    <string name="fg_empty_legend">%1$s · No data shown</string>
+    <string name="fg_sensors">Sensors</string>
+    <string name="fg_meters">Glucose meters</string>
+    <string name="fg_mmol">mmol/L</string>
+    <string name="fg_mgdl">mg/dL</string>
+</resources>

@@ -318,14 +318,20 @@ class Dashboard private constructor(private val act: MainActivity) {
         val show = shouldShow()
         val wanted = if (show) View.VISIBLE else View.GONE
         if (root.visibility != wanted) root.visibility = wanted
+        FullGraph.update(!show && !Menus.inScreen)
         handler.removeCallbacks(tick)
         val active = show && root.isAttachedToWindow
         if (active) {
             act.lightBars(!dark)
+            // The dashboard paints its own opaque strip behind the navigation bar; Android's
+            // extra contrast scrim drew a second, differently coloured band on top of it.
+            if (Build.VERSION.SDK_INT >= 29) act.window.isNavigationBarContrastEnforced = false
             ViewCompat.requestApplyInsets(content)
             // Back from another screen: amounts may have been added, changed or deleted there.
             refresh(!wasActive)
             handler.postDelayed(tick, TICK_MS)
+        } else if (wasActive && Build.VERSION.SDK_INT >= 29) {
+            act.window.isNavigationBarContrastEnforced = true // other screens keep the system default
         }
         wasActive = active
     }
@@ -1209,7 +1215,10 @@ class Dashboard private constructor(private val act: MainActivity) {
             fmt(181.0) + "–" + fmt(250.0),
             "> " + fmt(250.0),
         )
-        for (i in 4 downTo 0) vTirLegend.addView(legendRow(rangeColors[i], ctx.getString(names[i]), ranges[i], pct(bands[i])))
+        // Range figures line up in one column: every name gets the width of the widest.
+        val probe = TextView(ctx).apply { setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_BodyMedium) }
+        val nameWidth = names.maxOf { kotlin.math.ceil(probe.paint.measureText(ctx.getString(it))).toInt() }
+        for (i in 4 downTo 0) vTirLegend.addView(legendRow(rangeColors[i], ctx.getString(names[i]), ranges[i], pct(bands[i]), nameWidth))
     }
 
     /**
@@ -1242,7 +1251,7 @@ class Dashboard private constructor(private val act: MainActivity) {
 
     private fun dp(v: Float) = (v * ctx.resources.displayMetrics.density).roundToInt()
 
-    private fun legendRow(col: Int, name: String, range: String, percent: Int): View {
+    private fun legendRow(col: Int, name: String, range: String, percent: Int, nameWidth: Int): View {
         val row = LinearLayout(ctx)
         row.orientation = LinearLayout.HORIZONTAL
         row.gravity = Gravity.CENTER_VERTICAL
@@ -1257,7 +1266,11 @@ class Dashboard private constructor(private val act: MainActivity) {
         label.setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_BodyMedium)
         label.setTextColor(cOnSurface)
         label.text = name
-        row.addView(label, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        label.maxLines = 1
+        // Never wider than ~45% of the row, so long translations cannot push the figures off.
+        val cap = (ctx.resources.displayMetrics.widthPixels * 0.45f).toInt()
+        row.addView(label, LinearLayout.LayoutParams(min(nameWidth + dp(2f), cap), ViewGroup.LayoutParams.WRAP_CONTENT))
+        label.ellipsize = android.text.TextUtils.TruncateAt.END
         val rangeView = TextView(ctx)
         rangeView.setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_BodySmall)
         rangeView.setTextColor(cOnSurfaceVariant)
@@ -1328,17 +1341,124 @@ class Dashboard private constructor(private val act: MainActivity) {
         }
     }
 
+    // ---------------------------------------------------------------- pull to refresh
+
+    private lateinit var pull: HealthConnectPullContainer
+    private var refreshing: Job? = null
+    private val pullIndicator = com.google.android.material.progressindicator.CircularProgressIndicator(ctx).apply {
+        isIndeterminate = false
+        max = 100
+        indicatorSize = dp(28f)
+        trackThickness = dp(3f)
+        setPadding(dp(6f), dp(6f), dp(6f), dp(6f))
+        background = GradientDrawable().apply {
+            shape = GradientDrawable.OVAL
+            setColor(color(com.google.android.material.R.attr.colorSurfaceContainerHigh, Color.LTGRAY))
+        }
+        elevation = 6f * ctx.resources.displayMetrics.density
+        visibility = View.GONE
+        importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+    }
+    private val topScrim = View(ctx).apply { setBackgroundColor(cSurface); importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO }
+    private val bottomScrim = View(ctx).apply { setBackgroundColor(cSurface); importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO }
+
+    private fun setHeight(v: View, h: Int) {
+        val lp = v.layoutParams ?: return
+        if (lp.height != h) { lp.height = h; v.layoutParams = lp }
+    }
+
+    private fun pullProgress(fraction: Float) {
+        if (refreshing?.isActive == true) return
+        if (fraction <= 0f) { pullIndicator.visibility = View.GONE; return }
+        pullIndicator.isIndeterminate = false
+        pullIndicator.setProgressCompat((fraction * 100).roundToInt(), false)
+        pullIndicator.alpha = 0.4f + 0.6f * fraction
+        pullIndicator.visibility = View.VISIBLE
+    }
+
+    /**
+     * Reload what is stored, ask paired meters that are not connected to hand over new
+     * readings, and, if the user turned the export on, sync saved readings to Health
+     * Connect. Readings themselves are never changed here.
+     */
+    private fun pullRefresh() {
+        if (refreshing?.isActive == true) return
+        pull.setBusy(true)
+        pullIndicator.isIndeterminate = true
+        pullIndicator.alpha = 1f
+        pullIndicator.visibility = View.VISIBLE
+        root.announceForAccessibility(ctx.getString(R.string.dash_refreshing))
+        refreshing = scope.launch {
+            var meters = 0
+            var meterResult: MeterLink.Outcome? = null
+            var exported = false
+            try {
+                val fetch = withContext(Dispatchers.Default) { BluetoothGlucoseMeter.startFetch() }
+                meters = fetch?.meters?.size ?: 0
+                refresh(true)
+                if (fetch != null) {
+                    // Bounded wait for every asked meter to answer (records or "none new").
+                    // A direct attempt to a sleeping meter gives up on its own after ~30 s.
+                    val until = SystemClock.elapsedRealtime() + METER_WAIT_MS
+                    while (SystemClock.elapsedRealtime() < until && !fetch.settled()) kotlinx.coroutines.delay(500)
+                    meterResult = fetch.outcome()
+                    refresh(true)
+                }
+                if (Build.VERSION.SDK_INT >= 28 && Natives.gethealthConnect()) {
+                    exported = true
+                    HealthConnection.requestSync(act).join()
+                }
+                refresh(true)
+            } catch (th: Throwable) {
+                if (th is kotlinx.coroutines.CancellationException) throw th
+                Log.stack(LOG_ID, "pullRefresh", th)
+            } finally {
+                pull.setBusy(false)
+                pullIndicator.visibility = View.GONE
+                pullIndicator.isIndeterminate = false
+            }
+            val meterText = when (meterResult) {
+                MeterLink.Outcome.NEW -> R.string.dash_meter_new
+                MeterLink.Outcome.NONE -> R.string.dash_meter_none
+                MeterLink.Outcome.SENDING -> R.string.dash_meter_sending
+                MeterLink.Outcome.UNREACHED -> R.string.dash_meter_unreached
+                null -> 0
+            }
+            val msg = when {
+                exported -> R.string.dash_refreshed_synced
+                meters > 0 -> R.string.dash_refreshed_meters
+                else -> R.string.dash_refreshed
+            }
+            val text = if (meterText != 0) ctx.getString(meterText) + "\n" + ctx.getString(if (exported) R.string.dash_refreshed_synced else R.string.dash_refreshed) else ctx.getString(msg)
+            root.announceForAccessibility(text)
+            Applic.argToaster(act, text, if (meterText != 0) android.widget.Toast.LENGTH_LONG else android.widget.Toast.LENGTH_SHORT)
+        }
+    }
+
     // Last, so every property above is initialised before setupChart() uses it.
     init {
         root.isClickable = true // keep touches away from the graph underneath
         root.setBackgroundColor(cSurface)
         root.addView(content)
         content.findViewById<FrameLayout>(R.id.dash_tir_bar).addView(tirBar)
-        val scroll = content
+        val scroll = content as androidx.core.widget.NestedScrollView
         val density = ctx.resources.displayMetrics.density
+        // Pull down at the top: reload, ask paired meters for new readings, and (when the
+        // export is on) sync saved readings to Health Connect. Shared, tested dispatch owner.
+        pull = HealthConnectPullContainer.wrap(scroll, { pullRefresh() }, { fraction -> pullProgress(fraction) })
+        pull.exclude(vChartFrame) // a finger on the chart reads values; it is not a pull
+        root.addView(pullIndicator, FrameLayout.LayoutParams(dp(40f), dp(40f), Gravity.TOP or Gravity.CENTER_HORIZONTAL))
+        // Opaque strips behind the status and navigation bars: cards never show through
+        // the clock or the gesture/button bar while scrolling.
+        root.addView(topScrim, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, Gravity.TOP))
+        root.addView(bottomScrim, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, Gravity.BOTTOM))
         ViewCompat.setOnApplyWindowInsetsListener(scroll) { v, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
             v.setPadding(bars.left, bars.top, bars.right, bars.bottom)
+            setHeight(topScrim, bars.top)
+            setHeight(bottomScrim, bars.bottom)
+            (pullIndicator.layoutParams as FrameLayout.LayoutParams).topMargin = bars.top + dp(12f)
+            pullIndicator.requestLayout()
             insets
         }
         showRangeButtons()
@@ -1379,6 +1499,7 @@ class Dashboard private constructor(private val act: MainActivity) {
         private const val DUPLICATE_SEC = 30L
         private const val TICK_MS = 30_000L
         private const val RELOAD_MS = 5 * 60_000L
+        private const val METER_WAIT_MS = 20_000L // pull: how long asked meters may take to answer
         private const val LAST_KEY = "last"
         private const val METER_KEY = "meter"
         private val METER_DOT_KEYS: List<Any> = listOf("dot0", "dot1", "dot2", "dot3", "dot4") // per meterLevel()
@@ -1422,6 +1543,11 @@ class Dashboard private constructor(private val act: MainActivity) {
 
         @JvmStatic
         fun isDashboard(view: View) = view is Root
+
+        @JvmStatic
+        fun returnToDashboard(act: MainActivity) {
+            if (fullGraph) act.backinapp()
+        }
 
         /** Switch to the native graph; Back comes back to the dashboard. */
         @JvmStatic

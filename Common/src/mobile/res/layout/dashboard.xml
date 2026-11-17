@@ -485,6 +485,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
+                    android:baselineAligned="false"
                     android:gravity="bottom"
                     android:orientation="horizontal">
 
@@ -492,7 +493,7 @@
                         android:id="@+id/dash_tir_value"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:includeFontPadding="false"
+                        android:includeFontPadding="true"
                         android:textAppearance="?attr/textAppearanceDisplaySmall"
                         android:textStyle="bold" />
 

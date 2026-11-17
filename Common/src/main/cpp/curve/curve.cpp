@@ -865,6 +865,7 @@ extern vector<NumDisplay*> numdatas;
 
 
  bool    JCurve::glucosepointinfo(NVGcontext* avg,time_t tim,uint32_t value,   float posx, float posy) {
+    if(!inDetailedClip(posx,posy)) return false; // do not select an off-plot neighbour
     if((!selshown&&nearby(posx-tapx,posy-tapy,density))) {
         constexpr int maxbuf=60;
         char buf[maxbuf];
@@ -1355,6 +1356,7 @@ void JCurve::setstarttime(uint32_t newstart) {
         }
     }
 uint32_t JCurve::maxstarttime() {
+    if(detailedGraphActive()) return time(nullptr)-0.91*duration;
     float duraf=((float)valuesize/dwidth);
     CURVELOGGER("dwidth=%f valuesize=%f duraf=%f\n",(double)dwidth,(double)valuesize,(double)duraf);
     float subtr=0.91 - duraf*1.2f;
@@ -1466,7 +1468,7 @@ pair<int,int> JCurve::getextremes(const vector<int> &hists, const pair<const Sca
     return {gmin,gmax};
     }
 template <class LT> void    JCurve::glucoselines(NVGcontext* avg,const float last,const float smallfontlineheight,const int gmax,const LT &transy,bool showlevels) {
-    nvgStrokeWidth(avg, glucoseLinesStrokeWidth);
+    nvgStrokeWidth(avg, drawingDetailed?density*0.5f:glucoseLinesStrokeWidth);
     nvgStrokeColor(avg, *getgray());
     const double yscale=transy(1)-transy(0);
     const float mindisunit=smallsize*1.5;
@@ -1478,8 +1480,15 @@ template <class LT> void    JCurve::glucoselines(NVGcontext* avg,const float las
     uint32_t step=minst<=unit?unit:ceilf(minst/unit2)*unit2;
     float startld;
     nvgTextAlign(avg,NVG_ALIGN_CENTER|NVG_ALIGN_MIDDLE);
-
-    if(getLevelLeft()) {
+    const auto plot=drawingDetailed?detailedPlot():DetailedPlot{};
+    if(drawingDetailed) {
+        startld=plot.right+foundPointRadius+density*8;
+        nvgTextAlign(avg,NVG_ALIGN_LEFT|NVG_ALIGN_MIDDLE);
+        nvgFillColor(avg,*getblack());
+        const std::string_view unit=glunit==1?usedtext->mmolL:"mg/dL"sv;
+        drawText(avg,startld,plot.top-foundPointRadius-density*8,unit.begin(),unit.end());
+        }
+    else if(getLevelLeft()) {
         startld = timelen*.4;
         }
     else  {
@@ -1488,7 +1497,7 @@ template <class LT> void    JCurve::glucoselines(NVGcontext* avg,const float las
 
   const    uint32_t startl=0;
   
-    const float endline=last;
+    const float endline=drawingDetailed?plot.right:last;
 //    CURVELOGGER("glucoselines: unit=%f unit2=%f step=%d (%g) startl=%d (%g)\n",unit,unit2,step,::gconvert(step,glunit),startl,::gconvert(startl,glunit));
 #ifdef WEAROS
    const auto endlevel=dheight-smallfontlineheight;
@@ -1497,10 +1506,11 @@ template <class LT> void    JCurve::glucoselines(NVGcontext* avg,const float las
     
     for(auto y=startl+step;y<gmax;y+=step) {
         float dy=transy(y);
+        if(drawingDetailed && (dy<plot.top || dy>plot.bottom)) continue;
         if(dy<=0)
             continue;
         nvgBeginPath(avg);
-         nvgMoveTo(avg,dleft ,dy) ;
+         nvgMoveTo(avg,drawingDetailed?plot.left:dleft ,dy) ;
         nvgLineTo( avg, endline,dy);
         nvgStroke(avg);
 #ifdef WEAROS
@@ -1555,7 +1565,44 @@ static bool nocutoff=true;
 #endif
 template <class LT>
 void    JCurve::timelines(NVGcontext* avg,const displaytime *disp, const LT &transx ,uint32_t nu) {
-
+    if(drawingDetailed) {
+        const auto plot=detailedPlot();
+        nvgFontSize(avg,timefontsize);
+        nvgFillColor(avg,*getblack());
+        nvgTextAlign(avg,NVG_ALIGN_CENTER|NVG_ALIGN_TOP);
+        nvgStrokeColor(avg,detailedGrid);
+        nvgStrokeWidth(avg,density*0.5f);
+        nvgBeginPath(avg);
+        nvgMoveTo(avg,plot.left,plot.bottom);
+        nvgLineTo(avg,plot.right,plot.bottom);
+        nvgLineTo(avg,plot.right,plot.top);
+        nvgStroke(avg);
+        float labelEnd=-1;
+        for(uint32_t tim=disp->first;tim<=disp->last;tim+=disp->tstep) {
+            const float x=transx(tim);
+            if(x<plot.left || x>plot.right) continue;
+            nvgBeginPath(avg);
+            nvgMoveTo(avg,x,plot.top);
+            nvgLineTo(avg,x,plot.bottom);
+            nvgStroke(avg);
+            time_t stamp=tim;
+            struct tm tm{};
+            localtime_r(&stamp,&tm);
+            char buf[20];
+            const int len=mktime(tm.tm_hour,mktmmin(&tm),buf);
+            const float half=nvgTextBounds(avg,0,0,buf,buf+len,nullptr)*0.5f;
+            // Keep complete text in its own bottom gutter, including edge ticks.
+            const float textX=plot.width()>2*half
+                ?std::clamp(x,(float)plot.left+half,(float)plot.right-half)
+                :(plot.left+plot.right)*0.5f;
+            if(textX-half>labelEnd+density*8) {
+                drawText(avg,textX,plot.bottom+foundPointRadius+density*8,buf,buf+len);
+                labelEnd=textX+half;
+                }
+            }
+        nvgFontSize(avg,smallsize);
+        return;
+        }
     const uint32_t tstep=disp->tstep;
     const uint32_t first=disp->first;
     const uint32_t last= disp->last;
@@ -1649,6 +1696,7 @@ if(nocutoff) {
     }
 
 template <class LT> void    JCurve::epochlines(NVGcontext* avg,uint32_t first,uint32_t last, const LT &transx) {
+        if(drawingDetailed) return; // Detailed timelines already own the plot grid.
         time_t startin=first;
 
         struct tm tmbuf;
@@ -1772,6 +1820,34 @@ int JCurve::largedaystr(const time_t tim,char *buf) {
 
 
 void       JCurve::showbluevalue(NVGcontext* avg,const time_t nu,const int xpos,std::vector<int> &used) {
+    if(drawingDetailed) {
+        const auto plot=detailedPlot();
+        nvgBeginPath(avg);
+        auto accent=detailedAccent;
+        accent.a*=0.6f;
+        nvgStrokeColor(avg,accent);
+        nvgStrokeWidth(avg,density);
+        nvgMoveTo(avg,xpos,plot.top);
+        nvgLineTo(avg,xpos,plot.bottom);
+        nvgStroke(avg);
+        // Native localized clock labels the live marker; no duplicate date/value.
+        char buf[20];
+        struct tm tm{};
+        localtime_r(&nu,&tm);
+        const int len=mktime(tm.tm_hour,mktmmin(&tm),buf);
+        nvgFontSize(avg,timefontsize);
+        nvgTextAlign(avg,NVG_ALIGN_CENTER|NVG_ALIGN_BOTTOM);
+        nvgFillColor(avg,detailedInk);
+        const float half=nvgTextBounds(avg,0,0,buf,buf+len,nullptr)*0.5f;
+        const float x=plot.width()>2*half
+            ?std::clamp((float)xpos,(float)plot.left+half,(float)plot.right-half)
+            :(plot.left+plot.right)*0.5f;
+        drawText(avg,x,plot.top-foundPointRadius-density*6,buf,buf+len);
+#ifndef DONTTALK
+        shownglucose.clear();
+#endif
+        return;
+        }
 CURVELOGGER("showbluevalue %zd\n",used.size());
         nvgFontSize(avg, smallsize);
         nvgFillColor(avg, *getblack());
@@ -1945,12 +2021,12 @@ if(showcurrentdate) {
 
  void       JCurve::showsavedomain(NVGcontext* avg,const float last, const float dlow,const float dhigh) {
     nvgBeginPath(avg);
-    nvgFillColor(avg, unsavecolor);
+    nvgFillColor(avg, drawingDetailed?nvgRGBA(178,67,67,startincolors?24:12):unsavecolor);
     nvgRect(avg, dleft, dtop, last-dleft, dhigh);
     nvgFill(avg);
 
     nvgBeginPath(avg);
-    nvgFillColor(avg, unsavecolor);
+    nvgFillColor(avg, drawingDetailed?nvgRGBA(178,67,67,startincolors?24:12):unsavecolor);
     nvgRect(avg, dleft, dlow, last-dleft, dheight+dtop);
     nvgFill(avg);
     }
@@ -1966,12 +2042,26 @@ if(showcurrentdate) {
 
 
  void       JCurve::showsaverange(NVGcontext* avg,const float last, const float dlow,const float dhigh) {
+    if(drawingDetailed) {
+        const auto plot=detailedPlot();
+        // Shade the configured target interval, not a new clinical threshold.
+        const float top=std::clamp((double)dhigh,plot.top,plot.bottom);
+        const float bottom=std::clamp((double)dlow,plot.top,plot.bottom);
+        auto band=detailedAccent;
+        band.a*=0.07f;
+        nvgBeginPath(avg);
+        nvgFillColor(avg,band);
+        nvgRect(avg,plot.left,top,plot.width(),std::max(0.0f,bottom-top));
+        nvgFill(avg);
+        return;
+        }
     showsavedomain(avg,last,dlow,dhigh) ;
     showunsaveredline(avg,last,dlow) ;
     }
         
 
 void        JCurve::showdates(NVGcontext* avg,time_t nu,uint32_t starttime,time_t endtime) {
+    if(drawingDetailed) return; // Android header shows the complete visible period.
    CURVELOGGER("duration=%d\n",duration);
     int32_t timdis=nu-starttime;
 constexpr const int grens=
@@ -2247,11 +2337,30 @@ int    JCurve::displaycurve(NVGcontext* avg,time_t nu) {
             }
        setextremes(extr) ;
        }
+    if(drawingDetailed) {
+        bool content=false;
+        // Boundary neighbours can form a line crossing the viewport. Treat any
+        // selected range as content rather than hiding that line with an empty card.
+        for(int i=0;i<histlen&&!content;++i) {
+            content=((showscans||showcalibratedscans)&&scanranges[i].second>scanranges[i].first)||
+                ((showstream||showcalibratedstream)&&pollranges[i].second>pollranges[i].first)||
+                ((showhistories||showcalibratedhistories)&&sensors->getSensorData(hists[i])->hasHistory()&&histpositions[i].second>=histpositions[i].first);
+        }
+        if(shownumbers||showmeals) for(auto data:numdatas) {
+            const auto [low,high]=extrums[data->numdatasPos];
+            for(auto it=low;it!=high&&!content;++it)
+                if(data->valid(it)&&(shownumbers||(showmeals&&it->type==carbotype))) content=true;
+        }
+        detailedStart.store(starttime2);
+        detailedEnd.store(endtime);
+        detailedHasContent.store(content);
+        detailedFrame.store(true);
+    }
     CURVELOGAR("before gettrans");
     int  gmax = gmin+grange;
     const auto [transx,transy]= gettrans(starttime2, endtime);
-displaytime disp=getdisplaytime(nu,starttime2,endtime, transx);
-    const float dlast=nu<endtime?transx(disp.last):dleft+dwidth;
+displaytime disp=getdisplaytime(drawingDetailed?UINT_MAX:nu,starttime2,endtime, transx);
+    const float dlast=drawingDetailed?detailedPlot().right:(nu<endtime?transx(disp.last):dleft+dwidth);
     CURVELOGAR("before showsaverange");
     showsaverange(avg,dlast,transy(settings->targetlow()),transy(settings->targethigh()));
 
@@ -2266,10 +2375,20 @@ displaytime disp=getdisplaytime(nu,starttime2,endtime, transx);
     if(disp.tstep>(60*60))
         epochlines(avg,starttime2,endtime<nu?endtime:disp.last,transx);
     glucoselines(avg,dlast,smallfontlineheight,gmax,transy,(starttime2+duration/3)<nu) ;
+    if(drawingDetailed && nu>=starttime2 && nu<endtime)
+        showbluevalue(avg,nu,nupos,usedsensors); // under the readings, never over them
 
 //        nvgCircle(avg, posx,posy,foundPointRadius);
 
     CURVELOGAR("before showhistories");
+    if(drawingDetailed) {
+        const auto plot=detailedPlot();
+        // Keep boundary neighbours for crossing segments; clip their overshoot
+        // into gutters while retaining the full endpoint/found-point radius.
+        nvgSave(avg);
+        nvgIntersectScissor(avg,plot.left-foundPointRadius,plot.top-foundPointRadius,
+            plot.width()+2*foundPointRadius,plot.height()+2*foundPointRadius);
+        }
     const int colorsleft=nrcolors-catnr;
     const auto segcolor=[catnr,colorsleft,colorseg=colorsleft/4](int index,int seg) {
          return catnr+(index+colorseg*seg)%colorsleft;
@@ -2352,7 +2471,8 @@ displaytime disp=getdisplaytime(nu,starttime2,endtime, transx);
             el->showNums(*this, transx,  transy,was) ;
         }
 
-    if(nu<endtime&&(dwidth-smallfontlineheight)>nupos) {
+    if(drawingDetailed) nvgRestore(avg);
+    if(!drawingDetailed && nu<endtime&&(dwidth-smallfontlineheight)>nupos) {
         showbluevalue(avg,nu, nupos,usedsensors);
         CURVELOGAR("end display curve value");
         }
@@ -2551,6 +2671,8 @@ Num newnum;
 NumHit newhit={nullptr,&newnum};
 #include <assert.h>
 int64_t openNums(std::string_view numpath,int64_t ident) {
+     extern std::mutex healthNumRegistryMutex;
+     std::lock_guard<std::mutex> registry(healthNumRegistryMutex);
      const int index=numdatas.size();
      assert(index<maxnumsources);
      NumDisplay* numdata=NumDisplay::getnumdisplay(index, numpath,ident,nummmaplen);

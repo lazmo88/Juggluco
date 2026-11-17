@@ -154,6 +154,7 @@ static public void attachLauncher(MainActivity act) {
         act.requestRender();
         act.lightBars(!getInvertColors());
         }
+    FullGraph.attach(act);
     Dashboard.attach(act);
     final Context ctx=themed(act);
     final FloatingActionButton fab=new FloatingActionButton(ctx);
@@ -188,6 +189,7 @@ static public void attachLauncher(MainActivity act) {
     }
 
 static private void removeLauncher() {
+    FullGraph.detach();
     final FloatingActionButton fab=launcher;
     final ViewGroup content=launcherContent;
     final ViewTreeObserver.OnGlobalLayoutListener listener=launcherListener;
@@ -213,7 +215,7 @@ static private void updateLauncher(ViewGroup content) {
     final int nr=content.getChildCount();
     for(int i=0;i<nr;i++) {
         View child=content.getChildAt(i);
-        if(child==fab||child instanceof GlucoseCurve||Dashboard.isDashboard(child))
+        if(child==fab||child instanceof GlucoseCurve||Dashboard.isDashboard(child)||FullGraph.isChrome(child))
             continue;
         if(child.getVisibility()==View.VISIBLE) {
             overlay=true;
@@ -226,7 +228,8 @@ static private void updateLauncher(ViewGroup content) {
         inScreen=false;
         Dashboard.update();
         }
-    if(overlay) {
+    FullGraph.obscure(overlay);
+    if(overlay||FullGraph.isActive()) {
         if(fab.getVisibility()==View.VISIBLE)
             fab.hide();
         }

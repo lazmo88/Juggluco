@@ -26,18 +26,18 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.util.Base64;
 import android.view.Gravity;
-import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.BaseAdapter;
 import android.widget.LinearLayout;
 import android.widget.ListView;
+import android.widget.RadioGroup;
 import android.widget.TextView;
 
 import androidx.appcompat.app.AlertDialog;
 
 import com.google.android.material.button.MaterialButton;
-import com.google.android.material.checkbox.MaterialCheckBox;
+import com.google.android.material.radiobutton.MaterialRadioButton;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import java.util.ArrayList;
@@ -45,36 +45,34 @@ import java.util.Calendar;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 
 import tk.glucodata.m3.M3Page;
 
 /*
- * "Ask before saving readings" for a Bluetooth glucose meter that is used by
- * more than one person (each with an own phone).  Off by default, per meter.
+ * Opt-in, per-device review of readings from a shared Bluetooth glucose meter.
+ * A row starts undecided; Add and Exclude are explicit choices. Draft changes
+ * are persisted immediately, but only Save choices commits import permission
+ * or a permanent identity-only exclusion. Later/cancel merely defers review.
  *
- * Off: GlucoseMeterGatt saves every Glucose Measurement record as before;
- * received() returns false without touching anything.
+ * Presentation is persisted separately from the draft: automatic sync/resume
+ * prompts contain only unseen pending identities. Explicit show() includes
+ * all pending/drafts. A new sync cannot erase a draft or redisplay a deferred
+ * identity. Sequence plus the seven base-time bytes identify each record,
+ * scoped by the existing meter device-name key (never shared across devices).
  *
- * On: a new record is not given to Natives.GlucoseMeterSave but kept here as
- * "pending".  After the sync (Record Access Control Point response), or the
- * next time MainActivity resumes, a dialog asks which readings are the user's.
- * "Mine" records are then saved the old way, in ascending sequence order; the
- * others are remembered as "not mine" and dropped whenever the meter sends
- * them again.
+ * Exclusions are never evicted, and disabling review cannot release existing
+ * exclusions or pending records. Brand-new records still follow the opt-in
+ * setting. State/commit failures are held rather than falling through to the
+ * caller's unconditional native save. Durable Add consent precedes native
+ * import; interrupted Add work remains reviewable, not an offer of undo.
  *
- * A pending record is never lost: the native side only moves the meter's
- * nextIndex when a record is saved, so the meter sends everything after the
- * last saved record again at every sync.  Records are identified by sequence
- * number plus base time, so a sequence number that is reused after a meter
- * reset is not taken for an old decision.
- *
- * State is in the SharedPreferences file "jm_meter_ask", keyed by the meter's
- * device name.  Everything is synchronized on one lock: Bluetooth callbacks,
- * the save thread and the UI thread all come here.
+ * State is in the existing private jm_meter_ask preferences. Existing on|,
+ * pending| and decided| encodings are preserved; review| stores presentation
+ * and draft metadata. All shared state is guarded by lock. Native cursor/
+ * conversion bindings and durable import receipts are separate from ordinary
+ * GATT semantics. Legacy unbound committed Adds are held for explicit recovery.
  */
 public final class MeterAsk {
 private MeterAsk() {}
@@ -84,12 +82,14 @@ private static final String PREFS="jm_meter_ask";
 private static final String ON="on|";
 private static final String PENDING="pending|";
 private static final String DECIDED="decided|";
+private static final String REVIEW="review|";
+private static final String BINDINGS="bindings|";
+private static final String RESOLVED="resolved|";
+/* Old unbound Adds are compared with saved readings up to a day either side. */
+private static final int LEGACY_WINDOW=86400;
 /* Shorter records are ignored by Natives.GlucoseMeterSave: leave them to it. */
 private static final int MIN_LENGTH=14;
-private static final int MAX_DECIDED=2000;
 private static final long COMMIT_INTERVAL=1000L;
-/* Record Access Control Point response "report stored records: success". */
-private static final byte[] RACP_SUCCESS={6,0,1,1};
 
 private static final Object lock=new Object();
 
@@ -109,11 +109,9 @@ static final class Rec {
         }
     }
 
-private static final class State {
+private static final class State extends MeterDecisionState<Rec> {
     boolean on=false;
-    final LinkedHashMap<String,Rec> pending=new LinkedHashMap<>();
-    /* key -> mine; oldest decision first. */
-    final LinkedHashMap<String,Boolean> decided=new LinkedHashMap<>();
+    boolean loadFailed=false; // unreadable decisions must never become implicit permission
     }
 
 /* ---------- record layout (Bluetooth Glucose Service) ---------- */
@@ -124,13 +122,7 @@ static int sequence(byte[] v) {
 
 /* Sequence number and the seven base time bytes. */
 static String key(byte[] v) {
-    StringBuilder sb=new StringBuilder(22);
-    sb.append(sequence(v)).append('_');
-    for(int i=3;i<10;i++) {
-        sb.append(Character.forDigit((v[i]>>4)&0xF,16));
-        sb.append(Character.forDigit(v[i]&0xF,16));
-        }
-    return sb.toString();
+    return MeterDecisionState.identity(v);
     }
 
 private static boolean hasOffset(byte[] v) {
@@ -189,7 +181,6 @@ private static String timeText(Context ctx,Rec rec) {
 /* ---------- state ---------- */
 
 private static HashMap<String,State> states=null; // guarded by lock
-private static volatile boolean anyOn=false;
 private static volatile boolean anyPending=false;
 private static volatile boolean loaded=false;
 private static long lastCommit=0L;
@@ -218,17 +209,48 @@ private static HashMap<String,State> states() {
     for(Map.Entry<String,?> entry:prefs().getAll().entrySet()) {
         final String k=entry.getKey();
         final Object v=entry.getValue();
+        final String prefix=k.startsWith(ON)?ON:k.startsWith(PENDING)?PENDING:
+            k.startsWith(DECIDED)?DECIDED:k.startsWith(REVIEW)?REVIEW:k.startsWith(BINDINGS)?BINDINGS:
+            k.startsWith(RESOLVED)?RESOLVED:null;
+        if(prefix==null)
+            continue;
+        final State st=get(map,k.substring(prefix.length()));
         try {
-            if(k.startsWith(ON)&&v instanceof Boolean)
-                get(map,k.substring(ON.length())).on=(Boolean)v;
-            else if(k.startsWith(PENDING)&&v instanceof String)
-                readPending(get(map,k.substring(PENDING.length())),(String)v);
-            else if(k.startsWith(DECIDED)&&v instanceof String)
-                readDecided(get(map,k.substring(DECIDED.length())),(String)v);
+            if(prefix.equals(ON)&&v instanceof Boolean)
+                st.on=(Boolean)v;
+            else if(prefix.equals(PENDING)&&v instanceof String)
+                readPending(st,(String)v);
+            else if(prefix.equals(DECIDED)&&v instanceof String)
+                st.readDecisions((String)v);
+            else if(prefix.equals(REVIEW)&&v instanceof String)
+                st.readReview((String)v);
+            else if(prefix.equals(BINDINGS)&&v instanceof String)
+                st.readBindings((String)v);
+            else if(prefix.equals(RESOLVED)&&v instanceof String)
+                st.readResolved((String)v);
+            else
+                throw new IllegalArgumentException("preference type");
             }
         catch(Throwable th) {
-            Log.stack(LOG_ID,"load "+k,th);
+            st.loadFailed=true;
+            Log.stack(LOG_ID,"load state",th);
             }
+        }
+    for(Map.Entry<String,State> meterState:map.entrySet()) {
+        State st=meterState.getValue();
+        try {
+            for(String id:st.bindings.keySet()) {
+                if(!Boolean.TRUE.equals(st.decided.get(id))) throw new IllegalArgumentException("binding without consent");
+                Rec rec=st.pending.get(id);
+                byte[] binding=MeterImportBinding.decode(st.bindings.get(id),id,rec==null?null:rec.raw);
+                MeterImportBinding.requireDevice(binding,meterState.getKey());
+            }
+        }
+        catch(RuntimeException badBinding) { st.loadFailed=true; Log.stack(LOG_ID,"load binding",badBinding); }
+        // Migration/order-independent reconciliation: never retain raw excluded values.
+        st.pending.keySet().removeIf(id -> Boolean.FALSE.equals(st.decided.get(id)));
+        st.drafts.keySet().retainAll(st.pending.keySet());
+        st.presented.retainAll(st.pending.keySet());
         }
     states=map;
     flags();
@@ -238,12 +260,10 @@ private static HashMap<String,State> states() {
 
 /* Call with lock held. */
 private static void flags() {
-    boolean on=false,pending=false;
+    boolean pending=false;
     for(State st:states.values()) {
-        on=on||st.on;
         pending=pending||!st.pending.isEmpty();
         }
-    anyOn=on;
     anyPending=pending;
     }
 
@@ -256,38 +276,30 @@ private static void load() {
     }
 
 private static void readPending(State st,String text) {
+    if(text.isEmpty())
+        return;
     for(String line:text.split("\n")) {
         final int comma=line.indexOf(',');
         if(comma<=0)
-            continue;
-        try {
-            final byte[] raw=Base64.decode(line.substring(comma+1),Base64.NO_WRAP);
-            if(raw.length<MIN_LENGTH)
-                continue;
-            final Rec rec=new Rec(raw,Long.parseLong(line.substring(0,comma)));
-            st.pending.put(rec.key,rec);
-            }
-        catch(Throwable th) {
-            Log.stack(LOG_ID,"readPending",th);
-            }
-        }
-    }
-
-private static void readDecided(State st,String text) {
-    for(String item:text.split(",")) {
-        final int len=item.length();
-        if(len<2)
-            continue;
-        final char c=item.charAt(len-1);
-        if(c=='+'||c=='-')
-            st.decided.put(item.substring(0,len-1),c=='+');
+            throw new IllegalArgumentException("pending entry");
+        final byte[] raw=Base64.decode(line.substring(comma+1),Base64.NO_WRAP);
+        if(raw.length<MIN_LENGTH)
+            throw new IllegalArgumentException("short pending");
+        final Rec rec=new Rec(raw,Long.parseLong(line.substring(0,comma)));
+        st.pending.put(rec.key,rec);
         }
     }
 
 /* Call with lock held.  sync: on disk before returning. */
 private static boolean write(String name,State st,boolean sync) {
+    return write(name,st,st,sync);
+    }
+
+private static boolean write(String name,State actual,MeterDecisionState<Rec> st,boolean sync) {
+    if(actual.loadFailed)
+        return false; // never overwrite unreadable decisions with an incomplete map
     SharedPreferences.Editor edit=prefs().edit();
-    edit.putBoolean(ON+name,st.on);
+    edit.putBoolean(ON+name,actual.on);
     if(st.pending.isEmpty())
         edit.remove(PENDING+name);
     else {
@@ -301,22 +313,21 @@ private static boolean write(String name,State st,boolean sync) {
         }
     if(st.decided.isEmpty())
         edit.remove(DECIDED+name);
-    else {
-        StringBuilder sb=new StringBuilder(st.decided.size()*24);
-        for(Map.Entry<String,Boolean> d:st.decided.entrySet()) {
-            if(sb.length()>0)
-                sb.append(',');
-            sb.append(d.getKey()).append(d.getValue()?'+':'-');
-            }
-        edit.putString(DECIDED+name,sb.toString());
-        }
-    flags();
+    else
+        edit.putString(DECIDED+name,st.decisionsText());
+    edit.putString(REVIEW+name,st.reviewText());
+    edit.putString(BINDINGS+name,st.bindingsText());
+    edit.putString(RESOLVED+name,st.resolvedText());
     if(sync) {
         lastCommit=System.currentTimeMillis();
-        unflushed=false;
-        if(edit.commit())
+        if(edit.commit()) {
+            unflushed=false;
+            actual.storageFailed=false;
             return true;
-        Log.e(LOG_ID,"commit failed "+name);
+            }
+        unflushed=true;
+        actual.storageFailed=true;
+        Log.e(LOG_ID,"commit failed");
         return false;
         }
     unflushed=true;
@@ -347,8 +358,17 @@ public static void setEnabled(String name,boolean on) {
     try {
         synchronized(lock) {
             State st=get(states(),name);
+            final boolean previous=st.on;
             st.on=on;
-            write(name,st,true);
+            try {
+                if(!write(name,st,true))
+                    st.on=previous;
+                }
+            catch(Throwable th) {
+                st.on=previous;
+                st.storageFailed=true;
+                throw th;
+                }
             }
         }
     catch(Throwable th) {
@@ -371,6 +391,81 @@ public static int pendingCount(String name) {
         }
     }
 
+/** Committed identity-only exclusions; they are never aged out. */
+public static int excludedCount(String name) {
+    try {
+        synchronized(lock) {
+            State st=states().get(name);
+            if(st==null) return 0;
+            int count=0;
+            for(Boolean add:st.decided.values()) if(!add) count++;
+            return count;
+            }
+        }
+    catch(Throwable th) { Log.stack(LOG_ID,"excludedCount",th); return 0; }
+    }
+
+/** Draft selections are not committed permission to save or export. */
+public static int draftCount(String name) {
+    try {
+        synchronized(lock) {
+            State st=states().get(name);
+            if(st==null) return 0;
+            int count=0;
+            for(String key:st.drafts.keySet()) if(!st.decided.containsKey(key)) count++;
+            return count;
+            }
+        }
+    catch(Throwable th) { Log.stack(LOG_ID,"draftCount",th); return 0; }
+    }
+
+public static boolean storageProblem(String name) {
+    try {
+        synchronized(lock) {
+            State st=states().get(name);
+            return st!=null&&(st.loadFailed||st.storageFailed);
+            }
+        }
+    catch(Throwable th) { Log.stack(LOG_ID,"storageProblem",th); return true; }
+    }
+
+private static void storageError(MainActivity act) {
+    // Old unbound Adds are not a storage error: they have their own resolve step in the dialog.
+    Applic.argToaster(act,act.getString(R.string.jm_meterask_storage_error),android.widget.Toast.LENGTH_LONG);
+    }
+
+/* ---------- old unbound Adds ---------- */
+
+/* Native read-only search for one waiting old Add; null when it cannot be checked now. */
+private static long[] legacyMatches(String name,Rec rec) {
+    final int index=meterIndex(name);
+    if(index<0) return null;
+    return Natives.GlucoseMeterLegacyMatches(index,rec.raw,LEGACY_WINDOW);
+    }
+
+/* Call with lock held. Settles old Adds already in the log at the same time. */
+private static int autoResolve(String name,State st) {
+    if(st==null||st.loadFailed||!st.hasLegacyAdds()) return 0;
+    final int n=st.autoResolve((id,rec) -> legacyMatches(name,rec),proposed -> write(name,st,proposed,true));
+    if(n>0) {
+        flags();
+        Log.i(LOG_ID,"auto-resolved "+n+" earlier Add(s) already in the log");
+        }
+    return n;
+    }
+
+/* What the resolve row says, from a fresh read-only search. */
+private static String legacyText(Context ctx,long[] found) {
+    if(found==null)
+        return ctx.getString(R.string.jm_meterask_legacy_unknown);
+    if(found.length<4)
+        return ctx.getString(R.string.jm_meterask_legacy_absent);
+    long nearest=found[1];
+    for(int i=1;i<found.length;i+=3) if(Math.abs(found[i]-found[0])<Math.abs(nearest-found[0])) nearest=found[i];
+    final long ms=nearest*1000L;
+    return ctx.getString(R.string.jm_meterask_legacy_found,SensorUi.date(ctx,ms)+"  "+SensorUi.time(ctx,ms));
+    }
+
 /* Run on the UI thread after pending readings were saved or dropped;
  * for a page that shows the number of waiting readings. */
 private static Runnable changed=null;
@@ -382,60 +477,58 @@ public static void onChanged(Runnable r) {
 
 /*
  * A Glucose Measurement record arrived.  Returns false when the caller has to
- * save it like before (option off, record too short, or anything went wrong);
+ * save it like before (unseen record on a device with the option off, or a short record);
  * true when it was handled here.
  */
 static boolean received(GlucoseMeterGatt gatt,byte[] value) {
-    String name=null,key=null;
+    if(value==null||value.length<MIN_LENGTH)
+        return false; // native ignores incomplete records
+    String name=null;
     try {
         load();
-        if(!anyOn)
-            return false;
-        if(value==null||value.length<MIN_LENGTH)
-            return false;
         name=gatt.getDeviceName();
         if(name==null)
-            return false;
+            return true; // cannot safely scope a remembered exclusion
         synchronized(lock) {
             final State st=states().get(name);
-            if(st==null||!st.on)
-                return false;
+            if(st==null)
+                return false; // opt-in: this device has never been configured
+            if(st.loadFailed)
+                return true;
             final String id=key(value);
-            final Boolean mine=st.decided.get(id);
-            if(mine!=null) {
-                if(mine)
-                    gatt.saveRecord(value); // native saves it only if it is newer than the last one saved
-                return true;
+            switch(st.route(id,st.on)) {
+                case BYPASS: return false;
+                case HOLD: return true;
+                case DONE: return true; // settled as already in the log; never re-added
+                case ADD:
+                    // A remembered Add must use the receipt path too, not the
+                    // ordinary GATT cursor gate. Stage raw retry DURABLY first.
+                    final Rec accepted=new Rec(value.clone(),System.currentTimeMillis());
+                    st.pending.put(id,accepted);
+                    flags();
+                    if(write(name,st,true))
+                        process(name,new ArrayList<>(Collections.singletonList(accepted)));
+                    return true;
+                case NEW:
+                    st.pending.put(id,new Rec(value.clone(),System.currentTimeMillis()));
+                    flags();
+                    final long now=System.currentTimeMillis();
+                    write(name,st,now-lastCommit>=COMMIT_INTERVAL||now<lastCommit);
+                    return true;
+                default: return true;
                 }
-            if(st.pending.containsKey(id))
-                return true;
-            key=id;
-            st.pending.put(id,new Rec(value.clone(),System.currentTimeMillis()));
-            /* On disk right away; in a burst (a meter sending its whole memory)
-             * at most once a second, the rest when the sync ends in synced().
-             * What is lost in between comes again at the next sync. */
-            final long now=System.currentTimeMillis();
-            write(name,st,now-lastCommit>=COMMIT_INTERVAL||now<lastCommit);
-            return true;
             }
         }
     catch(Throwable th) {
-        Log.stack(LOG_ID,"received",th);
-        if(name!=null&&key!=null) {
-            try {
-                synchronized(lock) {
-                    State st=states().get(name);
-                    if(st!=null) {
-                        st.pending.remove(key);
-                        flags();
-                        }
-                    }
-                }
-            catch(Throwable th2) {
-                Log.stack(LOG_ID,"received undo",th2);
+        Log.stack(LOG_ID,"received (held)",th);
+        // The caller saves on false. Storage/identity failures must NEVER use that fallback.
+        if(name!=null&&states!=null) {
+            synchronized(lock) {
+                State st=states.get(name);
+                if(st!=null) st.storageFailed=true;
                 }
             }
-        return false;
+        return true;
         }
     }
 
@@ -476,6 +569,11 @@ public static void resume(MainActivity act) {
         load();
         if(!anyPending)
             return;
+        synchronized(lock) {
+            for(Map.Entry<String,State> e:states().entrySet()) autoResolve(e.getKey(),e.getValue());
+            }
+        if(!anyPending)
+            return;
         Applic.getHandler().post(() -> ask(act,null,new HashSet<>(),null));
         }
     catch(Throwable th) {
@@ -486,7 +584,12 @@ public static void resume(MainActivity act) {
 /* Ask about the waiting readings of one meter now; later runs when the user
  * closes the dialog without deciding. */
 public static void show(MainActivity act,String name,Runnable later) {
-    ask(act,name,new HashSet<>(),later);
+    if(act==null)return;
+    try {
+        synchronized(lock) { autoResolve(name,states().get(name)); }
+    }
+    catch(Throwable failure) { Log.stack(LOG_ID,"show state",failure); storageError(act); return; }
+    ask(act,name,new HashSet<>(),later,true);
     }
 
 private static AlertDialog open=null;
@@ -522,8 +625,12 @@ private static int meterIndex(String name) {
 
 /* A meter that still exists and has waiting readings: first, if it has any,
  * else the first one not in skip. Call with lock held. */
-private static String nextMeter(String first,HashSet<String> skip) {
+private static String nextMeter(String first,HashSet<String> skip,boolean explicit) {
     final HashMap<String,State> map=states();
+    if(explicit&&first!=null) {
+        State st=map.get(first);
+        return st!=null&&!st.pending.isEmpty()&&!st.loadFailed&&meterIndex(first)>=0?first:null;
+        }
     final int n=Natives.GlucoseMeterCount();
     String found=null;
     for(int i=0;i<n;i++) {
@@ -531,7 +638,7 @@ private static String nextMeter(String first,HashSet<String> skip) {
         if(name==null||skip.contains(name))
             continue;
         final State st=map.get(name);
-        if(st==null||st.pending.isEmpty())
+        if(st==null||st.loadFailed||(explicit?st.pending.isEmpty():!st.hasUnseen()))
             continue;
         if(name.equals(first))
             return name;
@@ -542,6 +649,10 @@ private static String nextMeter(String first,HashSet<String> skip) {
     }
 
 private static void ask(MainActivity act,String first,HashSet<String> skip,Runnable later) {
+    ask(act,first,skip,later,false);
+    }
+
+private static void ask(MainActivity act,String first,HashSet<String> skip,Runnable later,boolean explicit) {
     try {
         if(act==null||act.isFinishing()||act.isDestroyed()||!Applic.Nativesloaded)
             return;
@@ -552,15 +663,30 @@ private static void ask(MainActivity act,String first,HashSet<String> skip,Runna
         synchronized(lock) {
             if(busy)
                 return;
-            name=nextMeter(first,skip);
+            name=nextMeter(first,skip,explicit);
             if(name==null)
                 return;
-            recs=new ArrayList<>(states().get(name).pending.values());
+            final State st=states().get(name);
+            recs=new ArrayList<>();
+            for(String id:st.reviewKeys(explicit))
+                recs.add(st.pending.get(id));
             }
         /* Newest first. */
         Collections.sort(recs,(a,b) -> a.time!=b.time?Long.compare(b.time,a.time):Integer.compare(b.seq,a.seq));
         final int n=recs.size();
-        final boolean[] mine=new boolean[n]; // every row starts unchecked
+        final Boolean[] choices=new Boolean[n]; // null means not chosen, NOT implicitly excluded
+        final boolean[] legacy=new boolean[n]; // accepted by an older version, needs a resolve choice
+        final long[][] found=new long[n][]; // read-only search for those rows
+        int legacyRows=0;
+        synchronized(lock) {
+            final State st=states().get(name);
+            for(int i=0;i<n;i++) {
+                choices[i]=st.drafts.get(recs.get(i).key);
+                legacy[i]=st.isLegacy(recs.get(i).key);
+                if(legacy[i]) { legacyRows++; found[i]=legacyMatches(name,recs.get(i)); }
+                }
+            }
+        final boolean onlyLegacy=legacyRows==n;
 
         final MaterialAlertDialogBuilder builder=M3Page.dialog(act);
         final Context ctx=M3Page.themed(act);
@@ -572,7 +698,7 @@ private static void ask(MainActivity act,String first,HashSet<String> skip,Runna
         box.setPadding(0,M3Page.dp(ctx,8),0,0);
 
         TextView message=new TextView(ctx);
-        message.setText(R.string.jm_meterask_message);
+        message.setText(onlyLegacy?R.string.jm_meterask_legacy_message:R.string.jm_meterask_message);
         message.setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_BodyMedium);
         message.setTextColor(onSurfaceVariant);
         message.setTextAlignment(View.TEXT_ALIGNMENT_VIEW_START);
@@ -589,32 +715,72 @@ private static void ask(MainActivity act,String first,HashSet<String> skip,Runna
             box.addView(meter,new LinearLayout.LayoutParams(MATCH_PARENT,WRAP_CONTENT));
             }
 
+        final AlertDialog[] self={null};
         final BaseAdapter adapter=new BaseAdapter() {
             @Override public int getCount() { return n; }
             @Override public Object getItem(int pos) { return recs.get(pos); }
             @Override public long getItemId(int pos) { return pos; }
+            @Override public int getViewTypeCount() { return 2; }
+            @Override public int getItemViewType(int pos) { return legacy[pos]?1:0; }
             @Override
             public View getView(int pos,View convert,ViewGroup parent) {
-                View row=convert;
+                if(legacy[pos])
+                    return legacyRow(act,ctx,name,recs.get(pos),found[pos],(LinearLayout)convert,onSurface,onSurfaceVariant,self,later);
+                LinearLayout row=(LinearLayout)convert;
                 if(row==null) {
-                    row=LayoutInflater.from(ctx).inflate(R.layout.material_settings_row,parent,false);
-                    row.findViewById(R.id.jm_row_icon).setVisibility(View.GONE);
-                    row.setPaddingRelative(M3Page.dp(ctx,24),0,M3Page.dp(ctx,16),0);
-                    MaterialCheckBox check=new MaterialCheckBox(ctx);
-                    check.setClickable(false);
-                    check.setFocusable(false);
-                    M3Page.end(row).addView(check);
-                    row.setTag(check);
+                    row=new LinearLayout(ctx);
+                    row.setOrientation(LinearLayout.VERTICAL);
+                    row.setPaddingRelative(M3Page.dp(ctx,24),M3Page.dp(ctx,8),M3Page.dp(ctx,16),M3Page.dp(ctx,8));
+                    TextView value=new TextView(ctx);
+                    value.setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_TitleMedium);
+                    value.setTextColor(onSurface);
+                    row.addView(value);
+                    TextView time=new TextView(ctx);
+                    time.setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_BodyMedium);
+                    time.setTextColor(onSurfaceVariant);
+                    row.addView(time);
+                    RadioGroup group=new RadioGroup(ctx);
+                    group.setOrientation(RadioGroup.HORIZONTAL);
+                    for(int i=0;i<2;i++) {
+                        MaterialRadioButton button=new MaterialRadioButton(ctx);
+                        button.setId(View.generateViewId());
+                        button.setText(i==0?R.string.jm_meterask_add:R.string.jm_meterask_exclude);
+                        group.addView(button,new RadioGroup.LayoutParams(0,WRAP_CONTENT,1f));
+                        }
+                    row.addView(group,new LinearLayout.LayoutParams(MATCH_PARENT,WRAP_CONTENT));
                     }
                 final Rec rec=recs.get(pos);
-                M3Page.setTitle(row,valueText(ctx,rec));
-                M3Page.setSummary(row,timeText(ctx,rec));
-                ((MaterialCheckBox)row.getTag()).setChecked(mine[pos]);
+                ((TextView)row.getChildAt(0)).setText(valueText(ctx,rec));
+                final boolean committed;
+                synchronized(lock) {
+                    committed=Boolean.TRUE.equals(states().get(name).decided.get(rec.key));
+                    }
+                ((TextView)row.getChildAt(1)).setText(timeText(ctx,rec)+(committed?"\n"+ctx.getString(R.string.jm_meterask_add_committed):""));
+                RadioGroup group=(RadioGroup)row.getChildAt(2);
+                group.setOnCheckedChangeListener(null);
+                group.getChildAt(0).setEnabled(!committed);
+                group.getChildAt(1).setEnabled(!committed);
+                if(choices[pos]==null)
+                    group.clearCheck();
+                else
+                    group.check(group.getChildAt(choices[pos]?0:1).getId());
+                group.setOnCheckedChangeListener((buttons,id) -> {
+                    if(id==View.NO_ID) return;
+                    final boolean add=id==buttons.getChildAt(0).getId();
+                    boolean ok;
+                    synchronized(lock) {
+                        final State st=states().get(name);
+                        ok=st!=null&&st.draft(rec.key,add,proposed -> write(name,st,proposed,true));
+                        if(ok) choices[pos]=add;
+                        }
+                    if(!ok) storageError(act);
+                    notifyDataSetChanged();
+                    });
                 return row;
                 }
             };
 
-        if(n>=3) {
+        if(n-legacyRows>=3) {
             LinearLayout bulk=new LinearLayout(ctx);
             bulk.setGravity(Gravity.CENTER_VERTICAL);
             bulk.setPadding(M3Page.dp(ctx,12),0,M3Page.dp(ctx,12),0);
@@ -624,7 +790,15 @@ private static void ask(MainActivity act,String first,HashSet<String> skip,Runna
                 b.setText(all?R.string.jm_meterask_all:R.string.jm_meterask_none);
                 b.setAllCaps(false);
                 b.setOnClickListener(v -> {
-                    java.util.Arrays.fill(mine,all);
+                    boolean ok;
+                    synchronized(lock) {
+                        final State st=states().get(name);
+                        ArrayList<String> keys=new ArrayList<>();
+                        for(int row=0;row<n;row++) if(!legacy[row]) keys.add(recs.get(row).key);
+                        ok=st!=null&&st.draft(keys,all,proposed -> write(name,st,proposed,true));
+                        if(ok) for(int row=0;row<n;row++) choices[row]=st.drafts.get(recs.get(row).key);
+                        }
+                    if(!ok) storageError(act);
                     adapter.notifyDataSetChanged();
                     });
                 bulk.addView(b,new LinearLayout.LayoutParams(WRAP_CONTENT,WRAP_CONTENT));
@@ -636,14 +810,7 @@ private static void ask(MainActivity act,String first,HashSet<String> skip,Runna
         list.setDivider(null);
         list.setSelector(android.R.color.transparent); // the row has its own ripple
         list.setAdapter(adapter);
-        list.setOnItemClickListener((parent,row,pos,id) -> {
-            if(pos<0||pos>=n)
-                return;
-            mine[pos]=!mine[pos];
-            Object check=row.getTag();
-            if(check instanceof MaterialCheckBox)
-                ((MaterialCheckBox)check).setChecked(mine[pos]);
-            });
+
         box.addView(list,new LinearLayout.LayoutParams(MATCH_PARENT,0,1f));
 
         final Runnable postpone=() -> {
@@ -653,24 +820,13 @@ private static void ask(MainActivity act,String first,HashSet<String> skip,Runna
             else // another meter may have readings waiting; posted: this dialog is still closing
                 Applic.getHandler().post(() -> ask(MainActivity.thisone,null,skip,null));
             };
-        final AlertDialog dialog=builder.setTitle(R.string.jm_meterask_title)
+        final AlertDialog dialog=builder.setTitle(onlyLegacy?R.string.jm_meterask_legacy_title:R.string.jm_meterask_title)
             .setView(box)
-            .setPositiveButton(R.string.save,(d,w) -> {
-                boolean any=false;
-                for(boolean m:mine)
-                    any=any||m;
-                if(any&&Natives.getbloodvar()>=Natives.getLabels().size()-1) {
-                    /* Nothing can be saved without a label for blood glucose: keep them waiting. */
-                    Applic.argToaster(act,act.getString(R.string.specifyblood).replace("\"",""),android.widget.Toast.LENGTH_LONG);
-                    if(later!=null)
-                        later.run();
-                    return;
-                    }
-                decide(name,recs,mine,skip);
-                })
+            .setPositiveButton(onlyLegacy?R.string.jm_meterask_legacy_done:R.string.jm_meterask_save_choices,null)
             .setNegativeButton(R.string.jm_meterask_later,(d,w) -> postpone.run())
             .setOnCancelListener(d -> postpone.run())
             .create();
+        self[0]=dialog;
         dialog.setCanceledOnTouchOutside(false);
         dialog.setOnDismissListener(d -> {
             if(open==dialog) {
@@ -681,23 +837,159 @@ private static void ask(MainActivity act,String first,HashSet<String> skip,Runna
         open=dialog;
         openAct=act;
         dialog.show();
+        // Mark exactly this presentation durably. Later/cancel just defers; it does not erase drafts.
+        synchronized(lock) {
+            final State st=states().get(name);
+            ArrayList<String> keys=new ArrayList<>();
+            for(Rec rec:recs) keys.add(rec.key);
+            if(!st.present(keys,proposed -> write(name,st,proposed,true)))
+                storageError(act);
+            }
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+            if(onlyLegacy) { // nothing to commit here; each row resolves on its own
+                dialog.dismiss();
+                postpone.run();
+                return;
+                }
+            boolean anyChoice=false,anyAdd=false;
+            for(Boolean choice:choices) {
+                anyChoice|=choice!=null;
+                anyAdd|=Boolean.TRUE.equals(choice);
+                }
+            if(!anyChoice) {
+                Applic.argToaster(act,act.getString(R.string.jm_meterask_choose_first),android.widget.Toast.LENGTH_LONG);
+                return;
+                }
+            if(anyAdd&&Natives.getbloodvar()>=Natives.getLabels().size()-1) {
+                Applic.argToaster(act,act.getString(R.string.specifyblood).replace("\"",""),android.widget.Toast.LENGTH_LONG);
+                return;
+                }
+            decide(name,recs,skip);
+            dialog.dismiss();
+            });
         }
     catch(Throwable th) {
         Log.stack(LOG_ID,"ask",th);
         }
     }
 
+/* ---------- resolving an Add an older version accepted ---------- */
+
+/* One row: the reading, what the log holds near it, and buttons that act at once.
+ * found: fresh read-only search; null when it could not be checked. */
+private static View legacyRow(MainActivity act,Context ctx,String name,Rec rec,long[] found,LinearLayout row,
+        int onSurface,int onSurfaceVariant,AlertDialog[] dialog,Runnable later) {
+    if(row==null) {
+        row=new LinearLayout(ctx);
+        row.setOrientation(LinearLayout.VERTICAL);
+        row.setPaddingRelative(M3Page.dp(ctx,24),M3Page.dp(ctx,8),M3Page.dp(ctx,16),M3Page.dp(ctx,12));
+        TextView value=new TextView(ctx);
+        value.setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_TitleMedium);
+        value.setTextColor(onSurface);
+        row.addView(value);
+        TextView status=new TextView(ctx);
+        status.setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_BodyMedium);
+        status.setTextColor(onSurfaceVariant);
+        row.addView(status);
+        LinearLayout buttons=new LinearLayout(ctx);
+        buttons.setOrientation(LinearLayout.HORIZONTAL);
+        buttons.setGravity(Gravity.CENTER_VERTICAL|Gravity.START);
+        for(int i=0;i<2;i++) {
+            MaterialButton b=new MaterialButton(ctx,null,i==0?com.google.android.material.R.attr.materialButtonOutlinedStyle:com.google.android.material.R.attr.borderlessButtonStyle);
+            b.setAllCaps(false);
+            LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(WRAP_CONTENT,WRAP_CONTENT);
+            lp.setMarginEnd(M3Page.dp(ctx,8));
+            buttons.addView(b,lp);
+            }
+        row.addView(buttons,new LinearLayout.LayoutParams(MATCH_PARENT,WRAP_CONTENT));
+        }
+    ((TextView)row.getChildAt(0)).setText(valueText(ctx,rec)+"  ·  "+timeText(ctx,rec));
+    ((TextView)row.getChildAt(1)).setText(legacyText(ctx,found));
+    final LinearLayout buttons=(LinearLayout)row.getChildAt(2);
+    final MaterialButton first=(MaterialButton)buttons.getChildAt(0),second=(MaterialButton)buttons.getChildAt(1);
+    final boolean unknown=found==null;
+    final boolean inLog=!unknown&&found.length>=4;
+    buttons.setVisibility(unknown?View.GONE:View.VISIBLE);
+    // In the log: keeping the saved one is the safe default. Not in the log: adding it is.
+    first.setText(inLog?R.string.jm_meterask_legacy_keep:R.string.jm_meterask_legacy_add);
+    second.setText(inLog?R.string.jm_meterask_legacy_add_also:R.string.jm_meterask_legacy_discard);
+    first.setOnClickListener(v -> resolve(act,name,rec,inLog?Resolution.KEEP:Resolution.ADD,dialog,later));
+    second.setOnClickListener(v -> resolve(act,name,rec,inLog?Resolution.ADD:Resolution.DISCARD,dialog,later));
+    return row;
+    }
+
+private enum Resolution { KEEP, ADD, DISCARD }
+
+private static void resolve(MainActivity act,String name,Rec rec,Resolution how,AlertDialog[] dialog,Runnable later) {
+    if(how==Resolution.ADD&&Natives.getbloodvar()>=Natives.getLabels().size()-1) {
+        Applic.argToaster(act,act.getString(R.string.specifyblood).replace("\"",""),android.widget.Toast.LENGTH_LONG);
+        return;
+        }
+    synchronized(lock) {
+        if(busy) return;
+        busy=true;
+        }
+    new Thread(() -> {
+        boolean ok=false;
+        try {
+            synchronized(lock) {
+                final State st=states().get(name);
+                final int index=meterIndex(name);
+                if(st!=null&&!st.loadFailed&&index>=0) {
+                    final MeterDecisionState.Persistence<Rec> disk=proposed -> write(name,st,proposed,true);
+                    switch(how) {
+                        case KEEP: ok=st.resolveAlreadySaved(rec.key,disk); break;
+                        case DISCARD: ok=st.resolveDiscard(rec.key,disk); break;
+                        case ADD:
+                            ok=st.resolveAddNow(rec.key,disk,(id,r) -> {
+                                byte[] binding=Natives.GlucoseMeterPrepareAccepted(index,r.raw);
+                                if(binding==null) return null;
+                                String encoded=MeterImportBinding.encode(binding,id,r.raw);
+                                MeterImportBinding.requireDevice(binding,name);
+                                return encoded;
+                                },(id,r) -> Natives.GlucoseMeterImportAccepted(index,r.raw,MeterImportBinding.decode(st.bindings.get(id),id,r.raw)));
+                            if(ok) Applic.app.redraw();
+                            break;
+                        }
+                    }
+                flags();
+                }
+            }
+        catch(Throwable th) { Log.stack(LOG_ID,"resolve",th); }
+        finally { synchronized(lock) { busy=false; } }
+        final boolean done=ok;
+        Applic.RunOnUiThread(() -> {
+            try {
+                if(!done) storageError(act);
+                final AlertDialog d=dialog[0];
+                if(d!=null&&d.isShowing()) d.dismiss();
+                Dashboard.update();
+                MeterList.refreshOpen();
+                final Runnable r=changed;
+                if(r!=null) r.run();
+                }
+            catch(Throwable th) { Log.stack(LOG_ID,"after resolve",th); }
+            // Reopen with what is left. Nothing left: the page's onChanged handles it.
+            final HashSet<String> skip=new HashSet<>();
+            boolean more;
+            synchronized(lock) { State st=states().get(name); more=st!=null&&!st.pending.isEmpty(); }
+            if(more) ask(MainActivity.thisone,name,skip,later,true);
+            });
+        },"MeterResolve").start();
+    }
+
 /* ---------- saving the decisions ---------- */
 
 /* Save pressed.  The native saves run on a thread without a Looper, like the
  * Bluetooth callbacks they come from normally. */
-private static void decide(String name,ArrayList<Rec> shown,boolean[] mine,HashSet<String> skip) {
+private static void decide(String name,ArrayList<Rec> shown,HashSet<String> skip) {
     synchronized(lock) {
         busy=true;
         }
     new Thread(() -> {
+        boolean success=false;
         try {
-            process(name,shown,mine);
+            success=process(name,shown);
             }
         catch(Throwable th) {
             Log.stack(LOG_ID,"process",th);
@@ -707,8 +999,14 @@ private static void decide(String name,ArrayList<Rec> shown,boolean[] mine,HashS
                 busy=false;
                 }
             }
+        final boolean finished=success;
         Applic.RunOnUiThread(() -> {
             try {
+                if(!finished) {
+                    skip.add(name);
+                    final MainActivity act=MainActivity.thisone;
+                    if(act!=null) storageError(act);
+                    }
                 Dashboard.update();
                 MeterList.refreshOpen();
                 final Runnable r=changed;
@@ -728,56 +1026,47 @@ private static void decide(String name,ArrayList<Rec> shown,boolean[] mine,HashS
  * Only the records that were shown are decided; one that arrived while the
  * dialog was open stays pending and is asked about next.
  */
-private static void process(String name,ArrayList<Rec> shown,boolean[] mine) {
+private static boolean process(String name,ArrayList<Rec> shown) {
     synchronized(lock) {
         final State st=states().get(name);
         final int index=meterIndex(name);
-        if(st==null||index<0) {
-            Log.e(LOG_ID,"process: no meter "+index);
-            return; // the readings stay pending
+        if(st==null||st.loadFailed||index<0) {
+            Log.e(LOG_ID,"process: unavailable meter state");
+            return false;
             }
         final GlucoseMeterGatt gatt=BluetoothGlucoseMeter.getExistingGatt(index);
-        final int n=shown.size();
-        final Integer[] order=new Integer[n];
-        for(int i=0;i<n;i++)
-            order[i]=i;
-        java.util.Arrays.sort(order,(a,b) -> {
-            final Rec x=shown.get(a),y=shown.get(b);
-            return x.seq!=y.seq?Integer.compare(x.seq,y.seq):Long.compare(x.received,y.received);
+        final ArrayList<Rec> ordered=new ArrayList<>(shown);
+        // Order is cosmetic. Existing bindings are NEVER replaced by preparation.
+        final java.util.HashMap<Rec,Long> times=new java.util.HashMap<>();
+        for(Rec rec:ordered) times.put(rec,rec.time/1000);
+        Collections.sort(ordered,(x,y) -> {
+            int cmp=Long.compare(times.get(x),times.get(y));
+            return cmp!=0?cmp:Long.compare(x.received,y.received);
             });
-        int saved=0;
-        for(int i:order) {
-            final Rec rec=shown.get(i);
-            if(!st.pending.containsKey(rec.key))
-                continue;
-            if(mine[i]) {
-                try {
-                    if(gatt!=null)
-                        gatt.saveRecord(rec.raw);
-                    else
-                        Natives.GlucoseMeterSave(index,rec.raw); // meter not active now
-                    saved++;
-                    }
-                catch(Throwable th) {
-                    Log.stack(LOG_ID,"save",th);
-                    continue; // stays pending, asked again
-                    }
-                }
-            st.pending.remove(rec.key);
-            st.decided.remove(rec.key);
-            st.decided.put(rec.key,mine[i]);
+        final ArrayList<String> keys=new ArrayList<>();
+        for(Rec rec:ordered) keys.add(rec.key);
+        final int[] saved={0};
+        final boolean success;
+        try {
+            success=st.commit(keys,proposed -> write(name,st,proposed,true),(id,rec) -> {
+                byte[] binding=Natives.GlucoseMeterPrepareAccepted(index,rec.raw);
+                if(binding==null) return null;
+                String encoded=MeterImportBinding.encode(binding,id,rec.raw);
+                MeterImportBinding.requireDevice(binding,name);
+                return encoded;
+                },(id,rec) -> {
+                final byte[] binding=MeterImportBinding.decode(st.bindings.get(id),id,rec.raw);
+                final int receipt=Natives.GlucoseMeterImportAccepted(index,rec.raw,binding);
+                if(MeterDecisionState.importConfirmed(receipt)) saved[0]++;
+                return receipt;
+                });
             }
-        final Iterator<String> it=st.decided.keySet().iterator();
-        while(st.decided.size()>MAX_DECIDED&&it.hasNext()) {
-            it.next();
-            it.remove();
+        finally {
+            flags();
             }
-        write(name,st,true);
-        if(saved>0) {
-            /* What followed the records of a sync before: the "records sent"
-             * response, on which the native side calibrates with the last
-             * blood value and wakes the backup; then the screens. */
-            Natives.recordCharacteristicChanged(RACP_SUCCESS);
+        if(saved[0]>0) {
+            // Do not synthesize RACP success: that runs calibrateLast on a
+            // historical review import. Native receipt already wakes observers.
             if(gatt!=null) {
                 gatt.newvalues=true;
                 gatt.receivedTime=System.currentTimeMillis();
@@ -786,6 +1075,7 @@ private static void process(String name,ArrayList<Rec> shown,boolean[] mine) {
             Applic.app.redraw();
             Applic.toGarmin(1);
             }
+        return success;
         }
     }
 }

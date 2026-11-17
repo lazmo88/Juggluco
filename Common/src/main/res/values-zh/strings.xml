@@ -271,7 +271,6 @@
     <string name="notify">通知</string>
  <string name="separate">独立通知</string>
     <string name="librecurrent">即时</string>
-    <string name="USE_ALARM">警报是警报</string>
     <string name="speed">速度</string>
  <string name="pitch">音高</string>
  <string name="talker">声音</string>

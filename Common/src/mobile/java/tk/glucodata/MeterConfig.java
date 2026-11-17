@@ -44,7 +44,7 @@ static private final String LOG_ID="MeterConfig";
 
 static void config(MainActivity context,int meterIndex,View parent,BluetoothDevice device,Runnable changed) {
     if(doLog)
-        Log.i(LOG_ID,"MeterConfig "+meterIndex);
+        Log.i(LOG_ID,"MeterConfig");
     String deviceName=Natives.GlucoseMeterDeviceName(meterIndex);
     if(deviceName==null)
         deviceName="Error: no device name";
@@ -58,6 +58,10 @@ static void config(MainActivity context,int meterIndex,View parent,BluetoothDevi
                 changed.run();
             BluetoothGlucoseMeter.restartDevices();
             }));
+
+    LinearLayout health=page.section(R.string.jm_hc_title);
+    page.link(health,R.drawable.ic_jm_favorite,context.getString(R.string.jm_hc_title),context.getString(R.string.jm_hc_entry_summary),
+        () -> HealthConnectPage.show(context));
 
     final long[] newtime={Natives.GlucoseMeterGetLastTime(meterIndex)};
     LinearLayout from=page.section(context.getString(R.string.bloodafter).replace("\"","").trim().replaceAll(":$",""));
@@ -77,6 +81,15 @@ static void config(MainActivity context,int meterIndex,View parent,BluetoothDevi
         bloodpos[0]=i;
         Natives.setbloodvar((byte)i);
         });
+
+    /* When this phone holds the meter (MeterLink). */
+    LinearLayout link=page.section(R.string.jm_meterlink_section);
+    final CharSequence[] modes={context.getString(R.string.jm_meterlink_always),context.getString(R.string.jm_meterlink_app_open)};
+    page.segmented(link,null,modes,BluetoothGlucoseMeter.linkMode(meterIndex)==MeterLink.Mode.APP_OPEN?1:0,i -> {
+        if(!BluetoothGlucoseMeter.setLinkMode(meterIndex,i==1?MeterLink.Mode.APP_OPEN:MeterLink.Mode.ALWAYS))
+            page.toast(context.getString(R.string.jm_meterask_storage_error));
+        });
+    page.note(link,context.getString(R.string.jm_meterlink_note));
 
     /* Shared meter: ask which readings are the user's before saving (MeterAsk). */
     final String meter=Natives.GlucoseMeterDeviceName(meterIndex);

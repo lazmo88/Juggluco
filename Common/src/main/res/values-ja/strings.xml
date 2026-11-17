@@ -273,7 +273,6 @@
     <string name="notify">通知</string>
  <string name="separate">分離</string>
     <string name="librecurrent">即時</string>
-    <string name="USE_ALARM">アラームをアラーム扱い</string>
     <string name="speed">速度</string>
  <string name="pitch">ピッチ</string>
  <string name="talker">音声</string>

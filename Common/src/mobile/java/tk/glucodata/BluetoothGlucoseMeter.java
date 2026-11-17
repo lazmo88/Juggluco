@@ -189,6 +189,7 @@ public static GlucoseMeterGatt addDevice(int index,BluetoothDevice device) {
             Log.i(LOG_ID,"addDevice first "+index);
         meterGatts=new GlucoseMeterGatt[1];
         meterGatts[0]=gatt;
+        watchLifecycle();
         initBluetooth();
         connectAllDevices(0);
         }
@@ -233,6 +234,7 @@ public static void startDevices() {
             Log.i(LOG_ID,"startDevices: meterGatts!=null");
         }
     devicesStarted=true;
+    watchLifecycle();
     initBluetooth();
     connectAllDevices(0);
     }
@@ -388,4 +390,166 @@ static boolean bluetoothIsEnabled() {
         return false;
     }
 
+/** Ask every active meter for its new readings now (see startFetch). Returns how many
+ * meters were asked. Kept for callers that only need the count. */
+public static int refreshPairedMeters() {
+    final var outcome=fetchPairedMeters();
+    return outcome==null?0:outcome.length;
+    }
+
+/* ---------- MeterLink: when this phone holds the meter ---------- */
+
+private static final String LINK_PREFS="jm_meter_link";
+/* Keyed by meter name, the same identity MeterAsk uses: survives index changes. */
+static MeterLink.Mode linkMode(int meterIndex) {
+    try {
+        final String name=Natives.GlucoseMeterDeviceName(meterIndex);
+        if(name==null)
+            return MeterLink.Mode.ALWAYS;
+        return MeterLink.parse(Applic.app.getSharedPreferences(LINK_PREFS,Context.MODE_PRIVATE).getString(name,null));
+        }
+    catch(Throwable th) {
+        Log.stack(LOG_ID,"linkMode",th);
+        return MeterLink.Mode.ALWAYS;
+        }
+    }
+static boolean setLinkMode(int meterIndex,MeterLink.Mode mode) {
+    final String name=Natives.GlucoseMeterDeviceName(meterIndex);
+    if(name==null)
+        return false;
+    final boolean ok=Applic.app.getSharedPreferences(LINK_PREFS,Context.MODE_PRIVATE).edit().putString(name,MeterLink.store(mode)).commit();
+    if(ok)
+        appVisibility(visible); // apply now: connect or let go as the new setting says
+    return ok;
+    }
+
+private static volatile boolean visible=false;
+private static int started=0;
+private static java.util.concurrent.ScheduledFuture<?> pendingRelease=null;
+static boolean appVisible() {
+    return visible;
+    }
+private static boolean lifecycleRegistered=false;
+/* Follows whether any of the app's activities is on screen. */
+static synchronized void watchLifecycle() {
+    if(lifecycleRegistered)
+        return;
+    lifecycleRegistered=true;
+    /* Started after an activity was already on screen (meter added, restore): count it. */
+    final MainActivity act=MainActivity.thisone;
+    if(act!=null&&act.getLifecycle().getCurrentState().isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED)) {
+        started=1;
+        visible=true;
+        }
+    Applic.app.registerActivityLifecycleCallbacks(new android.app.Application.ActivityLifecycleCallbacks() {
+        @Override public void onActivityStarted(android.app.Activity a) { synchronized(BluetoothGlucoseMeter.class) { if(started++==0) appVisibility(true); } }
+        @Override public void onActivityStopped(android.app.Activity a) { synchronized(BluetoothGlucoseMeter.class) { if(started>0&&--started==0) appVisibility(false); } }
+        @Override public void onActivityCreated(android.app.Activity a,android.os.Bundle b) {}
+        @Override public void onActivityResumed(android.app.Activity a) {}
+        @Override public void onActivityPaused(android.app.Activity a) {}
+        @Override public void onActivitySaveInstanceState(android.app.Activity a,android.os.Bundle b) {}
+        @Override public void onActivityDestroyed(android.app.Activity a) {}
+        });
+    }
+private static synchronized void appVisibility(boolean now) {
+    visible=now;
+    final var old=pendingRelease;
+    pendingRelease=null;
+    if(old!=null)
+        old.cancel(false);
+    final var gatts=meterGatts;
+    if(gatts==null||Natives.staticnum())
+        return;
+    if(now) {
+        /* App opened: meters that wait for the app get a connection request now. */
+        for(final var gatt:gatts)
+            if(gatt!=null&&!gatt.stop&&gatt.linkMode()==MeterLink.Mode.APP_OPEN&&!gatt.connected&&gatt.mBluetoothGatt==null&&bluetoothIsEnabled()&&gatt.askDevice())
+                gatt.connectActiveDevice(0);
+        }
+    else
+        pendingRelease=Applic.scheduler.schedule(BluetoothGlucoseMeter::releaseHidden,MeterLink.RELEASE_GRACE_MS,java.util.concurrent.TimeUnit.MILLISECONDS);
+    }
+/* The app has been out of sight for the grace period: let go of APP_OPEN meters
+ * that are idle; one still transferring is checked again shortly. */
+private static void releaseHidden() {
+    boolean again=false;
+    synchronized(BluetoothGlucoseMeter.class) {
+        pendingRelease=null;
+        if(visible)
+            return;
+        final var gatts=meterGatts;
+        if(gatts==null)
+            return;
+        final long now=System.currentTimeMillis();
+        for(final var gatt:gatts) {
+            if(gatt==null)
+                continue;
+            switch(MeterLink.release(gatt.linkMode(),false,gatt.busy(now))) {
+                case CLOSE:
+                    if(gatt.mBluetoothGatt!=null) {
+                        if(doLog)
+                            Log.i(LOG_ID,"release meter "+gatt.meterIndex+": app not open");
+                        gatt.close();
+                        gatt.disconnectedTime=now;
+                        gatt.connected=false;
+                        gatt.updateview();
+                        }
+                    break;
+                case WAIT: again=true; break;
+                default:
+                }
+            }
+        if(again)
+            pendingRelease=Applic.scheduler.schedule(BluetoothGlucoseMeter::releaseHidden,5,java.util.concurrent.TimeUnit.SECONDS);
+        }
+    }
+
+/* Pull to refresh: ask every active meter for its new records now, connecting
+ * directly where needed. Never interrupts a transfer. Returns the start time and
+ * the meters it acted on, or null when none was asked. */
+static final class Fetch {
+    final long since;
+    final GlucoseMeterGatt[] meters;
+    Fetch(long since,GlucoseMeterGatt[] meters) { this.since=since; this.meters=meters; }
+    MeterLink.Outcome outcome() {
+        MeterLink.Outcome best=null;
+        for(final var gatt:meters)
+            best=MeterLink.best(best,gatt.outcome(since));
+        return best;
+        }
+    boolean settled() {
+        for(final var gatt:meters)
+            if(!MeterLink.settled(gatt.outcome(since)))
+                return false;
+        return true;
+        }
+    }
+static Fetch startFetch() {
+    try {
+        if(Natives.staticnum())
+            return null;
+        final var gatts=meterGatts;
+        if(gatts==null||!bluetoothIsEnabled())
+            return null;
+        final long since=System.currentTimeMillis();
+        final java.util.ArrayList<GlucoseMeterGatt> asked=new java.util.ArrayList<>();
+        for(final var gatt:gatts) {
+            if(gatt==null)
+                continue;
+            if(gatt.fetchNow()!=MeterLink.Fetch.SKIPPED)
+                asked.add(gatt);
+            }
+        if(doLog)
+            Log.i(LOG_ID,"startFetch asked "+asked.size());
+        return asked.isEmpty()?null:new Fetch(since,asked.toArray(new GlucoseMeterGatt[0]));
+        }
+    catch(Throwable th) {
+        Log.stack(LOG_ID,"startFetch",th);
+        return null;
+        }
+    }
+private static GlucoseMeterGatt[] fetchPairedMeters() {
+    final var fetch=startFetch();
+    return fetch==null?null:fetch.meters;
+    }
 }

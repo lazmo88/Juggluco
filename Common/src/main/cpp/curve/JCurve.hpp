@@ -11,6 +11,7 @@
 #include "settings/settings.hpp"
 #include "curve.hpp"
 #include "gluconfig.hpp"
+#include "detailedplot.hpp"
 extern int *numheights;
 extern int shownlabels;
 inline constexpr const int maxnumsources=2;
@@ -119,6 +120,17 @@ int showhistories=0;
 int shownumbers=1;
 int showmeals=0;
 int invertcolors=0;
+// Transient phone presentation; never writes the user's saved palette.
+bool detailedPhone=false,drawingDetailed=false;
+bool legacyPhoneFrame=false;
+#if defined(JUGGLUCO_APP) && !defined(WEAROS)
+bool detailedGraphActive() const;
+#else
+bool detailedGraphActive() const { return false; }
+#endif
+NVGcolor detailedSurface{},detailedInk{},detailedGrid{},detailedAccent{};
+std::atomic<uint32_t> detailedStart{0},detailedEnd{0};
+std::atomic<bool> detailedHasContent{true},detailedFrame{false};
 float smallerlen;
 
 float valuesize=0;
@@ -184,7 +196,7 @@ inline bool portraitReadable() const {
 #ifdef WEAROS
     return false;
 #else
-    return portrait && !currentOrientationAsLandscape() && settings->data()->rotateText;
+    return !detailedGraphActive() && portrait && !currentOrientationAsLandscape() && settings->data()->rotateText;
 #endif
     }
 
@@ -199,7 +211,7 @@ inline int graphRotationMode() const {
 #ifdef WEAROS
     return 0;
 #else
-    if(physicalNanoVG)
+    if(physicalNanoVG || detailedGraphActive())
         return 0;
     const int rotationState=displayRotationState.load(std::memory_order_relaxed);
     /* In either special large-screen mode the graph uses the current Android
@@ -236,6 +248,14 @@ float smallsize=300,menusize=smallsize,headsize=900,midsize, mediumfont,timefont
 float density;
 float textheight,menutextheight;
 float smallfontlineheight;
+DetailedPlot detailedPlot() const {
+    return DetailedPlot::layout(width,height,
+        std::max(dleft,(float)statusbarleft),std::max(dtop,(float)statusbarheight),
+        std::max(dright,(float)statusbarright),dbottom,density,smallsize,smallfontlineheight,foundPointRadius);
+    }
+bool inDetailedClip(double x,double y) const {
+    return !detailedGraphActive() || detailedPlot().contains(x,y,foundPointRadius);
+    }
 
 struct {
     float left,top;
@@ -338,17 +358,23 @@ void setextremes(std::pair<int,int> extr);
 //auto gettrans(uint32_t starttime,uint32_t endtime);
 auto gettrans(uint32_t starttime,uint32_t endtime) {
 
-    const double usedtop=pointRadius;
-    const double usedheight=dheight-2*usedtop;
+    const bool detailed=detailedGraphActive();
+    const auto plot=detailed?detailedPlot():DetailedPlot{};
+    const double usedtop=detailed?plot.top:pointRadius;
+    const double usedheight=detailed?plot.height():dheight-2*usedtop;
     const int gmax=gmin+grange;
     const double yscale= -usedheight/grange,ymove= usedtop+usedheight*gmax/grange;
-   const auto transy=[yscale,ymove](uint32_t y) {return y*yscale + ymove;};
+   const auto transy=[detailed,plot,minimum=gmin,range=grange,yscale,ymove](uint32_t y) {
+       return detailed?plot.valueY(y,minimum,range):y*yscale+ymove;
+       };
 
 
     double interval=endtime-starttime;
-    const double xscale=dwidth/interval;
+    const double xscale=(detailed?plot.width():dwidth)/interval;
     const double doublestart=starttime;
-    const auto transx=[xscale,doublestart](uint32_t x) {return (x-doublestart)*xscale;};
+    const auto transx=[detailed,plot,starttime,endtime,xscale,doublestart](uint32_t x) {
+        return detailed?plot.timeX(x,starttime,endtime):(x-doublestart)*xscale;
+        };
 
     return std::make_pair(transx,transy);
     }
@@ -405,6 +431,7 @@ inline void setcolor(const int colindex,const NVGcolor col) {
 	settings->data()->colors[startincolors+colindex]=col;
 	}
 inline const NVGcolor *getblack() {
+    if(drawingDetailed) return &detailedInk;
 	if(startincolors)
 		return &white;
 	return &black;
@@ -415,6 +442,7 @@ inline const NVGcolor *getmenucolor() {
 	return &black;
 	}
 inline const NVGcolor *getgray() {
+    if(drawingDetailed) return &detailedGrid;
 	if(startincolors)
 		return &backgroundgray;
 	return &foregroundgray;
@@ -425,6 +453,7 @@ inline const NVGcolor *getdarkgray() {
 	return &darkgrayin;
 	}
 inline const NVGcolor *getwhite() {
+    if(drawingDetailed) return &detailedSurface;
 	if(startincolors)
 		return &black;
 	return &white;
@@ -436,6 +465,7 @@ inline const NVGcolor *getyellow() {
 		return &yellow;
 	}
 inline const NVGcolor *getthreehour() {
+    if(drawingDetailed) return &detailedGrid;
 	if(startincolors)
 		return &backgroundthreehour;
 	return &foregroundthreehour;
@@ -468,6 +498,12 @@ inline float	numtypeheight(const int type)  {
 #endif
 
       ;
+        if(detailedGraphActive()) {
+            const auto plot=detailedPlot();
+            // A number has a label above its centre, not just one text line.
+            const double inset=std::min(smallsize*1.4+(double)smallfontlineheight/2,plot.height()/2);
+            return plot.top+inset+(plot.height()-2*inset)*(numheights[type])/std::max(1,shownlabels-1);
+            }
 		return dtop+schuif+(dheight-schuif-smallfontlineheight/2)*(numheights[type])/(shownlabels-1);
 		}
 int largedaystr(const time_t tim,char *buf);

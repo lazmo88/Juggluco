@@ -23,6 +23,8 @@
 #include "nums/mirrordatabase.hpp"
 #include <vector>
 std::vector<Numdata*> numdatas;
+// Serializes Health Connect snapshots with source replacement/destruction.
+std::mutex healthNumRegistryMutex;
 
 #include "net/passhost.hpp"
 #include "net/makerandom.hpp"

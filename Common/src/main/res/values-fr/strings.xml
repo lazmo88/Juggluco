@@ -266,7 +266,6 @@
 <string name="notify">Notifier</string>
 <string name="separate">Séparer</string>
 <string name="librecurrent">Immédiat</string>
-<string name="USE_ALARM">Alarme est alarme</string>
     <string name="speed">Vitesse</string>
  <string name="pitch">Tonalité</string>
  <string name="talker">Voix</string>

@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="USE_ALARM">Тревога - это тревога</string>
     <string name="aboutname">О программе</string>
     <string name="active">Активно</string>
     <string name="activeonly">Только активный</string>

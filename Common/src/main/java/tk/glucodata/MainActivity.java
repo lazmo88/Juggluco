@@ -272,7 +272,8 @@ private void startdisplay() {
                      systembarLeft!=insets.left||systembarTop!=insets.top||
                      systembarRight!=insets.right||systembarBottom!=insets.bottom;
              {if(doLog) {Log.i(LOG_ID, "systemBars: left="+insets.left+ " right="+insets.right+ " bottom="+insets.bottom+ " top="+insets.top);};};
-             Natives.systembar(insets.left, insets.top, insets.right, insets.bottom);
+             // The detailed graph can occupy a smaller surface between its controls.
+             curve.post(curve::syncViewportInsets);
 
             systembarLeft=insets.left;
             systembarTop=insets.top;

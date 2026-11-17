@@ -132,6 +132,9 @@ static public void show(MainActivity act,View parent) {
     final M3Page page=M3Page.open(act,act.getString(R.string.meterlist).replace("\"",""));
     current=page;
     page.help(R.string.GlucoseMeterList);
+    LinearLayout health=page.section(R.string.jm_hc_title);
+    page.link(health,R.drawable.ic_jm_favorite,act.getString(R.string.jm_hc_title),act.getString(R.string.jm_hc_entry_summary),
+        () -> HealthConnectPage.show(act));
     LinearLayout list=page.section(R.string.jm_sensors_section_meters);
     Runnable fill=() -> {
         BluetoothGlucoseMeter.zeroViews();

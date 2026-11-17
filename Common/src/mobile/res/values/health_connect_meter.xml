@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="jm_health_export_summary">Export sensor and saved blood-glucose readings, including existing history. Repeated syncs do not duplicate meter readings.</string>
+    <string name="jm_health_meter_config_warning">Meter export paused: glucose units or the blood label changed after export. Restore the original setting to resume safely. Existing readings have no stored unit history.</string>
+    <string name="jm_health_meter_ledger_warning">Meter export paused: its saved export state could not be read. No meter records will be changed. Export state must be recovered before retrying.</string>
+</resources>

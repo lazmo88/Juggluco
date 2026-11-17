@@ -31,6 +31,7 @@ import tk.glucodata.Applic;
 import tk.glucodata.Consumer;
 import tk.glucodata.EverSense;
 import tk.glucodata.HealthConnection;
+import tk.glucodata.HealthConnectPage;
 import tk.glucodata.JugglucoSend;
 import tk.glucodata.MainActivity;
 import tk.glucodata.Natives;
@@ -172,7 +173,7 @@ public static void show(MainActivity act) {
     page.link(wear,R.drawable.ic_jm_watch,act.getString(R.string.jm_share_watch_title),act.getString(R.string.jm_share_watch_summary),
         () -> tk.glucodata.WatchPage.show(act));
     if(Build.VERSION.SDK_INT>=28) {
-        page.toggle(wear,R.drawable.ic_jm_favorite,"Health Connect",act.getString(R.string.jm_share_health_summary),
+        page.toggle(wear,R.drawable.ic_jm_favorite,"Health Connect",act.getString(R.string.jm_health_export_summary),
             Natives::gethealthConnect,isChecked -> {
                 Natives.sethealthConnect(isChecked);
                 if(isChecked) {
@@ -184,6 +185,13 @@ public static void show(MainActivity act) {
                     HealthConnection.Companion.stop();
                     }
                 });
+        View health=wear.getChildAt(wear.getChildCount()-1);
+        page.refresher(() -> {
+            int warning=HealthConnection.Companion.meterExportWarning(act);
+            M3Page.setSummary(health,act.getString(warning==0?R.string.jm_health_export_summary:warning));
+            });
+        page.link(wear,R.drawable.ic_jm_sync_alt,act.getString(R.string.jm_hc_title),
+            act.getString(R.string.jm_hc_refresh_note),() -> HealthConnectPage.show(act));
         if(tk.glucodata.ActivityHealth.available())
             page.link(wear,R.drawable.ic_jm_directions_run,act.getString(R.string.activity_import),act.getString(R.string.jm_share_activities_summary),
                 () -> tk.glucodata.ActivitySettings.show(act,page.root));

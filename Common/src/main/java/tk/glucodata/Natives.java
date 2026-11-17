@@ -80,6 +80,8 @@ public static native boolean hasBluetooth(byte[] sensorident,byte[] patchinfo);
 //    public static native void showlast();
 //    public static native void hidescanresults();
     public static native void resize(int width, int height,int initscreenwidth);
+    public static native void detailedGraphStyle(boolean enabled,int surface,int ink,int grid,int accent);
+    public static native long[] detailedGraphState();
 //public static native void setDisplayRotation(int rotation,boolean reverseDefaultRotation);
 //public static native void setDisplayRotation(int rotation,boolean reverseDefaultRotation,boolean graphLockedToFirstLandscape);
  public static native void setDisplayRotation(int rotation,boolean reverseDefaultRotation,boolean graphLockedToFirstLandscape,boolean graphUsesCurrentOrientationAsLandscape);
@@ -163,6 +165,13 @@ public static native String getDeviceAddress(long dataptr,boolean getnew);
     public static native void saveNumpos(long ptr,int pos,long time,float value,int type,int mealptr);
     public static native void removeNum(long ptr,int pos);
     public static native item getNumitem(long ptr, int pos);
+    /** Saved blood-label inventory, or null while unavailable/repairing/malformed.
+     * Schema2: [2, unit, blood label, 2], then per source [logical source slot (0 mirror, 1 local),
+     * UUID high, UUID low, epoch, first, last, complete coverage(0/1), row count,
+     * (epoch seconds, unsigned raw float bits)*]. A pruned source can contribute
+     * retained rows, but never proves deletion of its missing history.
+     */
+    public static native long[] healthConnectBloodSnapshot();
     public static native int getfirstNum(long ptr);
     public static native int getlastNum(long ptr);
     public static native int getlastpolledNum(long ptr);
@@ -1007,6 +1016,14 @@ public static native boolean GlucoseMeterRemove(String deviceName,String address
 public static native boolean GlucoseMeterRemoveIndex(int index);
 
 public static native boolean GlucoseMeterSave(int meterIndex,byte[] value);
+/** Read-only conversion snapshot. Persist atomically with new explicit Add before application. */
+public static native byte[] GlucoseMeterPrepareAccepted(int meterIndex,byte[] value);
+// Explicit durable Add only: 0 rejected/uncertain, 1 persisted, 2 already present.
+// Unlike GlucoseMeterSave's legacy just-now boolean, these are storage receipts.
+public static native int GlucoseMeterImportAccepted(int meterIndex,byte[] value,byte[] binding);
+public static native long GlucoseMeterCorrectedTime(int meterIndex,byte[] value);
+/** Read-only. {expected time, then (time,slot,unit) per matching saved blood row}; null when unreadable. */
+public static native long[] GlucoseMeterLegacyMatches(int meterIndex,byte[] value,int windowSeconds);
 public static native boolean GlucoseMeterProcessContext(int meterIndex,byte[] value);
 public static native boolean GlucoseMeterSaveTime(int meterIndex,byte[] value);
 

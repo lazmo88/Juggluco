@@ -92,6 +92,8 @@ public String getDeviceName() {
             }
         }
 long foundtime=0L;
+/* Next connection is a direct one-off attempt (pull to refresh). */
+volatile boolean directOnce=false;
  private static final String TimeCharUUID = "00002a2b-0000-1000-8000-00805f9b34fb";
  private static final String GlucoseCharUUID = "00002a18-0000-1000-8000-00805f9b34fb";
  private static final String ContextCharUUID = "00002a34-0000-1000-8000-00805f9b34fb";
@@ -232,7 +234,10 @@ boolean saveRecord(byte[] value) {
                     saveRecord(value);
                 break;
             case RecordsCharUUID:
-                if(Natives.recordCharacteristicChanged(value)) {
+                final boolean had=Natives.recordCharacteristicChanged(value);
+                recordsHadData=had;
+                recordsAnsweredAt=System.currentTimeMillis();
+                if(had) {
                     if(!newvalues)
                         Applic.toGarmin(1);
                     newvalues=true;
@@ -320,13 +325,63 @@ private boolean writeRecordsRequest(BluetoothGatt gatt) {
         if(newerRecords) {
             byte[] cmd=Natives.getGlucoseMeterNewCMD(meterIndex);
             if(cmd!=null) {
-                return writer(gatt, RecordsChar,cmd);
+                return requested(writer(gatt, RecordsChar,cmd));
                 }
             disconnect();
             return true;
             }
         byte[] cmd={1,(byte)0x1};
-        return writer(gatt, RecordsChar,cmd);
+        return requested(writer(gatt, RecordsChar,cmd));
+        }
+/* MeterLink: when records were last asked for and answered, so a pull can tell what
+ * happened and the app never lets go of the meter in the middle of a transfer. */
+volatile long recordsRequestedAt=0L;
+volatile long recordsAnsweredAt=0L;
+volatile boolean recordsHadData=false;
+/* Connected, services found and record indications on: records can be asked for. */
+volatile boolean recordsReady=false;
+private boolean requested(boolean written) {
+        if(written)
+            recordsRequestedAt=System.currentTimeMillis();
+        return written;
+        }
+/* Still pairing, discovering or waiting for the records answer, bounded in time. */
+boolean busy(long now) {
+        if(!connected)
+            return false;
+        final long start=Math.max(connectedTime,recordsRequestedAt);
+        return MeterLink.transferring(start,recordsAnsweredAt,now);
+        }
+MeterLink.Mode linkMode() {
+        return BluetoothGlucoseMeter.linkMode(meterIndex);
+        }
+/* Pull to refresh: what was done for this meter. Never interrupts a transfer. */
+MeterLink.Fetch fetchNow() {
+        final long now=System.currentTimeMillis();
+        final var gatt=mBluetoothGatt;
+        final boolean ready=connected&&recordsReady&&gatt!=null&&RecordsChar!=null;
+        final var what=MeterLink.fetch(ready,connected,busy(now),!stop,getDeviceAddress()!=null);
+        if(doLog)
+            Log.i(LOG_ID,meterIndex+" fetchNow "+what);
+        switch(what) {
+            case REQUEST:
+                requestRecords(gatt);
+                break;
+            case CONNECT:
+                /* A waiting background request is replaced by one direct attempt;
+                 * when that times out the normal reconnect takes over again. */
+                if(!askDevice())
+                    return MeterLink.Fetch.SKIPPED;
+                directOnce=true; // the user is waiting: connect now, not when Android gets round to it
+                if(!connectActiveDevice(0))
+                    directOnce=false;
+                break;
+            default:
+            }
+        return what;
+        }
+MeterLink.Outcome outcome(long since) {
+        return MeterLink.outcome(since,connected,connectedTime,recordsAnsweredAt,recordsHadData);
         }
 
 
@@ -420,6 +475,7 @@ boolean connected=false;
             return;
             }
           discovered=false;
+          recordsReady=false;
           connected=true;
           newvalues=false;
           if(bondstate == BluetoothDevice.BOND_BONDING) {
@@ -444,6 +500,7 @@ boolean connected=false;
            disconnectedTime=tim;
            updateview();
            connected=false;
+           recordsReady=false;
             if(bondstate == BluetoothDevice.BOND_BONDING) {
                    {if(doLog) {Log.i(LOG_ID, "BOND_BONDING");};};
                    }
@@ -453,6 +510,13 @@ boolean connected=false;
                            Log.i(LOG_ID,"stopping");
                       close();
                         }
+                  else if(!MeterLink.mayConnect(linkMode(),BluetoothGlucoseMeter.appVisible())) {
+                      /* "While the app is open": no background reconnect request
+                       * that could take the meter from another phone. */
+                      if(doLog)
+                          Log.i(LOG_ID,meterIndex+" app not open: let go of the meter");
+                      close();
+                      }
                   else {
                      if(autoconnect)  {
                         if(useConnect)
@@ -514,6 +578,7 @@ private void setCareSenseTime(BluetoothGatt bluetoothGatt) {
                     tryer(()->enableNotification(bluetoothGatt, GlucoseChar));
                     break;
            case RecordsCharUUID:
+                recordsReady=true;
                 if(accuChekMobile && SerialNumberChar!=null) {
                     tryer(()->bluetoothGatt.readCharacteristic(SerialNumberChar));
                     }
@@ -594,6 +659,12 @@ private void setCareSenseTime(BluetoothGatt bluetoothGatt) {
                 if(doLog) {Log.d(LOG_ID, meterIndex + " mBluetoothGatt!=null");};
                 return;
                 }
+            final boolean direct=directOnce;
+            directOnce=false;
+            if(!direct&&!MeterLink.mayConnect(linkMode(),BluetoothGlucoseMeter.appVisible())) {
+                if(doLog) {Log.i(LOG_ID, meterIndex + " app not open: no connection request");};
+                return;
+                }
             if(doLog) {
                 var devname=device.getName();
                 if(devname!=null) {
@@ -602,10 +673,14 @@ private void setCareSenseTime(BluetoothGatt bluetoothGatt) {
                         }
                 }
             try {
+                /* A direct attempt (pull to refresh) fails after about 30 s when the
+                 * meter is asleep; the reconnect in onConnectionStateChange then waits
+                 * in the background as before, if the connection setting allows it. */
+                final boolean auto=autoconnect&&!direct;
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    mBluetoothGatt = device.connectGatt(app, autoconnect, this, BluetoothDevice.TRANSPORT_LE);
+                    mBluetoothGatt = device.connectGatt(app, auto, this, BluetoothDevice.TRANSPORT_LE);
                 } else {
-                    mBluetoothGatt = device.connectGatt(app, autoconnect, this);
+                    mBluetoothGatt = device.connectGatt(app, auto, this);
                     }
 
             if(doLog) {Log.i(LOG_ID,meterIndex+" after connectGatt ="+mBluetoothGatt);};

@@ -259,7 +259,6 @@
     <string name="notify">إشعار</string>
     <string name="separate">منفصل</string>
     <string name="librecurrent">فوري</string>
-    <string name="USE_ALARM">التنبيه يبقى تنبيهًا</string>
     <string name="speed">السرعة</string>
     <string name="pitch">حدة الصوت</string>
     <string name="talker">الصوت</string>

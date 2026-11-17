@@ -82,6 +82,12 @@ static void printGlString(const char* name, GLenum s) {
 
 int numlist=0;
 bool alarmongoing=false;
+#if defined(JUGGLUCO_APP) && !defined(WEAROS)
+extern bool showpers;
+bool JCurve::detailedGraphActive() const {
+    return detailedPhone && !physicalNanoVG && !legacyPhoneFrame && !showpers && !numlist && !scantoshow.scan;
+    }
+#endif
  int    JCurve::showoldscan(NVGcontext* avg,uint32_t nu) {
     if(!scantoshow.scan) 
         return 0;
@@ -615,6 +621,9 @@ int64_t JCurve::screentap(float x,float y) {
             return -3LL;
             }
         }
+    if(detailedGraphActive() && !nrmenu) {
+        if(!inDetailedClip(x,y)) return -1LL;
+        }
 #ifndef WEAROS
     if(!showpers ) 
     {
@@ -791,6 +800,8 @@ bool restart=false;
     }
 
 int    JCurve::badscanMessage(NVGcontext* avg,int kind,std::string_view sensorid) {
+    detailedFrame.store(false);
+    legacyPhoneFrame=true;
     const uint32_t nu=time(nullptr);
     int res=1;
     switch(showoldscan(avg,nu)) {
@@ -923,7 +934,7 @@ bool JCurve::nearbyhistory( const float tapx,const float tapy,  const TX &transx
                 uint32_t tim,glu;
                 if((tim=hist->timeatpos(pos))&&( glu=hist->sputnikglucose(pos))) {
                     auto posx=transx(tim),posy=transy( glu);
-                    if(nearby(posx-tapx,posy-tapy,density)) {
+                    if(inDetailedClip(posx,posy) && nearby(posx-tapx,posy-tapy,density)) {
                         showhistory(hist,tapx,tapy);
                         return true;
                         }
@@ -955,7 +966,7 @@ bool JCurve::nearbycalibratedhistory( const float tapx,const float tapy,  const 
                                 }
                         const uint32_t glu=std::round(calibrated*10.0);
                         auto posx=transx(tim),posy=transy( glu);
-                        if(nearby(posx-tapx,posy-tapy,density)) {
+                        if(inDetailedClip(posx,posy) && nearby(posx-tapx,posy-tapy,density)) {
                                 showhistory(hist,tapx,tapy);
                                 return true;
                                 }
@@ -1002,13 +1013,13 @@ static void speaknum(const Num *num) {
 #endif
 
 
-template <class TX,class TY> const ScanData * nearbyscan(const float tapx,const float tapy,const ScanData *low,const ScanData *high,  const TX &transx,  const TY &transy,float density) {
+template <class TX,class TY> const ScanData * nearbyscan(const float tapx,const float tapy,const ScanData *low,const ScanData *high,  const TX &transx,  const TY &transy,float density,const JCurve &curve) {
     for(const ScanData *it=low;it!=high;it++) {
         if(it->valid()) {
             const uint32_t tim= it->t;
             const auto glu=it->g*10;
             const auto posx= transx(tim),posy=transy(glu);
-            if(nearby(posx-tapx,posy-tapy,density))  {
+            if(curve.inDetailedClip(posx,posy) && nearby(posx-tapx,posy-tapy,density))  {
                 return it;
                 }
             }
@@ -1045,6 +1056,9 @@ int64_t JCurve::longpress(float x,float y) {
             }
           }
     const uint32_t endtime=starttime+duration;
+    if(detailedGraphActive()) {
+        if(!inDetailedClip(x,y)) return 0LL;
+        }
     const auto [transx,transy]= gettrans(starttime, endtime);
     if(shownumbers)
         if(NumHit *hit= nearbynum(x,y,transx,transy))
@@ -1057,7 +1071,7 @@ int64_t JCurve::longpress(float x,float y) {
         }
     if(showscans) {
         for(int i=histlen-1;i>=0;i--) {
-            if(const ScanData *scan=nearbyscan(x,y,scanranges[i].first,scanranges[i].second,transx,transy,density)) {
+            if(const ScanData *scan=nearbyscan(x,y,scanranges[i].first,scanranges[i].second,transx,transy,density,*this)) {
                 LOGGER("longpress scan %.1f\n",scan->g/convfactordL);
                 int index=hists[i];
                 scantoshow={index,scan,static_cast<uint32_t>(time(nullptr)),false};
@@ -1078,7 +1092,7 @@ int64_t JCurve::longpress(float x,float y) {
                 auto cali=make_calibrator<ScanData>(sens);
                 const auto span=(cali.*califunc)(scanranges[i].first,calibrated,nr,allvalues);
 
-                if(const ScanData *scan=nearbyscan(x,y,span.first,span.second,transx,transy,density)) {
+                if(const ScanData *scan=nearbyscan(x,y,span.first,span.second,transx,transy,density,*this)) {
                     LOGGER("longpress scan %.1f\n",scan->g/convfactordL);
                     int pos=scan-span.first;
                     const ScanData *notcal=scanranges[i].first+pos;
@@ -1092,7 +1106,7 @@ int64_t JCurve::longpress(float x,float y) {
          }
     if(showstream) {
         for(int i=histlen-1;i>=0;i--) {
-            if(const ScanData *poll=nearbyscan(x,y,pollranges[i].first,pollranges[i].second,transx,transy,density)) {
+            if(const ScanData *poll=nearbyscan(x,y,pollranges[i].first,pollranges[i].second,transx,transy,density,*this)) {
                 LOGGER("longpress poll %.1f\n",poll->g/convfactordL);
                 const int sensorindex= hists[i];
                 SensorGlucoseData *hist=sensors->getSensorData(sensorindex);
@@ -1114,7 +1128,7 @@ int64_t JCurve::longpress(float x,float y) {
                     auto cali=make_calibrator<ScanData>(sens);
                     const auto span=(cali.*califunc)(pollranges[i].first,calibrated,nr,allvalues);
 
-                    if(const ScanData *poll=nearbyscan(x,y,span.first,span.second,transx,transy,density)) {
+                    if(const ScanData *poll=nearbyscan(x,y,span.first,span.second,transx,transy,density,*this)) {
                         LOGGER("longpress poll %.1f\n",poll->g/convfactordL);
                         showhistory(sens,x,y);
                         return 0LL;
@@ -1124,7 +1138,7 @@ int64_t JCurve::longpress(float x,float y) {
          }
     int type=typeatheight(y); 
     if(type>=0)  {
-        newnum.time=starttime+duration*(x-dleft)/dwidth;
+        newnum.time=starttime+duration*(detailedGraphActive()?detailedPlot().fraction(x):(x-dleft)/dwidth);
         newnum.type=type;
         newnum.value=NAN;
         return reinterpret_cast<int64_t>(&newhit);
@@ -1413,7 +1427,7 @@ void JCurve::flingX(float vol) {
 #endif
 
 //    starttime-=(duration*1.2*vol/dwidth);
-    setstarttime(starttime-(duration*1.2*vol/dwidth));
+    setstarttime(starttime-(detailedGraphActive()?duration*vol/detailedPlot().width():duration*1.2*vol/dwidth));
 #ifndef WEAROS
     if(!showpers)
 #endif
@@ -1427,7 +1441,7 @@ bool                numpageforward() ;
 bool numpagepast() ;
 
 int JCurve::mouseScale(float dx,float xold,float x) {
-     float grens=dwidth/2.0;
+     float grens=detailedGraphActive()?(detailedPlot().left+detailedPlot().right)/2:dwidth/2.0;
 //     auto startduration=duration;
      auto move=dx*80;
 //     auto move=x-xold;
@@ -1472,7 +1486,7 @@ static bool ybezig=false;
 #endif
         {
             ybezig=false;
-            setstarttime(starttime+1.2*(dx/dwidth)*duration);
+            setstarttime(detailedGraphActive()?detailedPlot().panStart(starttime,duration,dx):starttime+1.2*(dx/dwidth)*duration);
             #ifndef WEAROS
             if(!showpers)
             #endif
@@ -1485,19 +1499,23 @@ static bool ybezig=false;
         {
         if(fixatey)
             return 0;
-        if(ybezig||(dheight/absdy)<convfactor) {
+        const bool detailed=detailedGraphActive();
+        const auto plot=detailed?detailedPlot():DetailedPlot{};
+        const float gestureHeight=detailed?plot.height():dheight;
+        const float gestureTop=detailed?plot.top:0;
+        if(ybezig||(gestureHeight/absdy)<convfactor) {
             ybezig=true;
             dy*=-1;
-            float grens=dheight/2.0;
+            float grens=gestureTop+gestureHeight/2.0;
 
             if(y<grens&&yold<grens) {
-                grange*=dheight/(dheight-dy*1.4);
+                grange*=gestureHeight/(gestureHeight-dy*1.4);
                 settime=starttime;
                 setend=starttime+duration;
                 }
             else if(y>grens&&yold>grens) {
                 int gmax=gmin+grange;
-                grange*=dheight/(dheight+dy*1.4);
+                grange*=gestureHeight/(gestureHeight+dy*1.4);
                 gmin=gmax-grange;
                 if(gmin<0)
                     gmin=0;
@@ -1520,9 +1538,9 @@ void JCurve::xscaleGesture(float scalex,float midx) {
     if(fixatex)
         return;
 
-    double rat=((midx-dleft)/dwidth);
+    double rat=detailedGraphActive()?detailedPlot().fraction(midx):((midx-dleft)/dwidth);
     double oldduration=duration;
-    uint32_t focustime=rat*oldduration+starttime;
+    double focustime=rat*oldduration+starttime;
     duration=(int)round(oldduration/pow(scalex,5.0));
 constexpr const int maxduration=30*24*60*60;
 constexpr const int minduration=10*60;
@@ -1533,7 +1551,7 @@ constexpr const int minduration=10*60;
                 duration=minduration;
         }
     LOGGER("xscale scale=%f mid=%f oldduration=%f newduration=%d\n",scalex,midx,oldduration,duration);
-    setstarttime(focustime-rat*duration);
+    setstarttime(detailedGraphActive()?detailedPlot().zoomStart(starttime,oldduration,duration,midx):static_cast<uint32_t>(focustime)-rat*duration);
     auto maxstart= maxstarttime();
     if(
 #ifndef WEAROS
@@ -2140,6 +2158,11 @@ int getmenu(int tapx,float dwidth) {
     return tapx*maxmenu/dwidth;
     }
  void    JCurve::withredisplay(NVGcontext* avg,uint32_t nu)  {
+    struct DetailedPaint {
+        bool &paint;
+        DetailedPaint(bool &p,bool on):paint(p) { paint=on; }
+        ~DetailedPaint() { paint=false; }
+    } detailedPaint(drawingDetailed,detailedGraphActive());
 #ifndef WEAROS
     extern bool showsummarygraph;
     if(showpers&&!showsummarygraph) {
@@ -2758,7 +2781,7 @@ void JCurve::resizescreen(int widthin, int heightin,int initscreenwidth) {
      * uses the current surface as-is, with ordinary landscape-style geometry
      * and left-to-right menu quarters. Android itself may either freely rotate
      * or be locked in this current orientation. */
-    if(portrait && !currentOrientationAsLandscape()) {
+    if(portrait && !currentOrientationAsLandscape() && !detailedGraphActive()) {
         width=heightin;
         height=widthin;
         }
@@ -3001,6 +3024,15 @@ int getglucosestr(double nonconvert,char *glucosestr,int maxglucosestr,int gluco
 
 
 void    JCurve::startstep(NVGcontext* avg,const NVGcolor &col) {
+        // Detailed phone presentation can toggle, or a scan can replace it,
+        // without Android changing the EGL surface dimensions.
+        if(!physicalNanoVG && surfacewidth>0 && surfaceheight>0) {
+            const bool quarter=portrait && !currentOrientationAsLandscape() && !detailedGraphActive();
+            const int wantedWidth=quarter?surfaceheight:surfacewidth;
+            const int wantedHeight=quarter?surfacewidth:surfaceheight;
+            if(width!=wantedWidth || height!=wantedHeight)
+                resizescreen(surfacewidth,surfaceheight,0);
+            }
         /*
          * Display rotation, orientation setting and physical/non-graph mode can
          * change without a resize (notably a 180-degree Android rotation).
@@ -3046,6 +3078,8 @@ void    JCurve::endstep(NVGcontext* avg) {
 
 time_t lastviewtime=0;
 int    JCurve::onestep(NVGcontext* avg) {
+    detailedFrame.store(false);
+    legacyPhoneFrame=false;
     LOGAR("onestep");
     time_t nu=time(nullptr);
     lastviewtime=nu;
@@ -3075,8 +3109,10 @@ int    JCurve::onestep(NVGcontext* avg) {
     }
 #if defined(JUGGLUCO_APP)&&defined(USE_DISPLAYER)
 extern bool  showtextbox(JCurve *,NVGcontext* avg) ;
-    if(showtextbox(this,avg))
+    if(showtextbox(this,avg)) {
+        detailedFrame.store(false);
         ret=1;
+        }
 #endif
     endstep(avg);    
     return ret;

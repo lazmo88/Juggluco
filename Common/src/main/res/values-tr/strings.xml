@@ -270,7 +270,6 @@
     <string name="notify">Bildir</string>
  <string name="separate">Ayır</string>
     <string name="librecurrent">Hemen</string>
-    <string name="USE_ALARM">Alarmı Cihazdan Ayarla</string>
     <string name="speed">Hız</string>
  <string name="pitch">Perde</string>
  <string name="talker">Ses</string>

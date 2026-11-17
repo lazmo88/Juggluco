@@ -24,6 +24,7 @@
 #define NUMDATA_H
 
 #include <algorithm>
+#include <cmath>
 #include <string_view>
 #include <type_traits>
 #include <stdint.h>
@@ -43,9 +44,13 @@
 #include "num.h"
 #include "mirrorrepair.hpp"
 #include "mirrordatabase.hpp"
+#include "healthsource.hpp"
+#include "net/makerandom.hpp"
+#include <sys/mman.h>
 #include "net/mirrorvalidate.hpp"
 #include "activity/global.hpp"
 #include "activity/amount_binding.hpp"
+#include "meter/importreceipt.hpp"
 //extern void wakeaftermin(const int waitmin) ;
 //extern void wakeuploader();
 
@@ -138,18 +143,55 @@ Numdata(int index,const std::string_view base,identtype id,size_t len=0):newnums
 bool mappingsAvailable() const {
     return nums.data()&&nums.size()>=16&&libreids.data()&&librechanged.data()&&changetimes.data();
     }
+// Caller holds nummutex. Persist the epoch before resetting received history.
+bool healthInventoryToken(healthblood::SourceToken &token,bool advance=false) {
+    if(!mappingsAvailable())return false;
+    return healthblood::sourceToken(raw(),256,advance,token,
+        [](void *p,size_t n){return makerandom(p,n);},
+        [&](){int result;do {result=msync(nums.data(),256,MS_SYNC);}while(result<0&&errno==EINTR);
+            return result==0;});
+    }
+bool invalidateHealthInventory() {
+    healthblood::SourceToken ignored;return healthInventoryToken(ignored,true);
+    }
+bool beginHealthInventoryReset() {
+    if(!mappingsAvailable())return false;
+    healthblood::SourceToken ignored;
+    return healthblood::beginReset(raw(),256,ignored,
+        [](void *p,size_t n){return makerandom(p,n);},
+        [&](){int result;do {result=msync(nums.data(),256,MS_SYNC);}while(result<0&&errno==EINTR);
+            return result==0;});
+    }
 size_t capacity() const {
     return mappingsAvailable()?std::min({nums.size()-16,libreids.size(),librechanged.size(),changetimes.size()}):0;
     }
 bool mirrorRepairPending() const {
     uint32_t marker;memcpy(&marker,raw()+numrepair::markerOffset,sizeof(marker));
-    return marker==numrepair::pending;
+    // Unknown markers are unavailable too, never an authoritative empty history.
+    return marker!=0||healthblood::resetMarker(raw())!=0;
     }
-void finishMirrorRepair(uint32_t last) {
-    if(!mirrorRepairPending())return;
+bool finishMirrorRepair(uint32_t last) {
+    uint32_t repair;memcpy(&repair,raw()+numrepair::markerOffset,sizeof(repair));
+    const auto reset=healthblood::resetMarker(raw());
+    if((repair&&repair!=numrepair::pending)||(reset&&reset!=healthblood::resetPending))return false;
+    if(!repair&&!reset)return true;
+    if(getfirstpos()<0||last<uint32_t(getfirstpos())||last>capacity()||last!=uint32_t(getlastpos()))return false;
+    // msync requires a page-aligned start, not startdata(). Flush the entire
+    // populated prefix including positions while both durable markers remain.
+    int result;
+    do {result=msync(nums.data(),256+size_t(last)*sizeof(Num),MS_SYNC);}while(result<0&&errno==EINTR);
+    if(result)return false;
     const uint32_t cleared=0;
     memcpy(raw()+numrepair::markerOffset,&cleared,sizeof(cleared));
+    memcpy(raw()+healthblood::resetOffset,&cleared,sizeof(cleared));
+    do {result=msync(nums.data(),256,MS_SYNC);}while(result<0&&errno==EINTR);
+    if(result) {
+        memcpy(raw()+numrepair::markerOffset,&repair,sizeof(repair));
+        memcpy(raw()+healthblood::resetOffset,&reset,sizeof(reset));
+        return false;
+    }
     LOGGERTAG("numerical mirror repair resynchronized last=%u\n",last);
+    return true;
     }
 
 //Numdata(const std::string_view base):Numdata(base,readident(base)) { }
@@ -599,6 +641,7 @@ bool receivelastpos(int base,int lastpos)  {
     const auto first=getfirstpos();
     if((repairing&&lastpos!=first)||lastpos<first||
        lastpos>std::max(oldlastpos,first)||size_t(oldlastpos)>capacity())return false;
+    if((repairing||lastpos<oldlastpos)&&!invalidateHealthInventory())return false;
     setlastpos(lastpos);
     if(repairing)setlastpolledpos(lastpos);
     if(lastpos<oldlastpos) {
@@ -607,8 +650,7 @@ bool receivelastpos(int base,int lastpos)  {
         Garmindeletelast(base,lastpos,oldlastpos);
 #endif
         }
-    finishMirrorRepair(lastpos);
-    return true;
+    return finishMirrorRepair(lastpos);
     }
 
 void setonlychangetimes(int ind,int nr,const Num*data) { 
@@ -636,16 +678,22 @@ bool nearnext(const Num *next,const uint32_t time, const float32_t value, const 
     return next->type==type&&next->value==value&&((next->time-time)<mindistancesecs);
     }
 std::mutex nummutex;
+#include "meter/acceptedstorage.inc"
 Num * numsaveonly( const uint32_t time, const float32_t value, const uint32_t type,const uint32_t mealptrin,bool noprevious=false) {
     std::lock_guard<std::mutex> lck(nummutex);
+    return numsaveonlyLocked(time,value,type,mealptrin,noprevious,false);
+    }
+// Caller holds nummutex. Explicit consent imports dedupe the exact tuple, not
+// the legacy 90-second proximity rule. Ordinary callers retain that rule.
+Num *numsaveonlyLocked(const uint32_t time,const float32_t value,const uint32_t type,const uint32_t mealptrin,bool noprevious,bool exact) {
     Num *num=firstAfter(time);
-    if(noprevious&&nearprevious(num,time,value,type)){
+    if(!exact&&noprevious&&nearprevious(num,time,value,type)){
          return nullptr;
         }
     const int ind=index(num);
     const Num *endnum=end();
     if(num<endnum)  {
-        if(nearnext(num,time,value,type)) {
+        if(!exact&&nearnext(num,time,value,type)) {
             return nullptr;
             }
         const int movelen=(endnum-num);
@@ -686,12 +734,13 @@ void numsave( const uint32_t time, const float32_t value, const uint32_t type,co
 
 void numsavepos(int pos, uint32_t time, float32_t value, uint32_t type,uint32_t mealptr) {
     Num previous{},saved{};bool replaced=false;
+    {
+    std::lock_guard<std::mutex> lck(nummutex);
     if(pos>0&&time<at(pos-1).time)  {
         LOGGERTAG("numsavepos earlier than previous %u<%u\n",time,at(pos-1).time);
 //        at(pos).time=at(pos-1).time;
         }
     else {
-        std::lock_guard<std::mutex> lck(nummutex);
         LOGGERTAG("numsavepos %d %d %f %s\n",pos,mealptr,value,settings->getlabel(type).data());
         if(mealptr&&type!=settings->data()->bloodvar&&!Num::issportref(mealptr)&&!meals->datameal()->goodmeal(mealptr)) {
             mealptr=0;
@@ -716,6 +765,7 @@ void numsavepos(int pos, uint32_t time, float32_t value, uint32_t type,uint32_t 
         setchangetimes(pos,pos+1);
         changeCalibration(oldtime, oldexclude,time, type,&num,this);
         }
+    }
     if(replaced)changeActivityReference(previous,saved);
     setnumchanged();
      }
@@ -994,6 +1044,7 @@ void    libremovelarger(int from,int to,int movelen) { //to>from
 
 public:
 void numchange(const Num *hit, uint32_t time, float32_t value, uint32_t type,uint32_t mealptr) {
+    std::unique_lock<std::mutex> lck(nummutex);
     const Num previous=*hit;
 //    removeCalibration(hit);
     uint32_t oldtime=hit->time;
@@ -1062,7 +1113,6 @@ void numchange(const Num *hit, uint32_t time, float32_t value, uint32_t type,uin
         *num={.time=time,.mealptr=mealptr,.value=value,.type=type};
         }
 
-    changeActivityReference(previous,*num);
     if(newpos>=getlibreSolid()) {
         addlibrechange(newpos);
         }
@@ -1073,8 +1123,12 @@ void numchange(const Num *hit, uint32_t time, float32_t value, uint32_t type,uin
     updatepos(pos,lastupdate);
     setnumchanged();
     changeCalibration(oldtime,oldexclude, time, type,num,this);
+    const Num saved=*num;
+    lck.unlock();
+    changeActivityReference(previous,saved);
     }
 void prunenums() {
+    std::lock_guard<std::mutex> lck(nummutex);
     LOGGER("start prunenums %lld\n",ident);
     Num *beg=  begin();
     Num *en= end();
@@ -1285,6 +1339,7 @@ bool numbackupinit(const numinit *nums) {
     std::lock_guard<std::mutex> lock(nummutex);
     if(!mirrornums::source(bool(nums->ident),getindex())||
        !mappingsAvailable()||nums->first>capacity())return false;
+    if(!beginHealthInventoryReset())return false;
     const identtype  newident=nums->ident;
     if(ident!=newident) {
         extern pathconcat numbasedir;
@@ -1525,7 +1580,8 @@ bool backupnums(const struct numsend* innums) {
            mirrorRepairPending()?uint32_t(getfirstpos()):uint32_t(getlastpos()))) {
         LOGGERTAG("backupnums rejected invalid positions or spans\n");
         return false;
-    }
+        }
+    if((mirrorRepairPending()||innums->last<getlastpos())&&!invalidateHealthInventory())return false;
     const int nr=innums->nr;
     const uint32_t *numsar=innums->nums;
     Num *start=startdata();
@@ -1560,7 +1616,7 @@ bool backupnums(const struct numsend* innums) {
     librechangelastpos(newlastpos);
     setlastpos(newlastpos);
     setlastpolledpos(newlastpos);
-    finishMirrorRepair(newlastpos);
+    if(!finishMirrorRepair(newlastpos))return false;
     
     if(backup)
         backup->wakebackup(wakenums);

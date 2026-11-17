@@ -88,6 +88,19 @@ import static tk.glucodata.settings.Settings.removeContentView;
 import static tk.glucodata.util.getlabel;
 
 public class GlucoseCurve extends GLSurfaceView {
+@Override protected void onLayout(boolean changed,int l,int t,int r,int b) {
+    super.onLayout(changed,l,t,r,b);
+    syncViewportInsets();
+    }
+/* Window bars are relative to the EGL surface, which can sit below phone chrome. */
+public void syncViewportInsets() {
+    if(!Applic.Nativesloaded||getWidth()==0||getHeight()==0||!(getParent() instanceof View)) return;
+    final int l=Math.max(0,MainActivity.systembarLeft-getLeft());
+    final int t=Math.max(0,MainActivity.systembarTop-getTop());
+    final int r=Math.max(0,MainActivity.systembarRight-((View)getParent()).getWidth()+getRight());
+    final int b=Math.max(0,MainActivity.systembarBottom-((View)getParent()).getHeight()+getBottom());
+    queueEvent(() -> Natives.systembar(l,t,r,b));
+    }
 Button summarybutton=null;
 boolean statspresent=false;
 @Keep

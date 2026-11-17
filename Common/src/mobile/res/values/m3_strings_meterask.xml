@@ -5,22 +5,45 @@
     <!-- Meter settings page -->
     <string name="jm_meterask_section">Shared meter</string>
     <string name="jm_meterask_toggle">Ask before saving readings</string>
-    <string name="jm_meterask_toggle_summary">For a meter used by more than one person. After each sync you choose which readings are yours.</string>
-    <string name="jm_meterask_choose">Choose your readings</string>
+    <string name="jm_meterask_toggle_summary">For a meter used by more than one person. Choose Add or Exclude before saving. Remembered exclusions remain protected even if this is turned off.</string>
+    <string name="jm_meterask_choose">Review waiting readings</string>
     <plurals name="jm_meterask_waiting">
         <item quantity="one">%d reading is waiting for your choice</item>
         <item quantity="other">%d readings are waiting for your choice</item>
     </plurals>
-    <string name="jm_meterask_still_on">Still on. First choose which of the waiting readings are yours.</string>
+    <string name="jm_meterask_still_on">Still on. Review waiting readings and save your Add or Exclude choices first. Later defers them.</string>
 
     <!-- Meter list row -->
     <string name="jm_meterask_list_on">Asks before saving readings</string>
 
     <!-- Dialog after a sync -->
-    <string name="jm_meterask_title">New meter readings</string>
-    <string name="jm_meterask_message">Choose the readings that are yours. The others are not saved on this phone.</string>
-    <string name="jm_meterask_all">All mine</string>
-    <string name="jm_meterask_none">None mine</string>
+    <string name="jm_meterask_title">Meter reading choices</string>
+    <string name="jm_meterask_message">Choose Add for your readings or Exclude for someone else’s. Save choices commits your selections; unchosen readings stay waiting. Later keeps your draft choices without adding or excluding anything. Review deferred readings from Shared meter. Exclusions are remembered for this meter.</string>
+    <string name="jm_meterask_add">Add</string>
+    <string name="jm_meterask_exclude">Exclude</string>
+    <string name="jm_meterask_save_choices">Save choices</string>
+    <string name="jm_meterask_add_committed">Add already committed. Save choices retries unfinished import; this is not an undo.</string>
+    <!-- Readings an older app version accepted without recording how it converted them -->
+    <string name="jm_meterask_legacy_title">Check earlier readings</string>
+    <string name="jm_meterask_legacy_message">An older version of the app accepted these readings, but it can’t tell whether they were saved. Check each one against your log.</string>
+    <!-- %s: date and time of the saved reading -->
+    <string name="jm_meterask_legacy_found">Same value saved at %s.</string>
+    <string name="jm_meterask_legacy_absent">Not in your log within a day of this time.</string>
+    <string name="jm_meterask_legacy_unknown">Can’t check your log right now. Try again later.</string>
+    <string name="jm_meterask_legacy_keep">That’s it, keep it</string>
+    <string name="jm_meterask_legacy_add_also">Add as separate</string>
+    <string name="jm_meterask_legacy_add">Add now</string>
+    <string name="jm_meterask_legacy_discard">Discard</string>
+    <string name="jm_meterask_legacy_done">Close</string>
+    <!-- Meter page: when this phone may hold the meter's Bluetooth connection -->
+    <string name="jm_meterlink_section">Connection</string>
+    <string name="jm_meterlink_always">Always</string>
+    <string name="jm_meterlink_app_open">While app is open</string>
+    <string name="jm_meterlink_note">A meter usually talks to only one phone at a time. Always: this phone picks up new readings in the background, and may reach the meter before another phone does. While app is open: this phone connects when you open the app or pull to refresh, and lets go of the meter shortly after you leave the app, but never during a transfer. If phones share a meter, choose this on each of them.</string>
+    <string name="jm_meterask_choose_first">Choose Add or Exclude for at least one reading, or use Later to defer.</string>
+    <string name="jm_meterask_storage_error">Could not finish saving choices. Unfinished readings stay waiting. Check storage and review them again; no unsaved draft is permission to add a reading.</string>
+    <string name="jm_meterask_all">Add all</string>
+    <string name="jm_meterask_none">Exclude all</string>
     <string name="jm_meterask_later">Later</string>
     <!-- value, unit -->
     <string name="jm_meterask_value">%1$s %2$s</string>

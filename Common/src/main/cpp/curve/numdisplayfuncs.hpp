@@ -210,8 +210,12 @@ template <class TX,class TY> void NumDisplay::showNums(JCurve&jcurve, const TX &
 					jcurve.sidenum(vg,xpos,ypos,buf2,len,hit);
 					nvgTextAlign(vg,NVG_ALIGN_CENTER|NVG_ALIGN_MIDDLE);
 					}
-				else
-					jcurve.drawText(vg, xpos,ypos-(hit?2.4:2)*jcurve.smallsize, buf, buf+buflen);
+				else {
+                    float timeY=ypos-(hit?2.4f:2.0f)*jcurve.smallsize;
+                    if(jcurve.detailedGraphActive() && timeY<jcurve.detailedPlot().top+jcurve.smallfontlineheight/2)
+                        timeY=ypos+2*jcurve.smallsize;
+                    jcurve.drawText(vg,xpos,timeY,buf,buf+buflen);
+                    }
 
 #ifndef DONTTALK
 				if(speakout) {

@@ -65,6 +65,15 @@
 
     <!-- Card with the latest finger-stick readings -->
     <string name="dash_meter_title">Meter readings</string>
+    <string name="dash_refreshing">Refreshing</string>
+    <string name="dash_refreshed">Up to date</string>
+    <string name="dash_refreshed_meters">Checked paired meters for new readings</string>
+    <string name="dash_refreshed_synced">Refreshed and synced to Health Connect</string>
+    <!-- Pull to refresh, what the glucose meter did -->
+    <string name="dash_meter_new">Meter: new readings received</string>
+    <string name="dash_meter_none">Meter: no new readings</string>
+    <string name="dash_meter_sending">Meter connected, still sending. New readings will appear when it finishes.</string>
+    <string name="dash_meter_unreached">Meter didn’t answer. Turn it on or take a measurement, keep it close, then pull again.</string>
     <string name="dash_meter_all">All readings</string>
 
     <!-- %1$s low, %2$s high, %3$s unit -->
